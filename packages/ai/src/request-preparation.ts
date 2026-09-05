@@ -7,11 +7,11 @@ import type { BlobReference, JsonObject, ThinkingLevel } from "@axl/protocol";
 
 import { assertModelSupports } from "./capabilities.ts";
 import {
+  FrozenToolRoster,
   GENERIC_TOOL_DIALECT,
   OPENAI_CHAT_TOOL_DIALECT,
-  FrozenToolRoster,
-  type ToolDialectData,
   renderToolName,
+  type ToolDialectData,
 } from "./dialect.ts";
 import type {
   ApiDialect,
@@ -551,7 +551,9 @@ function strictToolSupport(model: ModelInfo): boolean {
     compatibility.dialect === "anthropic-messages" ||
     compatibility.dialect === "google-generative-ai" ||
     compatibility.dialect === "google-vertex" ||
-    compatibility.dialect === "bedrock-converse-stream"
+    compatibility.dialect === "bedrock-converse-stream" ||
+    compatibility.dialect === "mistral-conversations" ||
+    compatibility.dialect === "gateway-messages"
   ) {
     return compatibility.supportsStrictTools === true;
   }
@@ -700,6 +702,9 @@ function prepareReasoning(model: ModelInfo, request: ModelRequest): PreparedReas
       compatibility.thinkingTokenBudgetField !== undefined) ||
     (compatibility?.dialect === "anthropic-messages" &&
       compatibility.forceAdaptiveThinking !== true) ||
+    (compatibility?.dialect === "bedrock-converse-stream" &&
+      compatibility.supportsThinkingSignatures === true &&
+      compatibility.forceAdaptiveThinking !== true) ||
     googleBudget !== undefined;
   if (!usesBudget) {
     return Object.freeze({
@@ -799,13 +804,16 @@ function prepareCache(
     retention !== "none" &&
     (model.apiDialect === "anthropic-messages" ||
       (compatibility?.dialect === "openai-chat" &&
-        compatibility.cacheControlFormat === "anthropic"));
+        compatibility.cacheControlFormat === "anthropic") ||
+      (compatibility?.dialect === "bedrock-converse-stream" &&
+        compatibility.supportsPromptCacheMarkers === true));
   if (usesContentMarkers) {
     if (request.system !== undefined && request.system.length > 0)
       placements.push({ target: "system" });
     const supportsToolMarker =
-      compatibility?.dialect !== "anthropic-messages" ||
-      compatibility.supportsCacheControlOnTools === true;
+      compatibility?.dialect === "openai-chat" ||
+      (compatibility?.dialect === "anthropic-messages" &&
+        compatibility.supportsCacheControlOnTools === true);
     if (supportsToolMarker && tools.length > 0) {
       placements.push({ target: "tool", toolIndex: tools.length - 1 });
     }

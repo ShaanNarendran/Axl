@@ -307,6 +307,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -348,6 +351,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -389,6 +395,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -430,6 +439,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -480,6 +492,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -530,6 +548,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -580,6 +604,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true
       }
     },
     {
@@ -631,6 +661,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true
       }
     },
     {
@@ -681,6 +716,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true
       }
     },
     {
@@ -731,6 +772,13 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -781,6 +829,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -831,6 +885,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -881,6 +941,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -931,6 +997,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true
       }
     },
     {
@@ -981,6 +1053,13 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -1031,6 +1110,13 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -1081,6 +1167,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true
       }
     },
     {
@@ -1131,6 +1223,13 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -1181,6 +1280,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -1231,6 +1336,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -1281,6 +1392,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true
       }
     },
     {
@@ -1331,6 +1448,13 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -1381,6 +1505,13 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -1421,6 +1552,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -1461,6 +1595,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -1501,6 +1639,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -1551,6 +1693,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -1601,6 +1749,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true
       }
     },
     {
@@ -1651,6 +1805,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true
       }
     },
     {
@@ -1701,6 +1861,13 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -1751,6 +1918,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -1801,6 +1974,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -1851,6 +2030,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -1901,6 +2086,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true
       }
     },
     {
@@ -1951,6 +2142,13 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -2001,6 +2199,13 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -2051,6 +2256,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -2101,6 +2312,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -2151,6 +2368,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true
       }
     },
     {
@@ -2201,6 +2424,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true
       }
     },
     {
@@ -2251,6 +2480,13 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -2301,6 +2537,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -2351,6 +2593,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -2401,6 +2649,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -2451,6 +2705,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true
       }
     },
     {
@@ -2501,6 +2761,13 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -2551,6 +2818,13 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -2611,6 +2885,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -2671,6 +2948,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -2731,6 +3011,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -2771,6 +3054,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -2811,6 +3098,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -2861,6 +3151,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true
       }
     },
     {
@@ -2911,6 +3207,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -2961,6 +3263,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -3011,6 +3319,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -3061,6 +3375,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true
       }
     },
     {
@@ -3111,6 +3431,13 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -3161,6 +3488,13 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -3201,6 +3535,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -3241,6 +3578,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -3281,6 +3621,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -3321,6 +3664,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -3361,6 +3707,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -3401,6 +3750,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -3441,6 +3793,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -3481,6 +3836,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -3521,6 +3879,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -3561,6 +3923,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -3601,6 +3967,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -3641,6 +4011,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -3681,6 +4055,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -3721,6 +4099,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -3761,6 +4143,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -3801,6 +4186,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -3841,6 +4230,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -3881,6 +4274,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -3921,6 +4318,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -3961,6 +4362,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4001,6 +4406,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4041,6 +4450,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4081,6 +4494,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4131,6 +4548,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4181,6 +4602,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4241,6 +4666,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4301,6 +4730,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4361,6 +4794,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4409,6 +4846,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4457,6 +4898,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4505,6 +4950,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4553,6 +5002,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4593,6 +5046,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4633,6 +5090,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4673,6 +5134,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4713,6 +5178,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4753,6 +5222,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4793,6 +5266,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4833,6 +5310,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4873,6 +5354,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4913,6 +5398,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -4963,6 +5452,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -5013,6 +5508,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -5063,6 +5564,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true
       }
     },
     {
@@ -5114,6 +5621,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true
       }
     },
     {
@@ -5164,6 +5676,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true
       }
     },
     {
@@ -5214,6 +5732,13 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -5264,6 +5789,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -5314,6 +5845,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -5364,6 +5901,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -5414,6 +5957,12 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true
       }
     },
     {
@@ -5464,6 +6013,13 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -5514,6 +6070,13 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true,
+        "supportsPromptCacheMarkers": true,
+        "supportsThinkingSignatures": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -5554,6 +6117,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -5594,6 +6160,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -5634,6 +6203,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -5674,6 +6246,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -5714,6 +6289,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream"
       }
     },
     {
@@ -5764,6 +6342,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -5813,6 +6395,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -5853,6 +6439,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -5893,6 +6483,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     },
     {
@@ -5933,6 +6527,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "bedrock-converse-stream",
+        "supportsStrictTools": true
       }
     }
   ],
@@ -21563,6 +22161,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -21597,6 +22198,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -21631,6 +22235,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -21665,6 +22272,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -21699,6 +22309,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -21733,6 +22346,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -21767,6 +22383,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -21801,6 +22420,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -21834,6 +22456,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -21867,6 +22492,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -21900,6 +22528,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -21933,6 +22564,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -21966,6 +22600,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -21999,6 +22636,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -22032,6 +22672,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -22065,6 +22708,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -22098,6 +22744,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -22140,6 +22789,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations",
+        "supportsStrictTools": true
       }
     },
     {
@@ -22182,6 +22835,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations",
+        "supportsStrictTools": true
       }
     },
     {
@@ -22215,6 +22872,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -22248,6 +22908,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -22290,6 +22953,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -22332,6 +22998,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -22365,6 +23034,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -22399,6 +23071,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -22432,6 +23107,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -22465,6 +23143,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -22498,6 +23179,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -22531,6 +23215,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -22564,6 +23251,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations"
       }
     },
     {
@@ -22607,6 +23297,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "preview",
         "reason": "Source catalog status: beta"
+      },
+      "compatibility": {
+        "dialect": "mistral-conversations",
+        "supportsStrictTools": true
       }
     }
   ],

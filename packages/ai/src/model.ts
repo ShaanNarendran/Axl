@@ -3,15 +3,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type {
+  AssistantContent,
   BlobReference,
   JsonObject,
-  AssistantContent,
   SafeProviderDiagnostic,
   ThinkingLevel,
   ToolCallRequest,
   ToolDeclaration,
-  UserContent,
   Usage,
+  UserContent,
 } from "@axl/protocol";
 
 // The canonical stream and message shapes live in @axl/protocol so the
@@ -197,10 +197,23 @@ export interface GoogleVertexCompatibility {
 export interface BedrockCompatibility {
   readonly dialect: "bedrock-converse-stream";
   readonly supportsStrictTools?: boolean;
+  readonly supportsPromptCacheMarkers?: boolean;
+  readonly supportsThinkingSignatures?: boolean;
+  readonly forceAdaptiveThinking?: boolean;
+}
+
+export interface MistralCompatibility {
+  readonly dialect: "mistral-conversations";
+  readonly supportsStrictTools?: boolean;
+}
+
+export interface GatewayMessagesCompatibility {
+  readonly dialect: "gateway-messages";
+  readonly supportsStrictTools?: boolean;
 }
 
 export interface GenericCompatibility {
-  readonly dialect: "mistral-conversations" | "gateway-messages" | "fake";
+  readonly dialect: "fake";
 }
 
 /** Dialect-specific compatibility controls. No arbitrary compatibility keys are accepted. */
@@ -211,6 +224,8 @@ export type ModelCompatibility =
   | GoogleGenerativeAiCompatibility
   | GoogleVertexCompatibility
   | BedrockCompatibility
+  | MistralCompatibility
+  | GatewayMessagesCompatibility
   | GenericCompatibility;
 
 export type SamplingOptionName =

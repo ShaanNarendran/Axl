@@ -258,6 +258,31 @@ function normalizeModel(
   ) {
     compatibility = { ...baseCompatibility, supportsStrictTools: true };
   }
+  if (baseCompatibility?.dialect === "bedrock-converse-stream") {
+    const isClaude = modelId.includes("anthropic.claude");
+    const adaptive =
+      isClaude &&
+      ["opus-4-6", "opus-4-7", "opus-4-8", "opus-5", "sonnet-4-6", "sonnet-5", "fable-5"].some(
+        (name) => modelId.includes(name),
+      );
+    compatibility = {
+      ...baseCompatibility,
+      ...(source.structuredOutput === true ? { supportsStrictTools: true } : {}),
+      ...(isClaude
+        ? {
+            supportsPromptCacheMarkers: true,
+            supportsThinkingSignatures: true,
+            ...(adaptive ? { forceAdaptiveThinking: true } : {}),
+          }
+        : {}),
+    };
+  }
+  if (baseCompatibility?.dialect === "mistral-conversations") {
+    compatibility = {
+      ...baseCompatibility,
+      ...(source.structuredOutput === true ? { supportsStrictTools: true } : {}),
+    };
+  }
   return {
     providerId: overlay.id,
     modelId,

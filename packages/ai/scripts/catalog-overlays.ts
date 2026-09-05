@@ -217,6 +217,9 @@ export const PROVIDER_CATALOG_OVERLAYS: readonly ProviderCatalogOverlay[] = [
       variables: [{ name: "region", setting: "region", required: true }],
     },
     cache: shortCache,
+    compatibilityByDialect: {
+      "bedrock-converse-stream": { dialect: "bedrock-converse-stream" },
+    },
   },
   {
     id: "github-copilot",
@@ -261,6 +264,9 @@ export const PROVIDER_CATALOG_OVERLAYS: readonly ProviderCatalogOverlay[] = [
     dialect: "mistral-conversations",
     endpoint: fixed("https://api.mistral.ai/v1"),
     cache: shortCache,
+    compatibilityByDialect: {
+      "mistral-conversations": { dialect: "mistral-conversations" },
+    },
   },
   {
     id: "groq",

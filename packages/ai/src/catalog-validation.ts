@@ -103,6 +103,8 @@ const COMPATIBILITY_FIELDS = new Set([
   "supportsTemperature",
   "forceAdaptiveThinking",
   "allowEmptyThinkingSignature",
+  "supportsPromptCacheMarkers",
+  "supportsThinkingSignatures",
 ]);
 const ROUTING_FIELDS = new Set([
   "only",
