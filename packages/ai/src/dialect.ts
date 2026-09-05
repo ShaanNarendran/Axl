@@ -116,12 +116,9 @@ export interface ProviderVisibleTool {
   readonly inputSchema: JsonObject;
 }
 
-function renderName(
-  canonicalName: string,
-  override: string | undefined,
-  rule?: ToolNameRule,
-): string {
-  const requested = override ?? canonicalName;
+export function renderToolName(dialect: ToolDialectData, canonicalName: string): string {
+  const requested = dialect.tools?.[canonicalName]?.name ?? canonicalName;
+  const rule = dialect.nameRule;
   if (rule === undefined) return requested;
   const disallowed = new RegExp(`[^${rule.allowed}]+`, "g");
   const sanitized = requested.replace(disallowed, "_").slice(0, rule.maxLength);
@@ -157,7 +154,7 @@ export class FrozenToolRoster {
       const override = dialect.tools?.[tool.name];
       const visible: ProviderVisibleTool = Object.freeze({
         canonicalName: tool.name,
-        name: renderName(tool.name, override?.name, dialect.nameRule),
+        name: renderToolName(dialect, tool.name),
         description: override?.description ?? tool.description,
         inputSchema: override?.inputSchema ?? tool.inputSchema,
       });

@@ -15,6 +15,7 @@ export * from "./openai-responses.ts";
 export * from "./provider.ts";
 export * from "./provider-port.ts";
 export * from "./registry.ts";
+export * from "./request-preparation.ts";
 export * from "./sse.ts";
 export * from "./stream.ts";
 export * from "./thinking.ts";

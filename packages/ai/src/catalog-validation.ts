@@ -1,7 +1,13 @@
 // SPDX-FileCopyrightText: 2026 Kaushik Kumar
 // SPDX-License-Identifier: Apache-2.0
 
-import type { EndpointPolicy, ModelCachePolicy, ModelCompatibility, ModelInfo } from "./model.ts";
+import type {
+  EndpointPolicy,
+  ModelCachePolicy,
+  ModelCompatibility,
+  ModelInfo,
+  ModelSamplingPolicy,
+} from "./model.ts";
 
 const IDENTIFIER = /^[a-z0-9@](?:[a-z0-9._:/@-]*[a-z0-9])?$/i;
 const PROVIDER_IDENTIFIER = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -24,6 +30,16 @@ const API_DIALECTS = new Set([
 ]);
 const AVAILABILITY_STATUSES = new Set(["available", "preview", "deprecated", "unavailable"]);
 const RETENTIONS = new Set(["none", "short", "long"]);
+const SAMPLING_OPTIONS = new Set([
+  "temperature",
+  "topP",
+  "topK",
+  "minP",
+  "frequencyPenalty",
+  "presencePenalty",
+  "repetitionPenalty",
+  "seed",
+]);
 const MODEL_FIELDS = new Set([
   "providerId",
   "modelId",
@@ -36,6 +52,7 @@ const MODEL_FIELDS = new Set([
   "maxOutputTokens",
   "cost",
   "cache",
+  "sampling",
   "endpoint",
   "availability",
   "headers",
@@ -53,6 +70,7 @@ const COST_TIER_FIELDS = new Set(
   [...COST_FIELDS].filter((field) => field !== "tiers").concat("inputTokensAbove"),
 );
 const CACHE_FIELDS = new Set(["supported", "defaultRetention", "supportedRetentions"]);
+const SAMPLING_FIELDS = new Set(["supported", "customFields"]);
 const AVAILABILITY_FIELDS = new Set(["status", "reason"]);
 const ENDPOINT_FIELDS = {
   fixed: new Set(["type", "baseUrl"]),
@@ -257,6 +275,43 @@ function validateCache(cache: ModelCachePolicy, label: string, errors: string[])
   }
 }
 
+function validateSampling(sampling: ModelSamplingPolicy, label: string, errors: string[]): void {
+  if (typeof sampling !== "object" || sampling === null || Array.isArray(sampling)) {
+    errors.push(`${label} has invalid sampling support`);
+    return;
+  }
+  rejectUnknownFields(sampling, SAMPLING_FIELDS, `${label} sampling`, errors);
+  if (!Array.isArray(sampling.supported)) {
+    errors.push(`${label} has invalid sampling support`);
+    return;
+  }
+  const supported = new Set(sampling.supported);
+  if (
+    supported.size !== sampling.supported.length ||
+    sampling.supported.some((option) => !SAMPLING_OPTIONS.has(option))
+  ) {
+    errors.push(`${label} has invalid sampling support`);
+  }
+  if (
+    sampling.customFields !== undefined &&
+    (!Array.isArray(sampling.customFields) ||
+      new Set(sampling.customFields).size !== sampling.customFields.length ||
+      sampling.customFields.some(
+        (field) =>
+          typeof field !== "string" || field.trim().length === 0 || forbiddenMetadataName(field),
+      ))
+  ) {
+    errors.push(`${label} has invalid custom sampling fields`);
+  }
+}
+
+function forbiddenMetadataName(name: string): boolean {
+  const normalized = name.replace(/[^a-z0-9]/gi, "").toLowerCase();
+  return ["authorization", "cookie", "credential", "password", "secret", "token", "apikey"].some(
+    (forbidden) => normalized === forbidden || normalized.endsWith(forbidden),
+  );
+}
+
 function validateCompatibility(
   compatibility: ModelCompatibility,
   model: ModelInfo,
@@ -329,6 +384,7 @@ export function validateModelCatalog(models: readonly ModelInfo[]): readonly Mod
         errors.push(`${label} has cache pricing but caching is unsupported`);
       }
     }
+    if (model.sampling !== undefined) validateSampling(model.sampling, label, errors);
     if (model.availability !== undefined) {
       rejectUnknownFields(model.availability, AVAILABILITY_FIELDS, `${label} availability`, errors);
     }

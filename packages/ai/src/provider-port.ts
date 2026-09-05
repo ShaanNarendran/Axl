@@ -17,6 +17,7 @@ import { fitModelRequest } from "./request-configuration.ts";
 
 import type { ModelProvider } from "./provider.ts";
 import type { ProviderRegistry } from "./registry.ts";
+import { prepareModelRequest } from "./request-preparation.ts";
 import { normalizeModelStream } from "./stream.ts";
 
 export interface SessionPortOptions {
@@ -67,7 +68,18 @@ export function modelPortForSession(
 ): { stream(request: PortTurnRequest): AsyncIterable<ModelStreamEvent> } {
   return {
     stream: (request) =>
-      normalizeModelStream(provider.stream(providerRequest(request, options)), request.signal),
+      normalizeModelStream(
+        (async function* () {
+          const models = await provider.listModels();
+          const model = models.find((candidate) => candidate.modelId === options.modelId);
+          if (model === undefined) {
+            throw new Error(`Provider ${provider.id} has no model ${options.modelId}`);
+          }
+          const prepared = await prepareModelRequest(model, providerRequest(request, options));
+          yield* provider.stream(prepared);
+        })(),
+        request.signal,
+      ),
   };
 }
 

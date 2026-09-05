@@ -7,6 +7,7 @@ import test from "node:test";
 
 import {
   FakeModelProvider,
+  isPreparedModelRequest,
   type ModelStreamEvent,
   modelPortForRegistry,
   modelPortForSession,
@@ -47,6 +48,8 @@ test("binds model choice and thinking level into kernel-shaped turns", async () 
   assert.equal(request?.thinkingLevel, "high");
   assert.equal(request?.system, "You are Axl.");
   assert.equal(request?.readBlob, readBlob);
+  assert.ok(request);
+  assert.equal(isPreparedModelRequest(request), true);
 });
 
 test("binds provider and model identity through the registry coordinator", async () => {

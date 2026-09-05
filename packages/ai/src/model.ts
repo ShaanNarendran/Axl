@@ -5,10 +5,12 @@
 import type {
   BlobReference,
   JsonObject,
-  ModelMessage,
+  AssistantContent,
   SafeProviderDiagnostic,
   ThinkingLevel,
+  ToolCallRequest,
   ToolDeclaration,
+  UserContent,
   Usage,
 } from "@axl/protocol";
 
@@ -204,6 +206,22 @@ export type ModelCompatibility =
   | BedrockCompatibility
   | GenericCompatibility;
 
+export type SamplingOptionName =
+  | "temperature"
+  | "topP"
+  | "topK"
+  | "minP"
+  | "frequencyPenalty"
+  | "presencePenalty"
+  | "repetitionPenalty"
+  | "seed";
+
+export interface ModelSamplingPolicy {
+  readonly supported: readonly SamplingOptionName[];
+  /** Explicit allowlist for custom sampling keys on configured compatible endpoints. */
+  readonly customFields?: readonly string[];
+}
+
 export interface ModelInfo {
   readonly providerId: string;
   readonly modelId: string;
@@ -223,11 +241,76 @@ export interface ModelInfo {
   readonly maxOutputTokens: number;
   readonly cost?: ModelCost;
   readonly cache?: ModelCachePolicy;
+  readonly sampling?: ModelSamplingPolicy;
   readonly endpoint?: EndpointPolicy;
   readonly availability?: ModelAvailability;
   /** Non-secret headers required by this model. Authentication headers are forbidden. */
   readonly headers?: Readonly<Record<string, string>>;
   readonly compatibility?: ModelCompatibility;
+}
+
+export interface ProviderModelIdentity {
+  readonly providerId: string;
+  readonly apiDialect: ApiDialect;
+  readonly modelId: string;
+}
+
+/** Opaque replay data is usable only by the exact provider, dialect, and model that issued it. */
+export interface ProviderSignature extends ProviderModelIdentity {
+  readonly value: string;
+}
+
+/** Provider continuation identifiers are provenance-bound and never treated as credentials. */
+export interface ProviderContinuationMetadata extends ProviderModelIdentity {
+  readonly responseId?: string;
+  readonly itemId?: string;
+  readonly namespace?: string;
+}
+
+export type RequestAssistantContent =
+  | (Extract<AssistantContent, { type: "text" }> & {
+      readonly continuation?: ProviderContinuationMetadata;
+    })
+  | (Extract<AssistantContent, { type: "thinking" }> & {
+      readonly signature?: ProviderSignature;
+      readonly redacted?: boolean;
+    })
+  | Extract<AssistantContent, { type: "blob" }>;
+
+export interface RequestToolCall extends ToolCallRequest {
+  readonly signature?: ProviderSignature;
+  readonly continuation?: ProviderContinuationMetadata;
+}
+
+export type RequestModelMessage =
+  | { readonly role: "user"; readonly content: readonly UserContent[] }
+  | {
+      readonly role: "assistant";
+      readonly content: readonly RequestAssistantContent[];
+      readonly toolCalls?: readonly RequestToolCall[];
+      readonly origin?: ProviderModelIdentity;
+      readonly continuation?: ProviderContinuationMetadata;
+    }
+  | {
+      readonly role: "tool";
+      readonly callId: string;
+      readonly name: string;
+      readonly content: readonly UserContent[];
+      readonly isError: boolean;
+    };
+
+export type ToolConstraint =
+  | { readonly type: "json-schema"; readonly strict: "prefer" | "require" }
+  | {
+      readonly type: "grammar";
+      readonly variants: {
+        readonly lark?: string;
+        readonly regex?: string;
+      };
+    };
+
+export interface RequestToolDeclaration extends ToolDeclaration {
+  readonly constraint?: ToolConstraint;
 }
 
 export interface SamplingOptions {
@@ -257,10 +340,12 @@ export interface RequestControlOptions {
 export interface ModelRequest extends RequestControlOptions {
   readonly modelId: string;
   readonly system?: string;
-  readonly messages: readonly ModelMessage[];
-  readonly tools?: readonly ToolDeclaration[];
+  readonly messages: readonly RequestModelMessage[];
+  readonly tools?: readonly RequestToolDeclaration[];
   readonly thinkingLevel?: ThinkingLevel;
-  readonly thinkingBudgets?: Readonly<Partial<Record<Exclude<ThinkingLevel, "off">, number>>>;
+  readonly thinkingBudgets?: Readonly<
+    Partial<Record<"minimal" | "low" | "medium" | "high", number>>
+  >;
   readonly maxOutputTokens?: number;
   readonly httpIdleTimeoutMs?: number;
   readonly estimatedInputTokens?: number;

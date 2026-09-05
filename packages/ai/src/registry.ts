@@ -12,6 +12,7 @@ import {
 import { validateModelCatalog } from "./catalog-validation.ts";
 import type { ModelInfo, ModelRequest, ModelStreamEvent, SafeProviderDiagnostic } from "./model.ts";
 import type { ModelCatalogRefreshResult, ModelProvider } from "./provider.ts";
+import { prepareModelRequest } from "./request-preparation.ts";
 
 export type ProviderRegistryErrorCode =
   | "registry_disposed"
@@ -328,8 +329,9 @@ export class ProviderRegistry {
     const registry = this;
     return (async function* () {
       const provider = registry.get(providerId);
-      await registry.getModel(providerId, request.modelId);
-      yield* provider.stream(request);
+      const model = await registry.getModel(providerId, request.modelId);
+      const prepared = await prepareModelRequest(model, request);
+      yield* provider.stream(prepared);
     })();
   }
 
