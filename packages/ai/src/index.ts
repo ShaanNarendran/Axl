@@ -5,6 +5,7 @@ export * from "./auth.ts";
 export * from "./azure-openai.ts";
 export * from "./capabilities.ts";
 export * from "./credentials.ts";
+export * from "./diagnostics.ts";
 export * from "./dialect.ts";
 export * from "./fake-provider.ts";
 export * from "./model.ts";

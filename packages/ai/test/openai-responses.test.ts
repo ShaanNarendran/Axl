@@ -9,10 +9,9 @@ import test from "node:test";
 import {
   decodeResponsesStream,
   encodeResponsesRequest,
-  makeFakeModelInfo,
   type ModelRequest,
   type ModelStreamEvent,
-  OpenAiResponsesProvider,
+  makeFakeModelInfo,
   ResponsesCodecError,
   type SseFrame,
 } from "../src/index.ts";
@@ -175,7 +174,26 @@ test("decodes a full transcript into canonical events", async () => {
   assert.deepEqual(events, [
     { type: "thinking_delta", text: "thinking..." },
     { type: "text_delta", text: "Hello" },
-    { type: "tool_call", callId: "call-9", name: "shell", input: { command: "ls" } },
+    { type: "tool_call_start", contentIndex: 1, callId: "call-9", name: "shell" },
+    {
+      type: "tool_call_delta",
+      contentIndex: 1,
+      callId: "call-9",
+      argumentsDelta: '{"command"',
+    },
+    {
+      type: "tool_call_delta",
+      contentIndex: 1,
+      callId: "call-9",
+      argumentsDelta: ':"ls"}',
+    },
+    {
+      type: "tool_call",
+      contentIndex: 1,
+      callId: "call-9",
+      name: "shell",
+      input: { command: "ls" },
+    },
     {
       type: "completed",
       stopReason: "tool_use",
@@ -190,12 +208,48 @@ test("decodes a full transcript into canonical events", async () => {
   ]);
 });
 
-test("incomplete responses complete with stopReason length", async () => {
-  const events = await decode([
-    { type: "response.output_text.delta", delta: "truncat" },
-    { type: "response.incomplete", response: { usage: { input_tokens: 5, output_tokens: 2 } } },
+test("incomplete responses preserve partial and routed response metadata", async () => {
+  const events = await Array.fromAsync(
+    decodeResponsesStream(
+      frames([
+        { type: "response.output_text.delta", output_index: 2, delta: "truncat" },
+        {
+          type: "response.incomplete",
+          response: {
+            id: "response-1",
+            model: "routed/model",
+            status: "incomplete",
+            incomplete_details: { reason: "max_output_tokens" },
+            usage: { input_tokens: 5, output_tokens: 2 },
+          },
+        },
+      ]),
+      { providerId: "gateway", requestedModelId: "auto", startedAtMs: 10, now: () => 25 },
+    ),
+  );
+  assert.deepEqual(events, [
+    { type: "text_delta", text: "truncat", contentIndex: 2 },
+    {
+      type: "completed",
+      stopReason: "length",
+      usage: {
+        inputTokens: 5,
+        outputTokens: 2,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        reasoningTokens: 0,
+      },
+      partial: true,
+      response: {
+        providerId: "gateway",
+        requestedModelId: "auto",
+        routedModelId: "routed/model",
+        responseId: "response-1",
+        nativeStopReason: "max_output_tokens",
+        latencyMs: 15,
+      },
+    },
   ]);
-  assert.equal(events[1]?.type === "completed" && events[1].stopReason, "length");
 });
 
 test("failures decode to error terminals", async () => {

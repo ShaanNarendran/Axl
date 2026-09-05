@@ -45,7 +45,14 @@ function azureModel(definition: AzureModelDefinition): ModelInfo {
     ...(definition.thinkingLevelMap === undefined
       ? {}
       : { thinkingLevelMap: definition.thinkingLevelMap }),
-    ...(definition.grammarTools ? { compatibility: { supportsOpenAIGrammarTools: true } } : {}),
+    ...(definition.grammarTools
+      ? {
+          compatibility: {
+            dialect: "openai-responses" as const,
+            supportsGrammarTools: true,
+          },
+        }
+      : {}),
   };
 }
 

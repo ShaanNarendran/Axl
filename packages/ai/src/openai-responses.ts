@@ -13,11 +13,9 @@ import type {
   Usage,
 } from "@axl/protocol";
 
-import { EnvHttpProxyAgent, fetch as modelFetch } from "undici";
-import { fitModelRequest } from "./request-configuration.ts";
-
-import { AuthError, type ResolvedAuth } from "./auth.ts";
+import type { ResolvedAuth } from "./auth.ts";
 import { assertModelSupports } from "./capabilities.ts";
+import { safeProviderMessage } from "./diagnostics.ts";
 import type { AuthMethod, ModelInfo, ModelRequest, ModelStreamEvent } from "./model.ts";
 import type { ModelProvider } from "./provider.ts";
 import { decodeSseStream, type SseFrame } from "./sse.ts";
@@ -257,8 +255,16 @@ function mapUsage(raw: Record<string, unknown> | undefined): Usage {
  * the terminal event; a stream that ends without one simply returns, and
  * `normalizeModelStream` converts that into an error terminal.
  */
+export interface ResponsesAttribution {
+  readonly providerId: string;
+  readonly requestedModelId: string;
+  readonly startedAtMs?: number;
+  readonly now?: () => number;
+}
+
 export async function* decodeResponsesStream(
   frames: AsyncIterable<SseFrame>,
+  attribution?: ResponsesAttribution,
 ): AsyncGenerator<ModelStreamEvent, void, undefined> {
   const calls = new Map<number, { callId: string; name: string; args: string }>();
   let sawToolCall = false;
@@ -274,24 +280,44 @@ export async function* decodeResponsesStream(
     const type = event.type;
 
     if (type === "response.output_text.delta") {
-      yield { type: "text_delta", text: String(event.delta ?? "") };
+      const contentIndex =
+        typeof event.output_index === "number" ? event.output_index : event.content_index;
+      yield {
+        type: "text_delta",
+        text: String(event.delta ?? ""),
+        ...(typeof contentIndex === "number" ? { contentIndex } : {}),
+      };
     } else if (
       type === "response.reasoning_text.delta" ||
       type === "response.reasoning_summary_text.delta"
     ) {
-      yield { type: "thinking_delta", text: String(event.delta ?? "") };
+      const contentIndex =
+        typeof event.output_index === "number" ? event.output_index : event.content_index;
+      yield {
+        type: "thinking_delta",
+        text: String(event.delta ?? ""),
+        ...(typeof contentIndex === "number" ? { contentIndex } : {}),
+      };
     } else if (type === "response.output_item.added") {
       const item = event.item as { type?: string; call_id?: string; name?: string } | undefined;
       if (item?.type === "function_call") {
-        calls.set(Number(event.output_index ?? 0), {
-          callId: String(item.call_id ?? ""),
-          name: String(item.name ?? ""),
-          args: "",
-        });
+        const contentIndex = Number(event.output_index ?? 0);
+        const callId = String(item.call_id ?? "");
+        const name = String(item.name ?? "");
+        if (callId.length === 0 || name.length === 0) {
+          throw new ResponsesCodecError("Provider sent a tool call without an id or name");
+        }
+        calls.set(contentIndex, { callId, name, args: "" });
+        yield { type: "tool_call_start", contentIndex, callId, name };
       }
     } else if (type === "response.function_call_arguments.delta") {
-      const call = calls.get(Number(event.output_index ?? 0));
-      if (call) call.args += String(event.delta ?? "");
+      const contentIndex = Number(event.output_index ?? 0);
+      const call = calls.get(contentIndex);
+      if (call) {
+        const argumentsDelta = String(event.delta ?? "");
+        call.args += argumentsDelta;
+        yield { type: "tool_call_delta", contentIndex, callId: call.callId, argumentsDelta };
+      }
     } else if (type === "response.function_call_arguments.done") {
       const call = calls.get(Number(event.output_index ?? 0));
       if (call && typeof event.arguments === "string") call.args = event.arguments;
@@ -307,26 +333,53 @@ export async function* decodeResponsesStream(
             cause: error,
           });
         }
-        if (call.callId.length === 0 || call.name.length === 0) {
-          throw new ResponsesCodecError("Provider sent a tool call without an id or name");
-        }
         if (typeof inputValue !== "object" || inputValue === null || Array.isArray(inputValue)) {
           throw new ResponsesCodecError(`Tool call ${call.callId} arguments must be an object`);
         }
         sawToolCall = true;
         yield {
           type: "tool_call",
+          contentIndex: Number(event.output_index ?? 0),
           callId: call.callId,
           name: call.name,
           input: inputValue as JsonObject,
         };
       }
     } else if (type === "response.completed" || type === "response.incomplete") {
-      const response = event.response as { usage?: Record<string, unknown> } | undefined;
+      const response = event.response as
+        | {
+            id?: string;
+            model?: string;
+            status?: string;
+            incomplete_details?: { reason?: string };
+            usage?: Record<string, unknown>;
+          }
+        | undefined;
+      const nativeStopReason = response?.incomplete_details?.reason ?? response?.status;
+      const responseMetadata =
+        attribution === undefined
+          ? undefined
+          : {
+              providerId: attribution.providerId,
+              requestedModelId: attribution.requestedModelId,
+              ...(response?.model === undefined ? {} : { routedModelId: response.model }),
+              ...(response?.id === undefined ? {} : { responseId: response.id }),
+              ...(nativeStopReason === undefined ? {} : { nativeStopReason }),
+              ...(attribution.startedAtMs === undefined
+                ? {}
+                : {
+                    latencyMs: Math.max(
+                      0,
+                      (attribution.now ?? Date.now)() - attribution.startedAtMs,
+                    ),
+                  }),
+            };
       yield {
         type: "completed",
         stopReason: type === "response.incomplete" ? "length" : sawToolCall ? "tool_use" : "stop",
         usage: mapUsage(response?.usage),
+        ...(type === "response.incomplete" ? { partial: true } : {}),
+        ...(responseMetadata === undefined ? {} : { response: responseMetadata }),
       };
       return;
     } else if (type === "response.failed" || type === "error") {
@@ -405,15 +458,11 @@ export class OpenAiResponsesProvider implements ModelProvider {
     model: ModelInfo,
     request: ModelRequest,
   ): AsyncGenerator<ModelStreamEvent, void, undefined> {
-    let url: string;
-    let init: {
-      method: string;
-      headers: Record<string, string>;
-      body: string;
-      signal?: AbortSignal;
-    };
+    let response: Response;
+    let secretValues: readonly string[] = [];
     try {
       const resolved = await this.resolveAuth();
+      secretValues = resolved.secretValues;
       const body = encodeResponsesRequest(
         model,
         request,
@@ -432,48 +481,12 @@ export class OpenAiResponsesProvider implements ModelProvider {
         ...(request.signal === undefined ? {} : { signal: request.signal }),
       };
     } catch (error) {
-      yield this.failure(
-        request,
-        error,
-        "provider_request_setup_failed",
-        "before_dispatch",
-        false,
-        error instanceof AuthError
-          ? "authentication"
-          : error instanceof ResponsesCodecError
-            ? "invalid_request"
-            : "unknown",
-      );
-      return;
-    }
-
-    let response: Pick<Response, "ok" | "status" | "headers" | "body">;
-    try {
-      response =
-        this.fetchImpl === undefined
-          ? await modelFetch(url, {
-              ...init,
-              dispatcher: dispatcherFor(fitModelRequest(model, request).httpIdleTimeoutMs),
-            })
-          : await this.fetchImpl(url, init);
-    } catch (error) {
-      const code = nestedErrorCode(error);
-      const safeToRetry = code !== undefined && SAFE_CONNECT_FAILURES.has(code);
-      yield this.failure(
-        request,
-        error,
-        "provider_request_failed",
-        safeToRetry ? "before_dispatch" : "unknown",
-        safeToRetry,
-        "network",
-      );
+      yield this.failure(request, error, secretValues);
       return;
     }
 
     if (!response.ok) {
-      await response.body?.cancel();
-      const retryable = response.status === 429 || [500, 502, 503, 504].includes(response.status);
-      const retryDelay = retryable ? retryAfterMs(response.headers) : undefined;
+      const detail = safeProviderMessage(await response.text().catch(() => ""), secretValues);
       yield {
         type: "error",
         code: `http_${response.status}`,
@@ -507,26 +520,19 @@ export class OpenAiResponsesProvider implements ModelProvider {
     }
 
     try {
-      yield* decodeResponsesStream(decodeSseStream(response.body));
+      yield* decodeResponsesStream(decodeSseStream(response.body), {
+        providerId: this.id,
+        requestedModelId: request.modelId,
+      });
     } catch (error) {
-      yield this.failure(
-        request,
-        error,
-        "provider_stream_failed",
-        "streaming",
-        false,
-        "stream_interrupted",
-      );
+      yield this.failure(request, error, secretValues);
     }
   }
 
   private failure(
     request: ModelRequest,
     error: unknown,
-    code: string,
-    requestPhase: "before_dispatch" | "awaiting_response" | "streaming" | "unknown",
-    retryable: boolean,
-    category: ModelErrorCategory,
+    secretValues: readonly string[],
   ): ModelStreamEvent {
     if (request.signal?.aborted) return { type: "aborted" };
     const transportCode = nestedErrorCode(error);
@@ -543,11 +549,12 @@ export class OpenAiResponsesProvider implements ModelProvider {
     }
     return {
       type: "error",
-      code,
-      message: error instanceof Error ? error.message : "provider request failed",
-      retryable,
-      category,
-      requestPhase,
+      code: "provider_request_failed",
+      message: safeProviderMessage(
+        error instanceof Error ? error.message : "provider request failed",
+        secretValues,
+      ),
+      retryable: false,
     };
   }
 }

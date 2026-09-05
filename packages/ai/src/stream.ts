@@ -4,6 +4,7 @@
 import {
   isTerminalModelStreamEvent,
   type ModelStreamEvent,
+  parseModelStreamEvent,
   type TerminalModelStreamEvent,
 } from "./model.ts";
 
@@ -19,7 +20,8 @@ export async function* normalizeModelStream(
   signal?: AbortSignal,
 ): AsyncGenerator<ModelStreamEvent, void, undefined> {
   try {
-    for await (const event of stream) {
+    for await (const rawEvent of stream) {
+      const event = parseModelStreamEvent(rawEvent);
       yield event;
       if (isTerminalModelStreamEvent(event)) return;
     }

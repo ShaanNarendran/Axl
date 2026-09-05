@@ -5,16 +5,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  AuthError,
   type AuthContext,
+  AuthError,
   azureOpenAiAuthMethod,
   collectModelStream,
   createAzureOpenAiProvider,
   FakeModelProvider,
   InMemoryCredentialStore,
   login,
-  makeFakeModelInfo,
   type ModelStreamEvent,
+  makeFakeModelInfo,
   normalizeAzureBaseUrl,
   parseDeploymentMap,
 } from "../src/index.ts";
@@ -160,7 +160,7 @@ test("streams from Azure with api-key header, versioned URL, and mapped deployme
   assert.equal(request?.body.model, "gpt-5.6-sol");
   assert.deepEqual(request?.body.reasoning, { effort: "xhigh" });
 
-  assert.equal(events.length, 4);
+  assert.equal(events.length, 6);
   assert.equal(terminal.type, "completed");
   if (terminal.type === "completed") {
     assert.equal(terminal.stopReason, "tool_use");
@@ -172,8 +172,26 @@ test("exit gate: Azure and the fake provider produce identical canonical stream 
   const canonical: readonly ModelStreamEvent[] = [
     { type: "thinking_delta", text: "hmm" },
     { type: "text_delta", text: "Hello" },
-    { type: "tool_call", callId: "call-1", name: "shell", input: { command: "ls" } },
-    { type: "completed", stopReason: "tool_use", usage: { ...usage, reasoningTokens: 0 } },
+    { type: "tool_call_start", contentIndex: 0, callId: "call-1", name: "shell" },
+    {
+      type: "tool_call_delta",
+      contentIndex: 0,
+      callId: "call-1",
+      argumentsDelta: '{"command":"ls"}',
+    },
+    {
+      type: "tool_call",
+      contentIndex: 0,
+      callId: "call-1",
+      name: "shell",
+      input: { command: "ls" },
+    },
+    {
+      type: "completed",
+      stopReason: "tool_use",
+      usage: { ...usage, reasoningTokens: 0 },
+      response: { providerId: "azure-openai", requestedModelId: "gpt-5" },
+    },
   ];
   const fake = new FakeModelProvider({
     models: [makeFakeModelInfo({ modelId: "gpt-5" })],
@@ -210,7 +228,9 @@ test("HTTP failures terminate through the stream contract without leaking the ke
   const store = new InMemoryCredentialStore();
   await login(store, "azure-openai", { type: "api_key", key: "azure-secret-key" });
   const failingFetch = (async () =>
-    new Response('{"error":{"message":"deployment not found"}}', { status: 404 })) as typeof fetch;
+    new Response('{"error":{"message":"azure-secret-key deployment not found"}}', {
+      status: 404,
+    })) as typeof fetch;
   const provider = createAzureOpenAiProvider({
     store,
     context: makeContext({ AZURE_OPENAI_RESOURCE_NAME: "myres" }),
@@ -225,6 +245,7 @@ test("HTTP failures terminate through the stream contract without leaking the ke
     assert.equal(terminal.code, "http_404");
     assert.equal(terminal.retryable, false);
     assert.equal(terminal.message.includes("azure-secret-key"), false);
+    assert.equal(terminal.message.includes("[REDACTED]"), true);
   }
 });
 
