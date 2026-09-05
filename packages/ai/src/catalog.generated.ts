@@ -6158,7 +6158,8 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "supportsLongCacheRetention": true,
         "supportsCacheControlOnTools": true,
         "supportsTemperature": true,
-        "supportsStrictTools": true
+        "supportsStrictTools": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -6209,7 +6210,8 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "supportsLongCacheRetention": true,
         "supportsCacheControlOnTools": true,
         "supportsTemperature": true,
-        "supportsStrictTools": true
+        "supportsStrictTools": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -6566,7 +6568,8 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "supportsLongCacheRetention": true,
         "supportsCacheControlOnTools": true,
         "supportsTemperature": true,
-        "supportsStrictTools": true
+        "supportsStrictTools": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -6617,7 +6620,8 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "supportsLongCacheRetention": true,
         "supportsCacheControlOnTools": true,
         "supportsTemperature": true,
-        "supportsStrictTools": true
+        "supportsStrictTools": true,
+        "forceAdaptiveThinking": true
       }
     },
     {
@@ -6821,7 +6825,8 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "supportsLongCacheRetention": true,
         "supportsCacheControlOnTools": true,
         "supportsTemperature": true,
-        "supportsStrictTools": true
+        "supportsStrictTools": true,
+        "forceAdaptiveThinking": true
       }
     }
   ],
@@ -13906,6 +13911,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai"
       }
     },
     {
@@ -13948,6 +13956,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai"
       }
     },
     {
@@ -13988,6 +13999,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai"
       }
     },
     {
@@ -14030,6 +14044,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai"
       }
     },
     {
@@ -14072,6 +14089,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai"
       }
     },
     {
@@ -14122,6 +14142,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai"
       }
     },
     {
@@ -14164,6 +14187,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai",
+        "supportsStrictTools": true
       }
     },
     {
@@ -14206,6 +14233,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai",
+        "supportsStrictTools": true
       }
     },
     {
@@ -14247,6 +14278,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai",
+        "supportsStrictTools": true
       }
     },
     {
@@ -14290,6 +14325,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai",
+        "supportsStrictTools": true
       }
     },
     {
@@ -14331,6 +14370,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai",
+        "supportsStrictTools": true
       }
     },
     {
@@ -14381,6 +14424,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai",
+        "supportsStrictTools": true
       }
     },
     {
@@ -14431,6 +14478,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai",
+        "supportsStrictTools": true
       }
     },
     {
@@ -14473,6 +14524,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai",
+        "supportsStrictTools": true
       }
     },
     {
@@ -14515,6 +14570,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai",
+        "supportsStrictTools": true
       }
     },
     {
@@ -14557,6 +14616,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai",
+        "supportsStrictTools": true
       }
     },
     {
@@ -14599,6 +14662,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai",
+        "supportsStrictTools": true
       }
     },
     {
@@ -14641,6 +14708,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai",
+        "supportsStrictTools": true
       }
     },
     {
@@ -14683,6 +14754,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai"
       }
     },
     {
@@ -14725,6 +14799,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai"
       }
     },
     {
@@ -14761,6 +14838,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai"
       }
     },
     {
@@ -14797,6 +14877,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-generative-ai"
       }
     }
   ],
@@ -14854,6 +14937,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -14909,6 +14995,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -14964,6 +15053,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -15020,6 +15112,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -15075,6 +15170,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -15139,6 +15237,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -15203,6 +15304,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -15267,6 +15371,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -15323,6 +15430,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -15378,6 +15488,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -15433,6 +15546,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -15497,6 +15613,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -15553,6 +15672,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -15608,6 +15730,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -15655,6 +15780,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -15702,6 +15830,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -15756,6 +15887,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -15810,6 +15944,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -15872,6 +16009,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -15926,6 +16066,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex",
+        "supportsStrictTools": true
       }
     },
     {
@@ -15980,6 +16124,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex",
+        "supportsStrictTools": true
       }
     },
     {
@@ -16035,6 +16183,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "google-vertex",
+        "supportsStrictTools": true
       }
     },
     {
@@ -16097,6 +16249,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex",
+        "supportsStrictTools": true
       }
     },
     {
@@ -16159,6 +16315,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex",
+        "supportsStrictTools": true
       }
     },
     {
@@ -16213,6 +16373,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex",
+        "supportsStrictTools": true
       }
     },
     {
@@ -16267,6 +16431,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex",
+        "supportsStrictTools": true
       }
     },
     {
@@ -16321,6 +16489,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex",
+        "supportsStrictTools": true
       }
     },
     {
@@ -16375,6 +16547,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex",
+        "supportsStrictTools": true
       }
     },
     {
@@ -16429,6 +16605,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex",
+        "supportsStrictTools": true
       }
     },
     {
@@ -16483,6 +16663,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -16537,6 +16720,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -16583,6 +16769,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -16628,6 +16817,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -16675,6 +16867,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -16728,6 +16923,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "availability": {
         "status": "available"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -16783,6 +16981,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -16829,6 +17030,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -16883,6 +17087,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     },
     {
@@ -16937,6 +17144,9 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "availability": {
         "status": "deprecated",
         "reason": "Deprecated by the source catalog"
+      },
+      "compatibility": {
+        "dialect": "google-vertex"
       }
     }
   ],

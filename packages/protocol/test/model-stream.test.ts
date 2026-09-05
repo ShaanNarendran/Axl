@@ -71,6 +71,29 @@ test("validates provenance-bound replay metadata", () => {
   assert.deepEqual(
     parseModelStreamEvent({
       type: "replay_metadata",
+      target: "thinking",
+      contentIndex: 0,
+      providerId: "anthropic",
+      apiDialect: "anthropic-messages",
+      modelId: "claude-fixture",
+      signature: "opaque-redacted-thinking",
+      redacted: true,
+    }),
+    {
+      type: "replay_metadata",
+      target: "thinking",
+      contentIndex: 0,
+      providerId: "anthropic",
+      apiDialect: "anthropic-messages",
+      modelId: "claude-fixture",
+      signature: "opaque-redacted-thinking",
+      redacted: true,
+    },
+  );
+
+  assert.deepEqual(
+    parseModelStreamEvent({
+      type: "replay_metadata",
       target: "tool_call",
       contentIndex: 2,
       providerId: "openai",
@@ -180,6 +203,20 @@ test("rejects malformed stream data and unbounded diagnostic fields", () => {
         modelId: "gpt-5",
       }),
     /must contain replay data/,
+  );
+  assert.throws(
+    () =>
+      parseModelStreamEvent({
+        type: "replay_metadata",
+        target: "text",
+        contentIndex: 0,
+        providerId: "anthropic",
+        apiDialect: "anthropic-messages",
+        modelId: "claude-fixture",
+        signature: "opaque",
+        redacted: true,
+      }),
+    /redacted is allowed only/,
   );
   assert.throws(
     () =>

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Hari Srinivasan
 // SPDX-License-Identifier: Apache-2.0
 
+export * from "./anthropic-messages.ts";
 export * from "./auth.ts";
 export * from "./azure-openai.ts";
 export * from "./capabilities.ts";
@@ -10,6 +11,8 @@ export * from "./credentials.ts";
 export * from "./diagnostics.ts";
 export * from "./dialect.ts";
 export * from "./fake-provider.ts";
+export * from "./google-generative-ai.ts";
+export * from "./google-vertex.ts";
 export * from "./model.ts";
 export * from "./openai-chat.ts";
 export * from "./openai-codex-responses.ts";

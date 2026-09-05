@@ -243,6 +243,21 @@ function normalizeModel(
   }
   const thinkingLevelMap = reasoningMap(source, label);
   const cost = sourceCost(source.cost, `${label}.cost`);
+  const baseCompatibility = overlay.compatibilityByDialect?.[dialect];
+  let compatibility = baseCompatibility;
+  if (
+    baseCompatibility?.dialect === "anthropic-messages" &&
+    overlay.anthropicAdaptiveThinkingPrefixes?.some((prefix) => modelId.startsWith(prefix))
+  ) {
+    compatibility = { ...baseCompatibility, forceAdaptiveThinking: true };
+  }
+  if (
+    (baseCompatibility?.dialect === "google-generative-ai" ||
+      baseCompatibility?.dialect === "google-vertex") &&
+    overlay.googleStrictToolPrefixes?.some((prefix) => modelId.startsWith(prefix))
+  ) {
+    compatibility = { ...baseCompatibility, supportsStrictTools: true };
+  }
   return {
     providerId: overlay.id,
     modelId,
@@ -261,9 +276,7 @@ function normalizeModel(
     ...(overlay.cache === undefined ? {} : { cache: overlay.cache }),
     ...(overlay.endpoint === undefined ? {} : { endpoint: overlay.endpoint }),
     availability: availability(source.status, label),
-    ...(overlay.compatibilityByDialect?.[dialect] === undefined
-      ? {}
-      : { compatibility: overlay.compatibilityByDialect[dialect] }),
+    ...(compatibility === undefined ? {} : { compatibility }),
   };
 }
 

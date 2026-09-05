@@ -114,6 +114,8 @@ export interface ProviderReplayMetadata {
   readonly modelId: string;
   readonly callId?: string;
   readonly signature?: string;
+  /** True when the signature is an opaque redacted-thinking payload. */
+  readonly redacted?: boolean;
   readonly responseId?: string;
   readonly itemId?: string;
   readonly namespace?: string;
@@ -347,7 +349,7 @@ export function parseModelStreamEvent(value: unknown, path = "modelStreamEvent")
       event,
       path,
       ["type", "target", "contentIndex", "providerId", "apiDialect", "modelId"],
-      ["callId", "signature", "responseId", "itemId", "namespace"],
+      ["callId", "signature", "redacted", "responseId", "itemId", "namespace"],
     );
     if (!new Set(["thinking", "text", "tool_call"]).has(String(event.target))) {
       fail(`${path}.target`, "must be thinking, text, or tool_call");
@@ -358,6 +360,15 @@ export function parseModelStreamEvent(value: unknown, path = "modelStreamEvent")
     string(event.modelId, `${path}.modelId`);
     for (const key of ["callId", "signature", "responseId", "itemId", "namespace"] as const) {
       if (event[key] !== undefined) string(event[key], `${path}.${key}`);
+    }
+    if (event.redacted !== undefined && typeof event.redacted !== "boolean") {
+      fail(`${path}.redacted`, "must be a boolean");
+    }
+    if (event.target !== "thinking" && event.redacted !== undefined) {
+      fail(`${path}.redacted`, "is allowed only for thinking replay metadata");
+    }
+    if (event.redacted === true && event.signature === undefined) {
+      fail(`${path}.redacted`, "requires signed thinking replay metadata");
     }
     if (event.target === "tool_call" && event.callId === undefined) {
       fail(`${path}.callId`, "is required for tool_call replay metadata");

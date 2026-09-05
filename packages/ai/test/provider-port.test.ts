@@ -95,6 +95,7 @@ test("retains replay metadata in assistant history for the next in-process turn"
           apiDialect: "fake",
           modelId: "fake-model",
           signature: "opaque-reasoning",
+          redacted: true,
           responseId: "resp-1",
           itemId: "rs-1",
         },
@@ -106,6 +107,7 @@ test("retains replay metadata in assistant history for the next in-process turn"
           providerId: "fake",
           apiDialect: "fake",
           modelId: "fake-model",
+          signature: "opaque-text",
           responseId: "resp-1",
           itemId: "msg-1",
         },
@@ -118,6 +120,7 @@ test("retains replay metadata in assistant history for the next in-process turn"
           apiDialect: "fake",
           modelId: "fake-model",
           callId: "call-1",
+          signature: "opaque-tool",
           responseId: "resp-1",
           itemId: "fc-1",
           namespace: "dynamic",
@@ -166,9 +169,18 @@ test("retains replay metadata in assistant history for the next in-process turn"
     "opaque-reasoning",
   );
   assert.equal(
+    assistant.content[0]?.type === "thinking" ? assistant.content[0].redacted : undefined,
+    true,
+  );
+  assert.equal(
     assistant.content[1]?.type === "text" ? assistant.content[1].continuation?.itemId : undefined,
     "msg-1",
   );
+  assert.equal(
+    assistant.content[1]?.type === "text" ? assistant.content[1].signature?.value : undefined,
+    "opaque-text",
+  );
+  assert.equal(assistant.toolCalls?.[0]?.signature?.value, "opaque-tool");
   assert.deepEqual(assistant.toolCalls?.[0]?.continuation, {
     providerId: "fake",
     apiDialect: "fake",
@@ -210,6 +222,70 @@ test("retains replay metadata in assistant history for the next in-process turn"
     assert.equal(secondAssistant.origin, undefined);
     assert.equal(secondAssistant.continuation, undefined);
   }
+});
+
+test("retains signature-only replay without inventing continuation state", async () => {
+  const provider = new FakeModelProvider({
+    responses: [
+      [
+        {
+          type: "replay_metadata",
+          target: "text",
+          contentIndex: 0,
+          providerId: "fake",
+          apiDialect: "fake",
+          modelId: "fake-model",
+          signature: "text-signature",
+        },
+        {
+          type: "replay_metadata",
+          target: "tool_call",
+          contentIndex: 1,
+          callId: "call-1",
+          providerId: "fake",
+          apiDialect: "fake",
+          modelId: "fake-model",
+          signature: "tool-signature",
+        },
+        { type: "completed", stopReason: "tool_use", usage },
+      ],
+      [{ type: "completed", stopReason: "stop", usage }],
+    ],
+  });
+  const port = modelPortForSession(provider, { modelId: "fake-model" });
+  await Array.fromAsync(port.stream({ messages: [], tools: [] }));
+  await Array.fromAsync(
+    port.stream({
+      messages: [
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "running" }],
+          toolCalls: [{ callId: "call-1", name: "shell", input: {} }],
+        },
+        {
+          role: "tool",
+          callId: "call-1",
+          name: "shell",
+          content: [{ type: "text", text: "done" }],
+          isError: false,
+        },
+      ],
+      tools: [{ name: "shell", description: "Run", inputSchema: { type: "object" } }],
+    }),
+  );
+
+  const assistant = provider.requests[1]?.messages[0];
+  if (assistant?.role !== "assistant") assert.fail("expected replayed assistant message");
+  assert.equal(
+    assistant.content[0]?.type === "text" ? assistant.content[0].signature?.value : undefined,
+    "text-signature",
+  );
+  assert.equal(
+    assistant.content[0]?.type === "text" ? assistant.content[0].continuation : undefined,
+    undefined,
+  );
+  assert.equal(assistant.toolCalls?.[0]?.signature?.value, "tool-signature");
+  assert.equal(assistant.toolCalls?.[0]?.continuation, undefined);
 });
 
 test("normalization guarantees a terminal even when the provider misbehaves", async () => {

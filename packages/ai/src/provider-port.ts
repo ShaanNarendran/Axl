@@ -80,6 +80,12 @@ function replayContinuation(event: ReplayEvent) {
   };
 }
 
+function hasReplayContinuation(event: ReplayEvent): boolean {
+  return (
+    event.responseId !== undefined || event.itemId !== undefined || event.namespace !== undefined
+  );
+}
+
 function retainReplayMetadata(
   messages: readonly ModelMessage[],
   turns: readonly (readonly ReplayEvent[])[],
@@ -131,11 +137,27 @@ function retainReplayMetadata(
                 modelId: event.modelId,
                 value: event.signature,
               },
+              ...(event.redacted === true ? { redacted: true } : {}),
             };
       }
       if (item.type === "text") {
         const event = text[textIndex++];
-        return event === undefined ? item : { ...item, continuation: replayContinuation(event) };
+        return event === undefined
+          ? item
+          : {
+              ...item,
+              ...(event.signature === undefined
+                ? {}
+                : {
+                    signature: {
+                      providerId: event.providerId,
+                      apiDialect: event.apiDialect,
+                      modelId: event.modelId,
+                      value: event.signature,
+                    },
+                  }),
+              ...(hasReplayContinuation(event) ? { continuation: replayContinuation(event) } : {}),
+            };
       }
       return item;
     });
@@ -143,7 +165,22 @@ function retainReplayMetadata(
       const event = replay.find(
         (candidate) => candidate.target === "tool_call" && candidate.callId === call.callId,
       );
-      return event === undefined ? call : { ...call, continuation: replayContinuation(event) };
+      return event === undefined
+        ? call
+        : {
+            ...call,
+            ...(event.signature === undefined
+              ? {}
+              : {
+                  signature: {
+                    providerId: event.providerId,
+                    apiDialect: event.apiDialect,
+                    modelId: event.modelId,
+                    value: event.signature,
+                  },
+                }),
+            ...(hasReplayContinuation(event) ? { continuation: replayContinuation(event) } : {}),
+          };
     });
     const response = replay.find((event) => event.responseId !== undefined);
     return {

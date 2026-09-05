@@ -195,6 +195,51 @@ function validateMetadata(metadata: ModelRequest["metadata"]): void {
   validateJson(metadata, "request.metadata", new Set(), true);
 }
 
+const GOOGLE_SAFETY_CATEGORIES = new Set([
+  "HARM_CATEGORY_HARASSMENT",
+  "HARM_CATEGORY_HATE_SPEECH",
+  "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+  "HARM_CATEGORY_DANGEROUS_CONTENT",
+  "HARM_CATEGORY_CIVIC_INTEGRITY",
+]);
+const GOOGLE_SAFETY_THRESHOLDS = new Set([
+  "BLOCK_NONE",
+  "BLOCK_LOW_AND_ABOVE",
+  "BLOCK_MEDIUM_AND_ABOVE",
+  "BLOCK_ONLY_HIGH",
+  "OFF",
+]);
+
+function prepareSafetySettings(
+  model: ModelInfo,
+  settings: ModelRequest["safetySettings"],
+): ModelRequest["safetySettings"] {
+  if (settings === undefined) return undefined;
+  if (model.apiDialect !== "google-generative-ai") {
+    fail("request.safetySettings", "is unsupported by this model dialect");
+  }
+  if (!Array.isArray(settings)) fail("request.safetySettings", "must be an array");
+  const categories = new Set<string>();
+  return Object.freeze(
+    settings.map((setting, index) => {
+      const path = `request.safetySettings[${index}]`;
+      if (typeof setting !== "object" || setting === null || Array.isArray(setting)) {
+        fail(path, "must be an object");
+      }
+      exactKeys(setting, ["category", "threshold"], path);
+      if (!GOOGLE_SAFETY_CATEGORIES.has(setting.category)) {
+        fail(`${path}.category`, "is not recognized");
+      }
+      if (!GOOGLE_SAFETY_THRESHOLDS.has(setting.threshold)) {
+        fail(`${path}.threshold`, "is not recognized");
+      }
+      if (categories.has(setting.category)) fail(`${path}.category`, "is duplicated");
+      categories.add(setting.category);
+      return Object.freeze({ category: setting.category, threshold: setting.threshold });
+    }),
+  );
+}
+
 const DEFAULT_SAMPLING_SUPPORT: Readonly<Record<string, readonly SamplingOptionName[]>> = {
   "openai-chat": ["temperature", "topP", "frequencyPenalty", "presencePenalty", "seed"],
   "openai-responses": ["temperature", "topP"],
@@ -504,6 +549,8 @@ function strictToolSupport(model: ModelInfo): boolean {
     compatibility.dialect === "azure-openai-responses" ||
     compatibility.dialect === "openai-codex-responses" ||
     compatibility.dialect === "anthropic-messages" ||
+    compatibility.dialect === "google-generative-ai" ||
+    compatibility.dialect === "google-vertex" ||
     compatibility.dialect === "bedrock-converse-stream"
   ) {
     return compatibility.supportsStrictTools === true;
@@ -642,24 +689,50 @@ function prepareReasoning(model: ModelInfo, request: ModelRequest): PreparedReas
   if (clamp.effective === "off") return Object.freeze(clamp);
   const providerValue = model.thinkingLevelMap?.[clamp.effective];
   const compatibility = model.compatibility;
+  const googleBudget =
+    compatibility?.dialect === "google-generative-ai" &&
+    typeof providerValue === "string" &&
+    /^\d+$/.test(providerValue)
+      ? Number.parseInt(providerValue, 10)
+      : undefined;
   const usesBudget =
-    compatibility?.dialect === "openai-chat" &&
-    compatibility.thinkingTokenBudgetField !== undefined;
+    (compatibility?.dialect === "openai-chat" &&
+      compatibility.thinkingTokenBudgetField !== undefined) ||
+    (compatibility?.dialect === "anthropic-messages" &&
+      compatibility.forceAdaptiveThinking !== true) ||
+    googleBudget !== undefined;
   if (!usesBudget) {
     return Object.freeze({
       ...clamp,
       ...(providerValue === undefined || providerValue === null ? {} : { providerValue }),
     });
   }
+  const budgetLevel =
+    clamp.effective === "xhigh" || clamp.effective === "max" ? "high" : clamp.effective;
+  const budgets =
+    googleBudget === undefined
+      ? request.thinkingBudgets
+      : {
+          ...request.thinkingBudgets,
+          [budgetLevel]: request.thinkingBudgets?.[budgetLevel] ?? googleBudget,
+        };
   const fitted = fitThinkingBudget({
     level: clamp.effective,
     modelMaxTokens: model.maxOutputTokens,
     ...(request.maxOutputTokens === undefined
       ? {}
       : { requestedMaxTokens: request.maxOutputTokens }),
-    ...(request.thinkingBudgets === undefined ? {} : { budgets: request.thinkingBudgets }),
+    ...(budgets === undefined ? {} : { budgets }),
   });
-  return Object.freeze({ ...clamp, tokenBudget: fitted.thinkingBudget });
+  return Object.freeze({
+    ...clamp,
+    ...(compatibility?.dialect !== "google-generative-ai" ||
+    providerValue === undefined ||
+    providerValue === null
+      ? {}
+      : { providerValue }),
+    tokenBudget: fitted.thinkingBudget,
+  });
 }
 
 function resolvedMaxOutputTokens(
@@ -675,12 +748,9 @@ function resolvedMaxOutputTokens(
     fail("request.maxOutputTokens", `exceeds model limit ${model.maxOutputTokens}`);
   }
   if (reasoning?.tokenBudget === undefined) return requested;
-  return fitThinkingBudget({
-    level: reasoning.effective,
-    modelMaxTokens: model.maxOutputTokens,
-    ...(requested === undefined ? {} : { requestedMaxTokens: requested }),
-    ...(request.thinkingBudgets === undefined ? {} : { budgets: request.thinkingBudgets }),
-  }).maxTokens;
+  return requested === undefined
+    ? model.maxOutputTokens
+    : Math.min(requested + reasoning.tokenBudget, model.maxOutputTokens);
 }
 
 function prepareCache(
@@ -847,8 +917,9 @@ function sanitizeContent(
   sanitizations: RequestSanitization[],
 ): RequestAssistantContent {
   if (content.type === "text") {
-    exactKeys(content, ["type", "text", "continuation"], path);
+    exactKeys(content, ["type", "text", "signature", "continuation"], path);
     if (typeof content.text !== "string") fail(`${path}.text`, "must be a string");
+    const signature = keepSignature(content.signature, target, `${path}.signature`, sanitizations);
     const continuation = keepContinuation(
       content.continuation,
       target,
@@ -858,6 +929,7 @@ function sanitizeContent(
     return Object.freeze({
       type: "text",
       text: content.text,
+      ...(signature === undefined ? {} : { signature }),
       ...(continuation === undefined ? {} : { continuation }),
     });
   }
@@ -1039,6 +1111,7 @@ export async function prepareModelRequest(
       "toolChoice",
       "sampling",
       "cache",
+      "safetySettings",
       "metadata",
       "readBlob",
       "signal",
@@ -1103,6 +1176,7 @@ export async function prepareModelRequest(
   }
   assertModelSupports(model, request);
   validateMetadata(request.metadata);
+  const safetySettings = prepareSafetySettings(model, request.safetySettings);
   const sampling = prepareSampling(model, request.sampling);
   const sanitizations: RequestSanitization[] = [];
   const dialect = options.toolDialect ?? toolDialectFor(model.apiDialect);
@@ -1158,6 +1232,7 @@ export async function prepareModelRequest(
     ...(request.toolChoice === undefined ? {} : { toolChoice: request.toolChoice }),
     ...(sampling === undefined ? {} : { sampling }),
     cache,
+    ...(safetySettings === undefined ? {} : { safetySettings }),
     ...(request.metadata === undefined ? {} : { metadata: Object.freeze({ ...request.metadata }) }),
     ...(readBlob === undefined ? {} : { readBlob }),
     ...(request.signal === undefined ? {} : { signal: request.signal }),

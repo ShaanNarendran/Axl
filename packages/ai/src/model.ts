@@ -184,18 +184,23 @@ export interface AnthropicCompatibility {
   readonly supportsStrictTools?: boolean;
 }
 
+export interface GoogleGenerativeAiCompatibility {
+  readonly dialect: "google-generative-ai";
+  readonly supportsStrictTools?: boolean;
+}
+
+export interface GoogleVertexCompatibility {
+  readonly dialect: "google-vertex";
+  readonly supportsStrictTools?: boolean;
+}
+
 export interface BedrockCompatibility {
   readonly dialect: "bedrock-converse-stream";
   readonly supportsStrictTools?: boolean;
 }
 
 export interface GenericCompatibility {
-  readonly dialect:
-    | "google-generative-ai"
-    | "google-vertex"
-    | "mistral-conversations"
-    | "gateway-messages"
-    | "fake";
+  readonly dialect: "mistral-conversations" | "gateway-messages" | "fake";
 }
 
 /** Dialect-specific compatibility controls. No arbitrary compatibility keys are accepted. */
@@ -203,6 +208,8 @@ export type ModelCompatibility =
   | OpenAiChatCompatibility
   | OpenAiResponsesCompatibility
   | AnthropicCompatibility
+  | GoogleGenerativeAiCompatibility
+  | GoogleVertexCompatibility
   | BedrockCompatibility
   | GenericCompatibility;
 
@@ -269,6 +276,7 @@ export interface ProviderContinuationMetadata extends ProviderModelIdentity {
 
 export type RequestAssistantContent =
   | (Extract<AssistantContent, { type: "text" }> & {
+      readonly signature?: ProviderSignature;
       readonly continuation?: ProviderContinuationMetadata;
     })
   | (Extract<AssistantContent, { type: "thinking" }> & {
@@ -331,6 +339,25 @@ export interface CacheOptions {
   readonly sessionId?: string;
 }
 
+export type ModelSafetyCategory =
+  | "HARM_CATEGORY_HARASSMENT"
+  | "HARM_CATEGORY_HATE_SPEECH"
+  | "HARM_CATEGORY_SEXUALLY_EXPLICIT"
+  | "HARM_CATEGORY_DANGEROUS_CONTENT"
+  | "HARM_CATEGORY_CIVIC_INTEGRITY";
+
+export type ModelSafetyThreshold =
+  | "BLOCK_NONE"
+  | "BLOCK_LOW_AND_ABOVE"
+  | "BLOCK_MEDIUM_AND_ABOVE"
+  | "BLOCK_ONLY_HIGH"
+  | "OFF";
+
+export interface ModelSafetySetting {
+  readonly category: ModelSafetyCategory;
+  readonly threshold: ModelSafetyThreshold;
+}
+
 export interface RequestControlOptions {
   readonly timeoutMs?: number;
   readonly maxRetries?: number;
@@ -352,6 +379,8 @@ export interface ModelRequest extends RequestControlOptions {
   readonly toolChoice?: "auto" | "required" | "none";
   readonly sampling?: SamplingOptions;
   readonly cache?: CacheOptions;
+  /** Provider-neutral harm category thresholds, rendered only by supporting dialects. */
+  readonly safetySettings?: readonly ModelSafetySetting[];
   /** Provider-safe request metadata. Credentials and authorization data are forbidden. */
   readonly metadata?: Readonly<Record<string, string | number | boolean>>;
   /** Resolves content-addressed media without placing bytes in canonical events. */

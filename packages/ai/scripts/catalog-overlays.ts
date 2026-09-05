@@ -33,6 +33,10 @@ export interface ProviderCatalogOverlay {
   readonly endpoint?: EndpointPolicy;
   readonly cache?: ModelCachePolicy;
   readonly compatibilityByDialect?: Readonly<Partial<Record<KnownApiDialect, ModelCompatibility>>>;
+  /** Anthropic model prefixes that require adaptive rather than token-budget thinking. */
+  readonly anthropicAdaptiveThinkingPrefixes?: readonly string[];
+  /** Google model prefixes that support validated strict function calling. */
+  readonly googleStrictToolPrefixes?: readonly string[];
   readonly regionFamily?: string;
   readonly region?: string;
 }
@@ -147,6 +151,12 @@ export const PROVIDER_CATALOG_OVERLAYS: readonly ProviderCatalogOverlay[] = [
     dialect: "anthropic-messages",
     endpoint: fixed("https://api.anthropic.com"),
     cache: longCache,
+    anthropicAdaptiveThinkingPrefixes: [
+      "claude-fable-5",
+      "claude-opus-4-8",
+      "claude-opus-5",
+      "claude-sonnet-5",
+    ],
     compatibilityByDialect: {
       "anthropic-messages": {
         dialect: "anthropic-messages",
@@ -165,6 +175,12 @@ export const PROVIDER_CATALOG_OVERLAYS: readonly ProviderCatalogOverlay[] = [
     dialect: "google-generative-ai",
     endpoint: fixed("https://generativelanguage.googleapis.com/v1beta"),
     cache: shortCache,
+    googleStrictToolPrefixes: ["gemini-3"],
+    compatibilityByDialect: {
+      "google-generative-ai": {
+        dialect: "google-generative-ai",
+      },
+    },
   },
   {
     id: "google-vertex",
@@ -182,6 +198,12 @@ export const PROVIDER_CATALOG_OVERLAYS: readonly ProviderCatalogOverlay[] = [
       ],
     },
     cache: shortCache,
+    googleStrictToolPrefixes: ["gemini-3"],
+    compatibilityByDialect: {
+      "google-vertex": {
+        dialect: "google-vertex",
+      },
+    },
   },
   {
     id: "amazon-bedrock",
