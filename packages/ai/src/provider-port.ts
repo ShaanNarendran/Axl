@@ -16,6 +16,7 @@ import { DEFAULT_MODEL_REQUEST_SETTINGS } from "@axl/protocol";
 import { fitModelRequest } from "./request-configuration.ts";
 
 import type { ModelProvider } from "./provider.ts";
+import type { ProviderRegistry } from "./registry.ts";
 import { normalizeModelStream } from "./stream.ts";
 
 export interface SessionPortOptions {
@@ -44,60 +45,45 @@ interface PortTurnRequest {
  * expects (satisfied structurally — the kernel never imports this package).
  * Streams are normalized, so the kernel always sees exactly one terminal.
  */
+function providerRequest(request: PortTurnRequest, options: SessionPortOptions) {
+  return {
+    modelId: options.modelId,
+    ...(request.system === undefined ? {} : { system: request.system }),
+    messages: request.messages,
+    tools: request.tools,
+    ...(options.thinkingLevel === undefined ? {} : { thinkingLevel: options.thinkingLevel }),
+    ...(request.maxOutputTokens === undefined && options.maxOutputTokens === undefined
+      ? {}
+      : { maxOutputTokens: request.maxOutputTokens ?? options.maxOutputTokens }),
+    ...(request.toolChoice === undefined ? {} : { toolChoice: request.toolChoice }),
+    ...(options.readBlob === undefined ? {} : { readBlob: options.readBlob }),
+    ...(request.signal === undefined ? {} : { signal: request.signal }),
+  };
+}
+
 export function modelPortForSession(
   provider: ModelProvider,
   options: SessionPortOptions,
 ): { stream(request: PortTurnRequest): AsyncIterable<ModelStreamEvent> } {
   return {
     stream: (request) =>
+      normalizeModelStream(provider.stream(providerRequest(request, options)), request.signal),
+  };
+}
+
+export interface RegistrySessionPortOptions extends SessionPortOptions {
+  readonly providerId: string;
+}
+
+/** Binds a provider and model identity through the registry coordinator. */
+export function modelPortForRegistry(
+  registry: ProviderRegistry,
+  options: RegistrySessionPortOptions,
+): { stream(request: PortTurnRequest): AsyncIterable<ModelStreamEvent> } {
+  return {
+    stream: (request) =>
       normalizeModelStream(
-        (async function* () {
-          if (request.signal?.aborted) {
-            yield { type: "aborted" } as const;
-            return;
-          }
-          const model = (await provider.listModels()).find(
-            (candidate) => candidate.modelId === options.modelId,
-          );
-          if (model === undefined)
-            throw new Error(`Provider ${provider.id} has no model ${options.modelId}`);
-          const settings = options.requestSettings ?? DEFAULT_MODEL_REQUEST_SETTINGS;
-          const maxOutputTokens =
-            request.maxOutputTokens ??
-            options.maxOutputTokens ??
-            settings.maxOutputTokens ??
-            undefined;
-          const configuration = fitModelRequest(model, {
-            messages: request.messages,
-            tools: request.tools,
-            ...(request.system === undefined ? {} : { system: request.system }),
-            ...(request.estimatedInputTokens === undefined
-              ? {}
-              : { estimatedInputTokens: request.estimatedInputTokens }),
-            ...(maxOutputTokens === undefined ? {} : { maxOutputTokens }),
-            httpIdleTimeoutMs: settings.httpIdleTimeoutMs,
-          });
-          await request.onRequestConfigured?.(configuration);
-          if (request.signal?.aborted) {
-            yield { type: "aborted" } as const;
-            return;
-          }
-          yield* provider.stream({
-            modelId: options.modelId,
-            ...(request.system === undefined ? {} : { system: request.system }),
-            messages: request.messages,
-            tools: request.tools,
-            ...(options.thinkingLevel === undefined
-              ? {}
-              : { thinkingLevel: options.thinkingLevel }),
-            maxOutputTokens: configuration.maxOutputTokens,
-            httpIdleTimeoutMs: configuration.httpIdleTimeoutMs,
-            estimatedInputTokens: configuration.estimatedInputTokens,
-            ...(request.toolChoice === undefined ? {} : { toolChoice: request.toolChoice }),
-            ...(options.readBlob === undefined ? {} : { readBlob: options.readBlob }),
-            ...(request.signal === undefined ? {} : { signal: request.signal }),
-          });
-        })(),
+        registry.stream(options.providerId, providerRequest(request, options)),
         request.signal,
       ),
   };

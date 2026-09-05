@@ -183,7 +183,7 @@ export async function startLocalDaemon(options: LocalDaemonOptions): Promise<Axl
         ai: typeof import("@axl/ai");
         kernel: typeof import("@axl/kernel");
         sandbox: import("@axl/sandbox").PlatformSandbox;
-        provider: ReturnType<typeof import("@axl/ai")["createAzureOpenAiProvider"]>;
+        providers: import("@axl/ai").ProviderRegistry;
       }>
     | undefined;
   const loadAssembly = () => {
@@ -203,12 +203,9 @@ export async function startLocalDaemon(options: LocalDaemonOptions): Promise<Axl
       if (!sandbox.available) {
         throw new sandboxPackage.SandboxUnavailableError(sandbox.reason ?? "unknown");
       }
-      return {
-        ai,
-        kernel,
-        sandbox,
-        provider: ai.createAzureOpenAiProvider({ store, context: ai.nodeAuthContext }),
-      };
+      const providers = new ai.ProviderRegistry();
+      providers.register(ai.createAzureOpenAiProvider({ store, context: ai.nodeAuthContext }));
+      return { ai, kernel, sandbox, providers };
     });
     return assemblyPromise;
   };
@@ -227,7 +224,7 @@ export async function startLocalDaemon(options: LocalDaemonOptions): Promise<Axl
     sandboxProvider: unsafe ? "none" : (initialAssembly?.sandbox.provider ?? "unknown"),
     ...(sandboxSelection.type === "oci" ? { sandboxImage: sandboxSelection.image } : {}),
     runtime: async ({ sessionId, cwd, boundary, selection, interact, readBlob }) => {
-      const { ai, kernel, sandbox, provider } = await loadAssembly();
+      const { ai, kernel, sandbox, providers } = await loadAssembly();
       const profile = selection.profile ?? "standard";
       const [hasMcpConfig, hasSkills] =
         profile !== "standard"
@@ -267,21 +264,15 @@ export async function startLocalDaemon(options: LocalDaemonOptions): Promise<Axl
         webFetch: profile === "standard" && (selection.webFetch ?? defaults.webFetch ?? true),
         webSearch: profile === "standard" && (selection.webSearch ?? defaults.webSearch ?? true),
       };
-      const modelInfo = ai.AZURE_OPENAI_MODELS.find(
-        (candidate) => candidate.modelId === active.modelId,
-      );
-      if (modelInfo === undefined) throw new Error(`Unknown Azure OpenAI model ${active.modelId}`);
+      const modelInfo = await providers.getModel(ai.AZURE_OPENAI_PROVIDER_ID, active.modelId);
       const thinking = ai.clampThinkingLevel(modelInfo, active.thinkingLevel);
       const policy = {
         workspace: cwd,
         readableRoots: [cwd],
         protectedPaths: [axlHome],
       };
-      const requestSettings = parseModelRequestSettings(
-        selection.requestSettings ?? defaults.requestSettings ?? DEFAULT_MODEL_REQUEST_SETTINGS,
-      );
-      const model = ai.modelPortForSession(provider, {
-        requestSettings,
+      const model = ai.modelPortForRegistry(providers, {
+        providerId: ai.AZURE_OPENAI_PROVIDER_ID,
         modelId: active.modelId,
         thinkingLevel: thinking.effective,
         readBlob,

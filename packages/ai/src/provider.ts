@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Hari Srinivasan
 // SPDX-License-Identifier: Apache-2.0
 
+import type { ProviderAuthentication } from "./auth.ts";
 import type {
   AuthMethod,
   ImageGenerationRequest,
@@ -22,9 +23,11 @@ export interface ModelProvider {
   readonly id: string;
   readonly displayName: string;
   readonly authMethods: readonly AuthMethod[];
+  /** Provider-owned, UI-neutral authentication lifecycle when authentication is configurable. */
+  readonly authentication?: ProviderAuthentication;
   listModels(): Promise<readonly ModelInfo[]>;
-  /** Optional live catalog refresh; providers without it have a static catalog. */
-  refreshModels?(): Promise<readonly ModelInfo[]>;
+  /** Optional explicit live catalog refresh; providers without it have a static catalog. */
+  refreshModels?(options: { readonly signal?: AbortSignal }): Promise<readonly ModelInfo[]>;
   /**
    * Streams one model response. Failures before dispatch may throw; failures
    * after dispatch must terminate through a terminal stream event. Consumers

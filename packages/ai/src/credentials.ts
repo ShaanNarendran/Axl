@@ -67,7 +67,7 @@ export function credentialSecretValues(credential: Credential): readonly string[
   return [credential.access, credential.refresh];
 }
 
-function parseCredential(value: unknown, providerId: string): Credential {
+export function validateCredential(value: unknown, providerId: string): Credential {
   const fail = (message: string): never => {
     throw new CredentialStoreError(`Stored credential for ${providerId} ${message}`);
   };
@@ -155,8 +155,12 @@ export class InMemoryCredentialStore implements CredentialStore {
     return this.enqueue(async () => {
       const current = this.credentials.get(providerId);
       const next = await fn(current);
-      if (next !== undefined) this.credentials.set(providerId, next);
-      return next ?? current;
+      if (next !== undefined) {
+        const validated = validateCredential(next, providerId);
+        this.credentials.set(providerId, validated);
+        return validated;
+      }
+      return current;
     });
   }
 
@@ -212,8 +216,9 @@ export class FileCredentialStore implements CredentialStore {
         const current = data[providerId];
         const next = await fn(current);
         if (next === undefined) return current;
-        await this.persist({ ...data, [providerId]: next });
-        return next;
+        const validated = validateCredential(next, providerId);
+        await this.persist({ ...data, [providerId]: validated });
+        return validated;
       }),
     );
   }
@@ -259,7 +264,7 @@ export class FileCredentialStore implements CredentialStore {
     }
     const data: Record<string, Credential> = {};
     for (const [providerId, value] of Object.entries(parsed)) {
-      data[providerId] = parseCredential(value, providerId);
+      data[providerId] = validateCredential(value, providerId);
     }
     return data;
   }

@@ -130,6 +130,22 @@ test("in-memory store matches the contract", async () => {
   assert.equal(await store.read("azure"), undefined);
 });
 
+test("every store rejects malformed credentials before writing", async (context) => {
+  const stores = [
+    new InMemoryCredentialStore(),
+    new FileCredentialStore(await temporaryStorePath(context)),
+  ];
+  for (const store of stores) {
+    await assert.rejects(
+      store.modify("azure", () =>
+        Promise.resolve({ type: "oauth", access: "only" } as unknown as Credential),
+      ),
+      CredentialStoreError,
+    );
+    assert.equal(await store.read("azure"), undefined);
+  }
+});
+
 test("credentialSecretValues covers keys and oauth tokens", () => {
   assert.deepEqual(credentialSecretValues(apiKeyCredential), ["secret-key"]);
   assert.deepEqual(credentialSecretValues(oauthCredential), ["access-token", "refresh-token"]);

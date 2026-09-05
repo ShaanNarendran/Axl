@@ -277,6 +277,7 @@ test("missing configuration surfaces a typed auth state through the stream", asy
     context: makeContext({}),
     fetch: (async () => new Response("")) as typeof fetch,
   });
+  assert.deepEqual(provider.authentication?.methods, ["environment", "file"]);
   const { terminal } = await collectModelStream(
     provider.stream({ modelId: "gpt-5", messages: [] }),
   );

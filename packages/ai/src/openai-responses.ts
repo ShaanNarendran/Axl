@@ -13,7 +13,7 @@ import type {
   Usage,
 } from "@axl/protocol";
 
-import type { ResolvedAuth } from "./auth.ts";
+import type { ProviderAuthentication, ResolvedAuth } from "./auth.ts";
 import { assertModelSupports } from "./capabilities.ts";
 import { safeProviderMessage } from "./diagnostics.ts";
 import type { AuthMethod, ModelInfo, ModelRequest, ModelStreamEvent } from "./model.ts";
@@ -409,6 +409,7 @@ export interface OpenAiResponsesProviderOptions {
   readonly id: string;
   readonly displayName: string;
   readonly authMethods: readonly AuthMethod[];
+  readonly authentication?: ProviderAuthentication;
   readonly endpoint: ResponsesEndpoint;
   readonly models: readonly ModelInfo[];
   readonly resolveAuth: () => Promise<ResolvedAuth>;
@@ -426,6 +427,7 @@ export class OpenAiResponsesProvider implements ModelProvider {
   readonly id: string;
   readonly displayName: string;
   readonly authMethods: readonly AuthMethod[];
+  readonly authentication?: ProviderAuthentication;
   private readonly endpoint: ResponsesEndpoint;
   private readonly models: readonly ModelInfo[];
   private readonly resolveAuth: () => Promise<ResolvedAuth>;
@@ -435,6 +437,7 @@ export class OpenAiResponsesProvider implements ModelProvider {
     this.id = options.id;
     this.displayName = options.displayName;
     this.authMethods = options.authMethods;
+    if (options.authentication !== undefined) this.authentication = options.authentication;
     this.endpoint = options.endpoint;
     this.models = options.models;
     this.resolveAuth = options.resolveAuth;

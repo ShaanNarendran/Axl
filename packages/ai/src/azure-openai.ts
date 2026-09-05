@@ -3,9 +3,14 @@
 
 // Axl-native Azure OpenAI endpoint, authentication, and deployment mapping.
 
-import { AuthError, type ApiKeyAuthMethod, type AuthContext, type ResolvedAuth } from "./auth.ts";
+import {
+  AuthError,
+  type ApiKeyAuthMethod,
+  type AuthContext,
+  createProviderAuthentication,
+  type ResolvedAuth,
+} from "./auth.ts";
 import type { CredentialStore } from "./credentials.ts";
-import { resolveProviderAuth } from "./auth.ts";
 import type { ModelInfo } from "./model.ts";
 import { OpenAiResponsesProvider, type ResponsesEndpoint } from "./openai-responses.ts";
 
@@ -163,19 +168,21 @@ export interface AzureOpenAiProviderOptions {
 export function createAzureOpenAiProvider(
   options: AzureOpenAiProviderOptions,
 ): OpenAiResponsesProvider {
+  const authentication = createProviderAuthentication({
+    providerId: AZURE_OPENAI_PROVIDER_ID,
+    declaredMethods: ["environment", "file"],
+    methods: { apiKey: azureOpenAiAuthMethod },
+    store: options.store,
+    context: options.context,
+  });
   return new OpenAiResponsesProvider({
     id: AZURE_OPENAI_PROVIDER_ID,
     displayName: "Azure OpenAI",
-    authMethods: ["environment", "file"],
+    authMethods: authentication.methods,
+    authentication,
     endpoint: azureEndpoint,
     models: options.models ?? AZURE_OPENAI_MODELS,
-    resolveAuth: () =>
-      resolveProviderAuth(
-        AZURE_OPENAI_PROVIDER_ID,
-        { apiKey: azureOpenAiAuthMethod },
-        options.store,
-        options.context,
-      ),
+    resolveAuth: () => authentication.resolve(),
     ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
   });
 }

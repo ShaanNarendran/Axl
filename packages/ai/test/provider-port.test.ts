@@ -5,7 +5,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { FakeModelProvider, modelPortForSession, type ModelStreamEvent } from "../src/index.ts";
+import {
+  FakeModelProvider,
+  type ModelStreamEvent,
+  modelPortForRegistry,
+  modelPortForSession,
+  ProviderRegistry,
+} from "../src/index.ts";
 
 const usage = { inputTokens: 1, outputTokens: 2, cacheReadTokens: 0, cacheWriteTokens: 0 };
 
@@ -41,6 +47,36 @@ test("binds model choice and thinking level into kernel-shaped turns", async () 
   assert.equal(request?.thinkingLevel, "high");
   assert.equal(request?.system, "You are Axl.");
   assert.equal(request?.readBlob, readBlob);
+});
+
+test("binds provider and model identity through the registry coordinator", async () => {
+  const provider = new FakeModelProvider({
+    id: "mixed",
+    models: [
+      {
+        providerId: "mixed",
+        modelId: "chat",
+        displayName: "Chat",
+        apiDialect: "openai-chat",
+        capabilities: { toolUse: true, structuredOutput: true, imageInput: false },
+        reasoning: false,
+        contextWindow: 10_000,
+        maxOutputTokens: 1_000,
+      },
+    ],
+    responses: [[{ type: "completed", stopReason: "stop", usage }]],
+  });
+  const registry = new ProviderRegistry();
+  registry.register(provider);
+  const modelPort = modelPortForRegistry(registry, {
+    providerId: "mixed",
+    modelId: "chat",
+  });
+
+  const result: ModelStreamEvent[] = [];
+  for await (const event of modelPort.stream({ messages: [], tools: [] })) result.push(event);
+  assert.equal(result.at(-1)?.type, "completed");
+  assert.equal(provider.requests[0]?.modelId, "chat");
 });
 
 test("normalization guarantees a terminal even when the provider misbehaves", async () => {
