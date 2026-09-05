@@ -12,14 +12,20 @@ import {
 } from "./auth.ts";
 import type { CredentialStore } from "./credentials.ts";
 import type { ModelInfo } from "./model.ts";
-import { OpenAiResponsesProvider, type ResponsesEndpoint } from "./openai-responses.ts";
+import {
+  type EncodedResponsesRequest,
+  encodeResponsesRequest,
+  OpenAiResponsesProvider,
+  type ResponsesEndpoint,
+} from "./openai-responses.ts";
+import type { PreparedModelRequest } from "./request-preparation.ts";
 
 export const AZURE_OPENAI_PROVIDER_ID = "azure-openai";
 
 import { AZURE_OPENAI_MODELS } from "./azure-openai-models.ts";
 
 export { AZURE_OPENAI_MODELS };
-const DEFAULT_API_VERSION = "v1";
+export const DEFAULT_AZURE_OPENAI_API_VERSION = "v1";
 
 /**
  * Normalizes an Azure OpenAI base URL. Azure hosts get the `/openai/v1` base
@@ -105,20 +111,34 @@ export const azureOpenAiAuthMethod: ApiKeyAuthMethod = {
   },
 };
 
+function resolvedAzureBaseUrl(resolved: ResolvedAuth): string {
+  const base = resolved.auth.baseUrl ?? resolved.env?.AZURE_OPENAI_BASE_URL;
+  if (base === undefined) {
+    throw new AuthError(
+      "not_configured",
+      AZURE_OPENAI_PROVIDER_ID,
+      "Azure OpenAI base URL missing from resolved auth",
+    );
+  }
+  return normalizeAzureBaseUrl(base);
+}
+
+function resolvedAzureApiVersion(resolved: ResolvedAuth): string {
+  const version =
+    resolved.env?.AZURE_OPENAI_API_VERSION?.trim() || DEFAULT_AZURE_OPENAI_API_VERSION;
+  return version;
+}
+
+function azureResourceUrl(resolved: ResolvedAuth, resource: "responses" | "models"): string {
+  const url = new URL(resolvedAzureBaseUrl(resolved));
+  url.pathname = `${url.pathname.replace(/\/+$/, "")}/${resource}`;
+  url.searchParams.set("api-version", resolvedAzureApiVersion(resolved));
+  return url.toString();
+}
+
 /** Azure endpoint policy over the resolved auth: URL, api-key header, deployments. */
 export const azureEndpoint: ResponsesEndpoint = {
-  url: (resolved: ResolvedAuth): string => {
-    const base = resolved.auth.baseUrl ?? resolved.env?.AZURE_OPENAI_BASE_URL;
-    if (base === undefined) {
-      throw new AuthError(
-        "not_configured",
-        AZURE_OPENAI_PROVIDER_ID,
-        "Azure OpenAI base URL missing from resolved auth",
-      );
-    }
-    const version = resolved.env?.AZURE_OPENAI_API_VERSION ?? DEFAULT_API_VERSION;
-    return `${base}/responses?api-version=${encodeURIComponent(version)}`;
-  },
+  url: (resolved: ResolvedAuth): string => azureResourceUrl(resolved, "responses"),
   headers: (resolved: ResolvedAuth): Readonly<Record<string, string>> => ({
     ...(resolved.auth.apiKey === undefined ? {} : { "api-key": resolved.auth.apiKey }),
     ...resolved.auth.headers,
@@ -126,6 +146,31 @@ export const azureEndpoint: ResponsesEndpoint = {
   deploymentFor: (modelId: string, resolved: ResolvedAuth): string =>
     parseDeploymentMap(resolved.env?.AZURE_OPENAI_DEPLOYMENT_NAME_MAP)[modelId] ?? modelId,
 };
+
+export interface EncodedAzureOpenAiResponsesRequest extends EncodedResponsesRequest {
+  readonly url: string;
+}
+
+/** Composes one prepared request with Azure deployment, version, and header policy. */
+export function encodeAzureOpenAiResponsesRequest(
+  model: ModelInfo,
+  request: PreparedModelRequest,
+  resolved: ResolvedAuth,
+): EncodedAzureOpenAiResponsesRequest {
+  if (model.apiDialect !== "azure-openai-responses") {
+    throw new TypeError(`Model ${model.modelId} does not use the Azure OpenAI Responses dialect`);
+  }
+  const encoded = encodeResponsesRequest(
+    model,
+    request,
+    azureEndpoint.deploymentFor(model.modelId, resolved),
+  );
+  return {
+    url: azureEndpoint.url(resolved),
+    headers: { ...encoded.headers, ...azureEndpoint.headers(resolved) },
+    body: encoded.body,
+  };
+}
 
 export interface AzureVerification {
   readonly ok: boolean;
@@ -144,9 +189,8 @@ export async function verifyAzureOpenAiAuth(
 ): Promise<AzureVerification> {
   const base = resolved.auth.baseUrl ?? resolved.env?.AZURE_OPENAI_BASE_URL;
   if (base === undefined) return { ok: false, detail: "no base URL resolved" };
-  const version = resolved.env?.AZURE_OPENAI_API_VERSION ?? DEFAULT_API_VERSION;
   try {
-    const response = await fetchImpl(`${base}/models?api-version=${encodeURIComponent(version)}`, {
+    const response = await fetchImpl(azureResourceUrl(resolved, "models"), {
       headers: azureEndpoint.headers(resolved),
     });
     if (response.ok) return { ok: true, status: response.status };

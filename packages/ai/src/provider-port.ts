@@ -16,6 +16,7 @@ import { DEFAULT_MODEL_REQUEST_SETTINGS } from "@axl/protocol";
 import { fitModelRequest } from "./request-configuration.ts";
 
 import type { ModelProvider } from "./provider.ts";
+import type { RequestModelMessage } from "./model.ts";
 import type { ProviderRegistry } from "./registry.ts";
 import { prepareModelRequest } from "./request-preparation.ts";
 import { normalizeModelStream } from "./stream.ts";
@@ -43,14 +44,18 @@ interface PortTurnRequest {
 
 /**
  * Binds a provider and model choice into the shape the kernel's ModelPort
- * expects (satisfied structurally — the kernel never imports this package).
+ * expects. It is satisfied structurally, and the kernel never imports this package.
  * Streams are normalized, so the kernel always sees exactly one terminal.
  */
-function providerRequest(request: PortTurnRequest, options: SessionPortOptions) {
+function providerRequest(
+  request: PortTurnRequest,
+  options: SessionPortOptions,
+  messages: readonly RequestModelMessage[] = request.messages,
+) {
   return {
     modelId: options.modelId,
     ...(request.system === undefined ? {} : { system: request.system }),
-    messages: request.messages,
+    messages,
     tools: request.tools,
     ...(options.thinkingLevel === undefined ? {} : { thinkingLevel: options.thinkingLevel }),
     ...(request.maxOutputTokens === undefined && options.maxOutputTokens === undefined
@@ -62,23 +67,141 @@ function providerRequest(request: PortTurnRequest, options: SessionPortOptions) 
   };
 }
 
+type ReplayEvent = Extract<ModelStreamEvent, { type: "replay_metadata" }>;
+
+function replayContinuation(event: ReplayEvent) {
+  return {
+    providerId: event.providerId,
+    apiDialect: event.apiDialect,
+    modelId: event.modelId,
+    ...(event.responseId === undefined ? {} : { responseId: event.responseId }),
+    ...(event.itemId === undefined ? {} : { itemId: event.itemId }),
+    ...(event.namespace === undefined ? {} : { namespace: event.namespace }),
+  };
+}
+
+function retainReplayMetadata(
+  messages: readonly ModelMessage[],
+  turns: readonly (readonly ReplayEvent[])[],
+): readonly RequestModelMessage[] {
+  if (turns.length === 0) return messages;
+  const assistantIndexes = messages.flatMap((message, index) =>
+    message.role === "assistant" ? [index] : [],
+  );
+  const offset = Math.max(0, assistantIndexes.length - turns.length);
+  const byMessage = new Map<number, readonly ReplayEvent[]>();
+  turns.forEach((turn, index) => {
+    const messageIndex = assistantIndexes[offset + index];
+    if (messageIndex !== undefined) byMessage.set(messageIndex, turn);
+  });
+
+  return messages.map((message, messageIndex): RequestModelMessage => {
+    const replay = byMessage.get(messageIndex);
+    if (message.role !== "assistant" || replay === undefined || replay.length === 0) return message;
+    const first = replay[0];
+    if (first === undefined) return message;
+    for (const event of replay) {
+      if (
+        event.providerId !== first.providerId ||
+        event.apiDialect !== first.apiDialect ||
+        event.modelId !== first.modelId
+      ) {
+        throw new Error("A model turn emitted replay metadata for multiple model identities");
+      }
+    }
+
+    const thinking = replay
+      .filter((event) => event.target === "thinking")
+      .sort((a, b) => a.contentIndex - b.contentIndex);
+    const text = replay
+      .filter((event) => event.target === "text")
+      .sort((a, b) => a.contentIndex - b.contentIndex);
+    let thinkingIndex = 0;
+    let textIndex = 0;
+    const content = message.content.map((item) => {
+      if (item.type === "thinking") {
+        const event = thinking[thinkingIndex++];
+        return event?.signature === undefined
+          ? item
+          : {
+              ...item,
+              signature: {
+                providerId: event.providerId,
+                apiDialect: event.apiDialect,
+                modelId: event.modelId,
+                value: event.signature,
+              },
+            };
+      }
+      if (item.type === "text") {
+        const event = text[textIndex++];
+        return event === undefined ? item : { ...item, continuation: replayContinuation(event) };
+      }
+      return item;
+    });
+    const calls = message.toolCalls?.map((call) => {
+      const event = replay.find(
+        (candidate) => candidate.target === "tool_call" && candidate.callId === call.callId,
+      );
+      return event === undefined ? call : { ...call, continuation: replayContinuation(event) };
+    });
+    const response = replay.find((event) => event.responseId !== undefined);
+    return {
+      role: "assistant",
+      content,
+      ...(calls === undefined ? {} : { toolCalls: calls }),
+      origin: {
+        providerId: first.providerId,
+        apiDialect: first.apiDialect,
+        modelId: first.modelId,
+      },
+      ...(response === undefined ? {} : { continuation: replayContinuation(response) }),
+    };
+  });
+}
+
+function retainStream(
+  stream: AsyncIterable<ModelStreamEvent>,
+  turns: ReplayEvent[][],
+): AsyncIterable<ModelStreamEvent> {
+  return (async function* () {
+    const replay: ReplayEvent[] = [];
+    try {
+      for await (const event of stream) {
+        if (event.type === "replay_metadata") replay.push(event);
+        yield event;
+      }
+    } finally {
+      turns.push(replay);
+    }
+  })();
+}
+
 export function modelPortForSession(
   provider: ModelProvider,
   options: SessionPortOptions,
 ): { stream(request: PortTurnRequest): AsyncIterable<ModelStreamEvent> } {
+  const replayTurns: ReplayEvent[][] = [];
   return {
     stream: (request) =>
-      normalizeModelStream(
-        (async function* () {
-          const models = await provider.listModels();
-          const model = models.find((candidate) => candidate.modelId === options.modelId);
-          if (model === undefined) {
-            throw new Error(`Provider ${provider.id} has no model ${options.modelId}`);
-          }
-          const prepared = await prepareModelRequest(model, providerRequest(request, options));
-          yield* provider.stream(prepared);
-        })(),
-        request.signal,
+      retainStream(
+        normalizeModelStream(
+          (async function* () {
+            const models = await provider.listModels();
+            const model = models.find((candidate) => candidate.modelId === options.modelId);
+            if (model === undefined) {
+              throw new Error(`Provider ${provider.id} has no model ${options.modelId}`);
+            }
+            const messages = retainReplayMetadata(request.messages, replayTurns);
+            const prepared = await prepareModelRequest(
+              model,
+              providerRequest(request, options, messages),
+            );
+            yield* provider.stream(prepared);
+          })(),
+          request.signal,
+        ),
+        replayTurns,
       ),
   };
 }
@@ -92,11 +215,17 @@ export function modelPortForRegistry(
   registry: ProviderRegistry,
   options: RegistrySessionPortOptions,
 ): { stream(request: PortTurnRequest): AsyncIterable<ModelStreamEvent> } {
+  const replayTurns: ReplayEvent[][] = [];
   return {
-    stream: (request) =>
-      normalizeModelStream(
-        registry.stream(options.providerId, providerRequest(request, options)),
-        request.signal,
-      ),
+    stream: (request) => {
+      const messages = retainReplayMetadata(request.messages, replayTurns);
+      return retainStream(
+        normalizeModelStream(
+          registry.stream(options.providerId, providerRequest(request, options, messages)),
+          request.signal,
+        ),
+        replayTurns,
+      );
+    },
   };
 }

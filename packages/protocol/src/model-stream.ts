@@ -103,6 +103,23 @@ interface PositionedContent {
 }
 
 /**
+ * Opaque provider replay data attached to one completed response block.
+ * Values are provenance-bound and must never contain authentication material.
+ */
+export interface ProviderReplayMetadata {
+  readonly target: "thinking" | "text" | "tool_call";
+  readonly contentIndex: number;
+  readonly providerId: string;
+  readonly apiDialect: string;
+  readonly modelId: string;
+  readonly callId?: string;
+  readonly signature?: string;
+  readonly responseId?: string;
+  readonly itemId?: string;
+  readonly namespace?: string;
+}
+
+/**
  * Canonical model stream shape. Every stream yields zero or more deltas and
  * tool calls, then exactly one terminal event: `completed`, `error`, or
  * `aborted`. Nothing follows a terminal event.
@@ -127,6 +144,7 @@ export type ModelStreamEvent =
       readonly argumentsDelta: string;
     } & PositionedContent)
   | ({ readonly type: "tool_call" } & ToolCallRequest & PositionedContent)
+  | ({ readonly type: "replay_metadata" } & ProviderReplayMetadata)
   | {
       readonly type: "completed";
       readonly stopReason: AssistantStopReason;
@@ -324,6 +342,37 @@ export function parseModelStreamEvent(value: unknown, path = "modelStreamEvent")
     object(event.input, `${path}.input`);
     validateJson(event.input, `${path}.input`);
     optionalPosition(event, path);
+  } else if (type === "replay_metadata") {
+    exact(
+      event,
+      path,
+      ["type", "target", "contentIndex", "providerId", "apiDialect", "modelId"],
+      ["callId", "signature", "responseId", "itemId", "namespace"],
+    );
+    if (!new Set(["thinking", "text", "tool_call"]).has(String(event.target))) {
+      fail(`${path}.target`, "must be thinking, text, or tool_call");
+    }
+    nonNegativeNumber(event.contentIndex, `${path}.contentIndex`, true);
+    string(event.providerId, `${path}.providerId`);
+    string(event.apiDialect, `${path}.apiDialect`);
+    string(event.modelId, `${path}.modelId`);
+    for (const key of ["callId", "signature", "responseId", "itemId", "namespace"] as const) {
+      if (event[key] !== undefined) string(event[key], `${path}.${key}`);
+    }
+    if (event.target === "tool_call" && event.callId === undefined) {
+      fail(`${path}.callId`, "is required for tool_call replay metadata");
+    }
+    if (event.target !== "tool_call" && event.callId !== undefined) {
+      fail(`${path}.callId`, "is allowed only for tool_call replay metadata");
+    }
+    if (
+      event.signature === undefined &&
+      event.responseId === undefined &&
+      event.itemId === undefined &&
+      event.namespace === undefined
+    ) {
+      fail(path, "must contain replay data");
+    }
   } else if (type === "completed") {
     exact(event, path, ["type", "stopReason", "usage"], ["partial", "response", "diagnostics"]);
     if (

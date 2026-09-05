@@ -6863,16 +6863,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -6926,16 +6921,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -6988,16 +6978,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -7050,16 +7035,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -7113,16 +7093,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -7175,16 +7150,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -7246,16 +7216,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -7308,16 +7273,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -7379,16 +7339,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -7441,16 +7396,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -7503,16 +7453,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -7565,16 +7510,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -7627,16 +7567,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -7680,16 +7615,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -7741,16 +7671,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -7794,16 +7719,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -7846,16 +7766,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -7898,16 +7813,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -7951,16 +7861,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -8005,16 +7910,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -8059,16 +7959,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -8113,16 +8008,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -8167,16 +8057,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -8221,16 +8106,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -8283,16 +8163,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -8344,16 +8219,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -8405,16 +8275,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -8466,16 +8331,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -8526,16 +8386,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -8588,16 +8443,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -8649,16 +8499,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -8710,16 +8555,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -8771,16 +8611,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -8833,16 +8668,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -8894,16 +8724,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -8956,16 +8781,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -9026,16 +8846,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -9088,16 +8903,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -9150,16 +8960,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -9217,16 +9022,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -9287,16 +9087,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -9359,16 +9154,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -9432,16 +9222,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -9505,16 +9290,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -9567,16 +9347,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -9621,16 +9396,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -9675,16 +9445,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -9728,16 +9493,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -9781,16 +9541,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -9838,16 +9593,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -9898,16 +9648,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -9957,16 +9702,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -10010,16 +9750,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -10062,16 +9797,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -10114,16 +9844,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -10166,16 +9891,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -10218,16 +9938,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -10270,16 +9985,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -10322,16 +10032,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -10374,16 +10079,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -10435,16 +10135,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -10497,16 +10192,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -10558,16 +10248,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -10620,16 +10305,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -10673,16 +10353,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]
@@ -10725,16 +10400,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "template",
-        "template": "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
+        "template": "https://{resource}.openai.azure.com/openai/v1",
         "variables": [
           {
             "name": "resource",
             "setting": "resource",
-            "required": true
-          },
-          {
-            "name": "deployment",
-            "setting": "deployment",
             "required": true
           }
         ]

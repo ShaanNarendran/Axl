@@ -82,6 +82,136 @@ test("binds provider and model identity through the registry coordinator", async
   assert.equal(provider.requests[0]?.modelId, "chat");
 });
 
+test("retains replay metadata in assistant history for the next in-process turn", async () => {
+  const provider = new FakeModelProvider({
+    responses: [
+      [
+        { type: "thinking_delta", text: "considered", contentIndex: 0 },
+        {
+          type: "replay_metadata",
+          target: "thinking",
+          contentIndex: 0,
+          providerId: "fake",
+          apiDialect: "fake",
+          modelId: "fake-model",
+          signature: "opaque-reasoning",
+          responseId: "resp-1",
+          itemId: "rs-1",
+        },
+        { type: "text_delta", text: "running", contentIndex: 1 },
+        {
+          type: "replay_metadata",
+          target: "text",
+          contentIndex: 1,
+          providerId: "fake",
+          apiDialect: "fake",
+          modelId: "fake-model",
+          responseId: "resp-1",
+          itemId: "msg-1",
+        },
+        { type: "tool_call", contentIndex: 2, callId: "call-1", name: "shell", input: {} },
+        {
+          type: "replay_metadata",
+          target: "tool_call",
+          contentIndex: 2,
+          providerId: "fake",
+          apiDialect: "fake",
+          modelId: "fake-model",
+          callId: "call-1",
+          responseId: "resp-1",
+          itemId: "fc-1",
+          namespace: "dynamic",
+        },
+        { type: "completed", stopReason: "tool_use", usage },
+      ],
+      [{ type: "completed", stopReason: "stop", usage }],
+      [{ type: "completed", stopReason: "stop", usage }],
+    ],
+  });
+  const port = modelPortForSession(provider, { modelId: "fake-model" });
+  await Array.fromAsync(port.stream({ messages: [], tools: [] }));
+  await Array.fromAsync(
+    port.stream({
+      messages: [
+        {
+          role: "assistant",
+          content: [
+            { type: "thinking", text: "considered" },
+            { type: "text", text: "running" },
+          ],
+          toolCalls: [{ callId: "call-1", name: "shell", input: {} }],
+        },
+        {
+          role: "tool",
+          callId: "call-1",
+          name: "shell",
+          content: [{ type: "text", text: "done" }],
+          isError: false,
+        },
+      ],
+      tools: [{ name: "shell", description: "Run", inputSchema: { type: "object" } }],
+    }),
+  );
+
+  const assistant = provider.requests[1]?.messages[0];
+  assert.equal(assistant?.role, "assistant");
+  if (assistant?.role !== "assistant") assert.fail("expected replayed assistant message");
+  assert.deepEqual(assistant.origin, {
+    providerId: "fake",
+    apiDialect: "fake",
+    modelId: "fake-model",
+  });
+  assert.equal(
+    assistant.content[0]?.type === "thinking" ? assistant.content[0].signature?.value : undefined,
+    "opaque-reasoning",
+  );
+  assert.equal(
+    assistant.content[1]?.type === "text" ? assistant.content[1].continuation?.itemId : undefined,
+    "msg-1",
+  );
+  assert.deepEqual(assistant.toolCalls?.[0]?.continuation, {
+    providerId: "fake",
+    apiDialect: "fake",
+    modelId: "fake-model",
+    responseId: "resp-1",
+    itemId: "fc-1",
+    namespace: "dynamic",
+  });
+  assert.equal(assistant.continuation?.responseId, "resp-1");
+
+  await Array.fromAsync(
+    port.stream({
+      messages: [
+        {
+          role: "assistant",
+          content: [
+            { type: "thinking", text: "considered" },
+            { type: "text", text: "running" },
+          ],
+          toolCalls: [{ callId: "call-1", name: "shell", input: {} }],
+        },
+        {
+          role: "tool",
+          callId: "call-1",
+          name: "shell",
+          content: [{ type: "text", text: "done" }],
+          isError: false,
+        },
+        { role: "assistant", content: [{ type: "text", text: "finished" }] },
+        { role: "user", content: [{ type: "text", text: "again" }] },
+      ],
+      tools: [{ name: "shell", description: "Run", inputSchema: { type: "object" } }],
+    }),
+  );
+  const nextMessages = provider.requests[2]?.messages;
+  const secondAssistant = nextMessages?.filter((message) => message.role === "assistant")[1];
+  assert.equal(secondAssistant?.role, "assistant");
+  if (secondAssistant?.role === "assistant") {
+    assert.equal(secondAssistant.origin, undefined);
+    assert.equal(secondAssistant.continuation, undefined);
+  }
+});
+
 test("normalization guarantees a terminal even when the provider misbehaves", async () => {
   const provider = new FakeModelProvider({
     responses: [[{ type: "text_delta", text: "cut off" }]], // no terminal

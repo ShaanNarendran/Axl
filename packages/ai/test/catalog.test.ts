@@ -66,6 +66,18 @@ test("generated catalog covers every planned provider identity", () => {
   const openAiDialects = new Set(getStaticModelCatalog("openai").map((model) => model.apiDialect));
   assert.equal(openAiDialects.has("openai-chat"), true);
   assert.equal(openAiDialects.has("openai-responses"), true);
+
+  const azureModels = getStaticModelCatalog("azure-openai-responses");
+  assert.equal(
+    azureModels.every(
+      (model) =>
+        model.endpoint?.type === "template" &&
+        model.endpoint.template === "https://{resource}.openai.azure.com/openai/v1" &&
+        model.endpoint.variables.length === 1 &&
+        model.endpoint.variables[0]?.name === "resource",
+    ),
+    true,
+  );
 });
 
 test("static catalog access performs no network or credential work", () => {

@@ -43,6 +43,57 @@ test("validates positioned content and partial tool progress", () => {
   );
 });
 
+test("validates provenance-bound replay metadata", () => {
+  const replay = parseModelStreamEvent({
+    type: "replay_metadata",
+    target: "thinking",
+    contentIndex: 1,
+    providerId: "openai",
+    apiDialect: "openai-responses",
+    modelId: "gpt-5",
+    signature: '{"type":"reasoning","encrypted_content":"opaque"}',
+    responseId: "resp-1",
+    itemId: "rs-1",
+  });
+  assert.deepEqual(replay, {
+    type: "replay_metadata",
+    target: "thinking",
+    contentIndex: 1,
+    providerId: "openai",
+    apiDialect: "openai-responses",
+    modelId: "gpt-5",
+    signature: '{"type":"reasoning","encrypted_content":"opaque"}',
+    responseId: "resp-1",
+    itemId: "rs-1",
+  });
+  assert.equal(isTerminalModelStreamEvent(replay), false);
+
+  assert.deepEqual(
+    parseModelStreamEvent({
+      type: "replay_metadata",
+      target: "tool_call",
+      contentIndex: 2,
+      providerId: "openai",
+      apiDialect: "openai-responses",
+      modelId: "gpt-5",
+      callId: "call-1",
+      itemId: "fc-1",
+      namespace: "tools",
+    }),
+    {
+      type: "replay_metadata",
+      target: "tool_call",
+      contentIndex: 2,
+      providerId: "openai",
+      apiDialect: "openai-responses",
+      modelId: "gpt-5",
+      callId: "call-1",
+      itemId: "fc-1",
+      namespace: "tools",
+    },
+  );
+});
+
 test("validates safe response attribution and retry guidance", () => {
   const completed = parseModelStreamEvent({
     type: "completed",
@@ -117,6 +168,45 @@ test("rejects malformed stream data and unbounded diagnostic fields", () => {
         input: { invalid: Number.NaN },
       }),
     /JSON-compatible/,
+  );
+  assert.throws(
+    () =>
+      parseModelStreamEvent({
+        type: "replay_metadata",
+        target: "thinking",
+        contentIndex: 0,
+        providerId: "openai",
+        apiDialect: "openai-responses",
+        modelId: "gpt-5",
+      }),
+    /must contain replay data/,
+  );
+  assert.throws(
+    () =>
+      parseModelStreamEvent({
+        type: "replay_metadata",
+        target: "tool_call",
+        contentIndex: 0,
+        providerId: "openai",
+        apiDialect: "openai-responses",
+        modelId: "gpt-5",
+        itemId: "fc-1",
+      }),
+    /callId is required/,
+  );
+  assert.throws(
+    () =>
+      parseModelStreamEvent({
+        type: "replay_metadata",
+        target: "text",
+        contentIndex: 0,
+        providerId: "openai",
+        apiDialect: "openai-responses",
+        modelId: "gpt-5",
+        callId: "call-1",
+        itemId: "msg-1",
+      }),
+    /callId is allowed only/,
   );
 });
 

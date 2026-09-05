@@ -101,11 +101,8 @@ export const PROVIDER_CATALOG_OVERLAYS: readonly ProviderCatalogOverlay[] = [
     dialect: "azure-openai-responses",
     endpoint: {
       type: "template",
-      template: "https://{resource}.openai.azure.com/openai/deployments/{deployment}",
-      variables: [
-        { name: "resource", setting: "resource", required: true },
-        { name: "deployment", setting: "deployment", required: true },
-      ],
+      template: "https://{resource}.openai.azure.com/openai/v1",
+      variables: [{ name: "resource", setting: "resource", required: true }],
     },
     cache: shortCache,
     compatibilityByDialect: {

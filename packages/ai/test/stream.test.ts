@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2026 Hari Srinivasan
+// SPDX-FileCopyrightText: 2026 Kaushik Kumar
 // SPDX-License-Identifier: Apache-2.0
 
 import assert from "node:assert/strict";
@@ -13,6 +14,15 @@ test("passes a well-formed stream through and stops at the terminal event", asyn
   let pulledPastTerminal = false;
   async function* source(): AsyncGenerator<ModelStreamEvent> {
     yield { type: "thinking_delta", text: "hmm" };
+    yield {
+      type: "replay_metadata",
+      target: "thinking",
+      contentIndex: 0,
+      providerId: "openai",
+      apiDialect: "openai-responses",
+      modelId: "gpt-5",
+      signature: "opaque",
+    };
     yield { type: "text_delta", text: "hello" };
     yield { type: "tool_call", callId: "call-1", name: "shell", input: { command: "true" } };
     yield completed;
@@ -21,7 +31,7 @@ test("passes a well-formed stream through and stops at the terminal event", asyn
   }
 
   const { events, terminal } = await collectModelStream(source());
-  assert.equal(events.length, 4);
+  assert.equal(events.length, 5);
   assert.deepEqual(terminal, completed);
   assert.equal(pulledPastTerminal, false);
 });
@@ -39,8 +49,7 @@ test("converts a thrown provider error into an error terminal", async () => {
     code: "provider_stream_failure",
     message: "connection reset",
     retryable: false,
-    category: "stream_interrupted",
-    requestPhase: "streaming",
+    partial: true,
   });
 });
 
@@ -54,6 +63,7 @@ test("converts a silently ended stream into an error terminal", async () => {
   if (terminal.type === "error") {
     assert.equal(terminal.code, "provider_stream_truncated");
     assert.equal(terminal.retryable, false);
+    assert.equal(terminal.partial, true);
   }
 });
 
@@ -66,7 +76,7 @@ test("reports an aborted terminal when the request signal fired", async () => {
   }
 
   const { terminal } = await collectModelStream(source(), controller.signal);
-  assert.deepEqual(terminal, { type: "aborted" });
+  assert.deepEqual(terminal, { type: "aborted", partial: true });
 });
 
 test("normalizeModelStream yields nothing after a terminal event", async () => {

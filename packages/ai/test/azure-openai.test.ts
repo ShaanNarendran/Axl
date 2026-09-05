@@ -8,8 +8,10 @@ import {
   type AuthContext,
   AuthError,
   azureOpenAiAuthMethod,
+  AZURE_OPENAI_MODELS,
   collectModelStream,
   createAzureOpenAiProvider,
+  encodeAzureOpenAiResponsesRequest,
   FakeModelProvider,
   InMemoryCredentialStore,
   login,
@@ -17,6 +19,7 @@ import {
   makeFakeModelInfo,
   normalizeAzureBaseUrl,
   parseDeploymentMap,
+  prepareModelRequest,
 } from "../src/index.ts";
 
 const usage = { inputTokens: 20, outputTokens: 30, cacheReadTokens: 100, cacheWriteTokens: 0 };
@@ -140,6 +143,85 @@ test("parses the model-to-deployment map format", () => {
   assert.deepEqual(parseDeploymentMap("malformed,also=ok"), { also: "ok" });
 });
 
+test("composes a prepared Azure request with deployment, headers, and API version", async () => {
+  const model = AZURE_OPENAI_MODELS.find((candidate) => candidate.modelId === "gpt-5");
+  assert.ok(model);
+  const request = await prepareModelRequest(model, {
+    modelId: "gpt-5",
+    system: "Be concise.",
+    messages: [{ role: "user", content: [{ type: "text", text: "inspect" }] }],
+    tools: [
+      {
+        name: "read_file",
+        description: "Read a file",
+        inputSchema: {
+          type: "object",
+          properties: { path: { type: "string" } },
+          required: ["path"],
+        },
+      },
+    ],
+    toolChoice: "required",
+    thinkingLevel: "xhigh",
+    maxOutputTokens: 8,
+  });
+  const encoded = encodeAzureOpenAiResponsesRequest(model, request, {
+    auth: { apiKey: "fixture-key", headers: { "x-azure-client": "fixture" } },
+    source: "fixture",
+    env: {
+      AZURE_OPENAI_BASE_URL: "https://fixture.services.ai.azure.com/openai/v1/responses",
+      AZURE_OPENAI_API_VERSION: "2026-01-01-preview",
+      AZURE_OPENAI_DEPLOYMENT_NAME_MAP: "gpt-5=production-gpt-5",
+    },
+    secretValues: ["fixture-key"],
+  });
+
+  assert.equal(
+    encoded.url,
+    "https://fixture.services.ai.azure.com/openai/v1/responses?api-version=2026-01-01-preview",
+  );
+  assert.deepEqual(encoded.headers, {
+    "api-key": "fixture-key",
+    "x-azure-client": "fixture",
+  });
+  assert.deepEqual(encoded.body, {
+    model: "production-gpt-5",
+    input: [{ role: "user", content: [{ type: "input_text", text: "inspect" }] }],
+    stream: true,
+    store: false,
+    instructions: "Be concise.",
+    max_output_tokens: 16,
+    tools: [
+      {
+        type: "function",
+        name: "read_file",
+        description: "Read a file",
+        parameters: {
+          type: "object",
+          properties: { path: { type: "string" } },
+          required: ["path"],
+        },
+        strict: false,
+      },
+    ],
+    tool_choice: "required",
+    reasoning: { effort: "high", summary: "auto" },
+    include: ["reasoning.encrypted_content"],
+  });
+});
+
+test("preserves proxy query settings while adding the Azure API version", async () => {
+  const { provider, requests } = await makeProvider(transcript, {
+    AZURE_OPENAI_BASE_URL: "https://gateway.example.com/azure?route=primary",
+    AZURE_OPENAI_API_VERSION: "2025-04-01-preview",
+  });
+  await collectModelStream(provider.stream({ modelId: "gpt-5", messages: [] }));
+  assert.equal(
+    requests[0]?.url,
+    "https://gateway.example.com/azure/responses?route=primary&api-version=2025-04-01-preview",
+  );
+});
+
 test("streams from Azure with api-key header, versioned URL, and mapped deployment", async () => {
   const { provider, requests } = await makeProvider(transcript, {
     AZURE_OPENAI_RESOURCE_NAME: "myres",
@@ -158,7 +240,7 @@ test("streams from Azure with api-key header, versioned URL, and mapped deployme
   assert.equal(request?.url, "https://myres.openai.azure.com/openai/v1/responses?api-version=v1");
   assert.equal(request?.headers["api-key"], "azure-secret-key");
   assert.equal(request?.body.model, "gpt-5.6-sol");
-  assert.deepEqual(request?.body.reasoning, { effort: "xhigh" });
+  assert.deepEqual(request?.body.reasoning, { effort: "high", summary: "auto" });
 
   assert.equal(events.length, 6);
   assert.equal(terminal.type, "completed");
@@ -166,6 +248,49 @@ test("streams from Azure with api-key header, versioned URL, and mapped deployme
     assert.equal(terminal.stopReason, "tool_use");
     assert.deepEqual(terminal.usage, { ...usage, reasoningTokens: 0 });
   }
+});
+
+test("retains Azure-specific replay provenance from the shared Responses stream", async () => {
+  const { provider } = await makeProvider(
+    [
+      { type: "response.created", response: { id: "resp-azure" } },
+      {
+        type: "response.output_item.added",
+        output_index: 0,
+        item: { type: "reasoning", id: "rs-azure" },
+      },
+      { type: "response.reasoning_summary_text.delta", output_index: 0, delta: "think" },
+      {
+        type: "response.output_item.done",
+        output_index: 0,
+        item: {
+          type: "reasoning",
+          id: "rs-azure",
+          encrypted_content: "opaque-azure",
+          summary: [],
+        },
+      },
+      {
+        type: "response.completed",
+        response: { id: "resp-azure", status: "completed", usage: {} },
+      },
+    ],
+    { AZURE_OPENAI_RESOURCE_NAME: "myres" },
+  );
+  const { events } = await collectModelStream(provider.stream({ modelId: "gpt-5", messages: [] }));
+  assert.deepEqual(events[1], {
+    type: "replay_metadata",
+    target: "thinking",
+    contentIndex: 0,
+    providerId: "azure-openai",
+    apiDialect: "azure-openai-responses",
+    modelId: "gpt-5",
+    signature:
+      '{"type":"reasoning","id":"rs-azure","encrypted_content":"opaque-azure","summary":[]}',
+    responseId: "resp-azure",
+    itemId: "rs-azure",
+  });
+  assert.equal(events.at(-1)?.type, "completed");
 });
 
 test("exit gate: Azure and the fake provider produce identical canonical stream shapes", async () => {
@@ -337,7 +462,10 @@ test("publishes the complete built-in Azure OpenAI model catalog", async () => {
   );
   assert.equal(new Set(AZURE_OPENAI_MODELS.map((model) => model.modelId)).size, 38);
   assert.equal(
-    AZURE_OPENAI_MODELS.every((model) => model.providerId === "azure-openai"),
+    AZURE_OPENAI_MODELS.every(
+      (model) =>
+        model.providerId === "azure-openai" && model.apiDialect === "azure-openai-responses",
+    ),
     true,
   );
   assert.equal(

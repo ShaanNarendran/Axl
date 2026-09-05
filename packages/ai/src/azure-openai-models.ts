@@ -5,7 +5,7 @@ import type { ModelInfo } from "./model.ts";
 
 const defaults = {
   providerId: "azure-openai",
-  apiDialect: "openai-responses",
+  apiDialect: "azure-openai-responses",
   capabilities: { toolUse: true, structuredOutput: true, imageInput: true },
 } as const;
 
@@ -48,7 +48,7 @@ function azureModel(definition: AzureModelDefinition): ModelInfo {
     ...(definition.grammarTools
       ? {
           compatibility: {
-            dialect: "openai-responses" as const,
+            dialect: "azure-openai-responses" as const,
             supportsGrammarTools: true,
           },
         }

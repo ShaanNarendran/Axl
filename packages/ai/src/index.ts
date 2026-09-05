@@ -11,6 +11,8 @@ export * from "./diagnostics.ts";
 export * from "./dialect.ts";
 export * from "./fake-provider.ts";
 export * from "./model.ts";
+export * from "./openai-chat.ts";
+export * from "./openai-codex-responses.ts";
 export * from "./openai-responses.ts";
 export * from "./provider.ts";
 export * from "./provider-port.ts";

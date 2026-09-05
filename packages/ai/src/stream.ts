@@ -19,17 +19,20 @@ export async function* normalizeModelStream(
   stream: AsyncIterable<ModelStreamEvent>,
   signal?: AbortSignal,
 ): AsyncGenerator<ModelStreamEvent, void, undefined> {
+  let emittedContent = false;
   try {
     for await (const rawEvent of stream) {
       const event = parseModelStreamEvent(rawEvent);
       yield event;
       if (isTerminalModelStreamEvent(event)) return;
+      emittedContent = true;
     }
   } catch (error) {
     yield terminalForFailure(
       signal,
       "provider_stream_failure",
       error instanceof Error ? error.message : "provider stream threw a non-Error value",
+      emittedContent,
     );
     return;
   }
@@ -37,6 +40,7 @@ export async function* normalizeModelStream(
     signal,
     "provider_stream_truncated",
     "provider ended the stream without a terminal event",
+    emittedContent,
   );
 }
 
@@ -44,16 +48,10 @@ function terminalForFailure(
   signal: AbortSignal | undefined,
   code: string,
   message: string,
+  partial: boolean,
 ): TerminalModelStreamEvent {
-  if (signal?.aborted) return { type: "aborted" };
-  return {
-    type: "error",
-    code,
-    message,
-    retryable: false,
-    category: "stream_interrupted",
-    requestPhase: "streaming",
-  };
+  if (signal?.aborted) return { type: "aborted", ...(partial ? { partial: true } : {}) };
+  return { type: "error", code, message, retryable: false, ...(partial ? { partial: true } : {}) };
 }
 
 /** Collects a normalized stream; the last event is always terminal. */
