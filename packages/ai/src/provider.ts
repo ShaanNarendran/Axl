@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { ProviderAuthentication } from "./auth.ts";
+import type { CatalogSnapshot, CatalogSourceMetadata } from "./catalog-store.ts";
 import type {
   AuthMethod,
   ImageGenerationRequest,
@@ -10,7 +11,36 @@ import type {
   ModelInfo,
   ModelRequest,
   ModelStreamEvent,
+  SafeProviderDiagnostic,
 } from "./model.ts";
+
+export interface ModelCatalogRefreshContext {
+  readonly providerId: string;
+  /** Provider-instance-local generation. Results from older generations are never published. */
+  readonly generation: number;
+  /** Validated last-known-good snapshot restored before network work begins. */
+  readonly previous?: Readonly<CatalogSnapshot>;
+  readonly signal: AbortSignal;
+}
+
+interface ModelCatalogRefreshMetadata {
+  readonly providerId: string;
+  readonly generation: number;
+  /** Safe public source metadata. URLs, headers, and credentials are intentionally absent. */
+  readonly source: CatalogSourceMetadata;
+  readonly diagnostics?: readonly SafeProviderDiagnostic[];
+}
+
+export type ModelCatalogRefreshResult =
+  | (ModelCatalogRefreshMetadata & {
+      readonly status: "updated";
+      readonly models: readonly ModelInfo[];
+      readonly sourceUpdatedAt?: number;
+      readonly etag?: string;
+    })
+  | (ModelCatalogRefreshMetadata & {
+      readonly status: "not_modified";
+    });
 
 /** Handle for a provider-side deferred response. Optional; no provider implements it yet. */
 export interface DeferredResponse {
@@ -27,7 +57,7 @@ export interface ModelProvider {
   readonly authentication?: ProviderAuthentication;
   listModels(): Promise<readonly ModelInfo[]>;
   /** Optional explicit live catalog refresh; providers without it have a static catalog. */
-  refreshModels?(options: { readonly signal?: AbortSignal }): Promise<readonly ModelInfo[]>;
+  refreshModels?(context: ModelCatalogRefreshContext): Promise<ModelCatalogRefreshResult>;
   /**
    * Streams one model response. Failures before dispatch may throw; failures
    * after dispatch must terminate through a terminal stream event. Consumers

@@ -133,6 +133,16 @@ SPDX-FileCopyrightText = [
 ]
 SPDX-License-Identifier = "Apache-2.0"
 
+[[annotations]]
+path = ["packages/ai/catalog/sources/models-dev.json"]
+SPDX-FileCopyrightText = "2025 models.dev contributors"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = ["packages/ai/catalog/sources/ant-ling.json"]
+SPDX-FileCopyrightText = "2026 Kaushik Kumar"
+SPDX-License-Identifier = "Apache-2.0"
+
 # Build output is disposable and inherits its source license.
 [[annotations]]
 path = ["packages/*/dist/**", "packages/extensions/*/dist/**"]
