@@ -47,6 +47,6 @@ Throttling and service-unavailable events carry bounded retry classification. Va
 
 Local fixtures cover generated compatibility metadata, prepared content and image encoding, strict tools, cache points, fixed and adaptive thinking, request metadata, SigV4 inputs, bearer headers, regional and ARN routing, custom endpoints, interleaved stream events, signed and redacted reasoning, tool arguments, usage and cost, routed identity, native stops, provider failures, cancellation, malformed input, and exact terminal normalization. No live provider request was performed.
 
-## Deferred work
+## Registration status and deferred work
 
-Provider registration, AWS credential-chain acquisition and refresh, SigV4 implementation, HTTP event-stream transport, timeout enforcement, bounded transport retries, runtime selection, daemon and SDK changes, CLI and TUI integration, and live provider smoke tests remain in their planned slices.
+Built in registration, bearer-token transport, checked HTTP event-stream framing, timeout enforcement, and bounded transport retries were completed in `118fd89`. AWS credential-chain acquisition and refresh, SigV4 implementation, runtime selection, daemon and SDK changes, CLI and TUI integration, and live provider smoke tests remain in their planned slices.

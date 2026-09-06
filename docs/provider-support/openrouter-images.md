@@ -59,6 +59,6 @@ Cancellation rejects with the same typed error carrying `aborted: true` and a fi
 
 Local fixtures cover text-only and image-conditioned requests, verified reference bytes, count, size, aspect ratio, multiple outputs, explicit and inferred media types, revised prompts, usage, authoritative and computed cost, requested and routed identity, response IDs, blob writes, cancellation, provider error classification and redaction, malformed base64, empty output, inconsistent controls, content-address mismatches, and invalid blob-writer results. No live provider call was performed.
 
-## Deferred work
+## Registration status and deferred work
 
-OpenRouter provider registration, API-key and OAuth acquisition, authorization and attribution headers, endpoint composition, HTTP transport, timeout enforcement, bounded retries, retry guidance from HTTP headers, dynamic image catalog discovery and persistence, model-specific option capability validation, runtime and daemon ownership, SDK methods, CLI and TUI integration, and opt-in live smoke tests remain in their planned slices.
+OpenRouter API-key registration, authorization, endpoint composition, HTTP transport, bounded retries, explicit text and image discovery, persisted text and image catalogs, and native image generation were completed in `118fd89`. OAuth, model-specific image option capability refinement, runtime and daemon ownership, SDK methods, CLI and TUI integration, and opt-in live smoke tests remain in their planned slices.

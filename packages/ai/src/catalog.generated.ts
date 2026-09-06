@@ -30324,7 +30324,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "providerId": "opencode",
       "modelId": "claude-3-5-haiku",
       "displayName": "Claude Haiku 3.5",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -30356,21 +30356,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "reason": "Deprecated by the source catalog"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "claude-fable-5",
       "displayName": "Claude Fable 5",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -30409,21 +30405,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "claude-fable-5-1",
       "displayName": "Claude Fable 5.1",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -30462,21 +30454,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "claude-haiku-4-5",
       "displayName": "Claude Haiku 4.5",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -30515,21 +30503,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "claude-opus-4-1",
       "displayName": "Claude Opus 4.1",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -30569,21 +30553,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "reason": "Deprecated by the source catalog"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "claude-opus-4-5",
       "displayName": "Claude Opus 4.5",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -30622,21 +30602,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "claude-opus-4-6",
       "displayName": "Claude Opus 4.6",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -30675,21 +30651,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "claude-opus-4-7",
       "displayName": "Claude Opus 4.7",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -30728,21 +30700,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "claude-opus-4-8",
       "displayName": "Claude Opus 4.8",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -30781,21 +30749,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "claude-opus-5",
       "displayName": "Claude Opus 5",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -30834,21 +30798,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "claude-sonnet-4",
       "displayName": "Claude Sonnet 4",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -30896,21 +30856,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "claude-sonnet-4-5",
       "displayName": "Claude Sonnet 4.5",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -30958,21 +30914,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "claude-sonnet-4-6",
       "displayName": "Claude Sonnet 4.6",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -31011,21 +30963,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "claude-sonnet-5",
       "displayName": "Claude Sonnet 5",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -31064,14 +31012,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
@@ -31287,7 +31231,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "providerId": "opencode",
       "modelId": "gemini-3-flash",
       "displayName": "Gemini 3 Flash",
-      "apiDialect": "openai-chat",
+      "apiDialect": "google-generative-ai",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -31325,21 +31269,14 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "google-generative-ai"
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gemini-3-pro",
       "displayName": "Gemini 3 Pro",
-      "apiDialect": "openai-chat",
+      "apiDialect": "google-generative-ai",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -31386,21 +31323,14 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "reason": "Deprecated by the source catalog"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "google-generative-ai"
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gemini-3.1-pro",
       "displayName": "Gemini 3.1 Pro Preview",
-      "apiDialect": "openai-chat",
+      "apiDialect": "google-generative-ai",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -31446,21 +31376,14 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "google-generative-ai"
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gemini-3.5-flash",
       "displayName": "Gemini 3.5 Flash",
-      "apiDialect": "openai-chat",
+      "apiDialect": "google-generative-ai",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -31498,21 +31421,14 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "google-generative-ai"
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gemini-3.5-flash-lite",
       "displayName": "Gemini 3.5 Flash Lite",
-      "apiDialect": "openai-chat",
+      "apiDialect": "google-generative-ai",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -31550,21 +31466,14 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "google-generative-ai"
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gemini-3.6-flash",
       "displayName": "Gemini 3.6 Flash",
-      "apiDialect": "openai-chat",
+      "apiDialect": "google-generative-ai",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -31602,21 +31511,14 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "google-generative-ai"
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gemini-3.7-flash",
       "displayName": "Gemini 3.7 Flash",
-      "apiDialect": "openai-chat",
+      "apiDialect": "google-generative-ai",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -31654,21 +31556,14 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "google-generative-ai"
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gemini-3.8-flash",
       "displayName": "Gemini 3.8 Flash",
-      "apiDialect": "openai-chat",
+      "apiDialect": "google-generative-ai",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -31706,14 +31601,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "google-generative-ai"
       }
     },
     {
@@ -32186,7 +32074,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "providerId": "opencode",
       "modelId": "gpt-5",
       "displayName": "GPT-5",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -32224,21 +32112,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gpt-5-codex",
       "displayName": "GPT-5 Codex",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -32276,21 +32161,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gpt-5-nano",
       "displayName": "GPT-5 Nano",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -32328,21 +32210,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gpt-5.1",
       "displayName": "GPT-5.1",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -32381,21 +32260,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gpt-5.1-codex",
       "displayName": "GPT-5.1 Codex",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -32433,21 +32309,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gpt-5.1-codex-max",
       "displayName": "GPT-5.1 Codex Max",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -32485,21 +32358,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gpt-5.1-codex-mini",
       "displayName": "GPT-5.1 Codex Mini",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -32537,21 +32407,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gpt-5.2",
       "displayName": "GPT-5.2",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -32590,21 +32457,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gpt-5.2-codex",
       "displayName": "GPT-5.2 Codex",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -32642,21 +32506,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gpt-5.3-codex",
       "displayName": "GPT-5.3 Codex",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -32695,21 +32556,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gpt-5.3-codex-spark",
       "displayName": "GPT-5.3 Codex Spark",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -32747,21 +32605,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gpt-5.4",
       "displayName": "GPT-5.4",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -32808,21 +32663,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gpt-5.4-mini",
       "displayName": "GPT-5.4 Mini",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -32861,21 +32713,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gpt-5.4-nano",
       "displayName": "GPT-5.4 Nano",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -32914,21 +32763,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gpt-5.4-pro",
       "displayName": "GPT-5.4 Pro",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -32966,21 +32812,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gpt-5.5",
       "displayName": "GPT-5.5",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -33027,21 +32870,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gpt-5.5-pro",
       "displayName": "GPT-5.5 Pro",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -33079,21 +32919,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gpt-5.6-luna",
       "displayName": "GPT-5.6 Luna",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -33142,21 +32979,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gpt-5.6-sol",
       "displayName": "GPT-5.6 Sol (50% Off)",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -33205,21 +33039,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gpt-5.6-terra",
       "displayName": "GPT-5.6 Terra",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -33268,21 +33099,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "gpt-6-astra",
       "displayName": "GPT-6 Astra",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -33330,21 +33158,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "grok-4.5",
       "displayName": "Grok 4.5",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -33390,21 +33215,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "grok-4.6",
       "displayName": "Grok 4.6",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -33450,21 +33272,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "grok-build-0.1",
       "displayName": "Grok Build 0.1",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -33494,21 +33313,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "grok-code",
       "displayName": "Grok Code Fast 1",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -33540,14 +33356,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "reason": "Deprecated by the source catalog"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
@@ -34787,7 +34600,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "providerId": "opencode",
       "modelId": "muse-spark-1.2",
       "displayName": "Muse Spark 1.2",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -34825,21 +34638,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "muse-spark-1.2-contributor-free",
       "displayName": "Muse Spark 1.2 Free",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -34877,21 +34687,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "muse-spark-1.3",
       "displayName": "Muse Spark 1.3",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -34929,21 +34736,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "muse-spark-1.3-contributor-free",
       "displayName": "Muse Spark 1.3 Free",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -34981,14 +34785,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
@@ -35181,7 +34982,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "providerId": "opencode",
       "modelId": "qwen3-coder",
       "displayName": "Qwen3 Coder",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -35211,21 +35012,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "reason": "Deprecated by the source catalog"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "qwen3.5-plus",
       "displayName": "Qwen3.5 Plus",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -35264,21 +35061,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "qwen3.6-plus",
       "displayName": "Qwen3.6 Plus",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -35317,21 +35110,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode",
       "modelId": "qwen3.6-plus-free",
       "displayName": "Qwen3.6 Plus Free",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -35370,14 +35159,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "reason": "Deprecated by the source catalog"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
@@ -35928,7 +35713,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "providerId": "opencode-go",
       "modelId": "gpt-5.6-luna",
       "displayName": "GPT-5.6 Luna",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -35977,21 +35762,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode-go",
       "modelId": "grok-4.5",
       "displayName": "Grok 4.5",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -36038,21 +35820,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "reason": "Deprecated by the source catalog"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode-go",
       "modelId": "grok-4.6",
       "displayName": "Grok 4.6",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -36098,14 +35877,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
@@ -36640,7 +36416,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "providerId": "opencode-go",
       "modelId": "minimax-m2.5",
       "displayName": "MiniMax-M2.5",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -36671,21 +36447,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "reason": "Deprecated by the source catalog"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode-go",
       "modelId": "minimax-m2.7",
       "displayName": "MiniMax-M2.7",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -36715,21 +36487,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode-go",
       "modelId": "minimax-m3",
       "displayName": "MiniMax-M3",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -36774,21 +36542,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode-go",
       "modelId": "muse-spark-1.2-contributor",
       "displayName": "Muse Spark 1.2 Contributor",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -36826,21 +36590,18 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
       "providerId": "opencode-go",
       "modelId": "muse-spark-1.3-contributor",
       "displayName": "Muse Spark 1.3 Contributor",
-      "apiDialect": "openai-chat",
+      "apiDialect": "openai-responses",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -36878,14 +36639,11 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "openai-responses",
+        "supportsDeveloperRole": true,
+        "supportsStrictTools": true,
+        "supportsGrammarTools": true,
+        "supportsMaxOutputTokens": true
       }
     },
     {
@@ -36997,7 +36755,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       "providerId": "opencode-go",
       "modelId": "qwen3.5-plus",
       "displayName": "Qwen3.5 Plus",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -37037,21 +36795,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "reason": "Deprecated by the source catalog"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode-go",
       "modelId": "qwen3.6-plus",
       "displayName": "Qwen3.6 Plus",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -37099,21 +36853,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode-go",
       "modelId": "qwen3.7-max",
       "displayName": "Qwen3.7 Max",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -37152,21 +36902,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode-go",
       "modelId": "qwen3.7-plus",
       "displayName": "Qwen3.7 Plus",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": false,
@@ -37214,21 +36960,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode-go",
       "modelId": "qwen3.8-flash",
       "displayName": "Qwen3.8 Flash",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -37267,21 +37009,17 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     },
     {
       "providerId": "opencode-go",
       "modelId": "qwen3.8-max",
       "displayName": "Qwen3.8 Max",
-      "apiDialect": "openai-chat",
+      "apiDialect": "anthropic-messages",
       "capabilities": {
         "toolUse": true,
         "structuredOutput": true,
@@ -37320,14 +37058,10 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
         "status": "available"
       },
       "compatibility": {
-        "dialect": "openai-chat",
-        "supportsStore": false,
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": true,
-        "maxTokensField": "max_tokens",
-        "supportsStrictTools": false,
-        "supportsLongCacheRetention": false
+        "dialect": "anthropic-messages",
+        "supportsCacheControlOnTools": true,
+        "supportsTemperature": true,
+        "supportsStrictTools": true
       }
     }
   ],

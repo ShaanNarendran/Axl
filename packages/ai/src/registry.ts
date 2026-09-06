@@ -10,7 +10,13 @@ import {
   validateCatalogSource,
 } from "./catalog-store.ts";
 import { validateModelCatalog } from "./catalog-validation.ts";
-import type { ModelInfo, ModelRequest, ModelStreamEvent, SafeProviderDiagnostic } from "./model.ts";
+import type {
+  ImageModelInfo,
+  ModelInfo,
+  ModelRequest,
+  ModelStreamEvent,
+  SafeProviderDiagnostic,
+} from "./model.ts";
 import type { ModelCatalogRefreshResult, ModelProvider } from "./provider.ts";
 import { prepareModelRequest } from "./request-preparation.ts";
 
@@ -288,6 +294,13 @@ export class ProviderRegistry {
     return { models, errors };
   }
 
+  async listImageModels(providerId: string): Promise<readonly ImageModelInfo[]> {
+    const provider = this.get(providerId);
+    const baseline = (await provider.listImageModels?.()) ?? [];
+    const snapshot = this.snapshots.get(providerId);
+    return structuredClone(snapshot?.imageModels ?? baseline);
+  }
+
   async getModel(
     providerId: string,
     modelId: string,
@@ -331,7 +344,7 @@ export class ProviderRegistry {
       const provider = registry.get(providerId);
       const model = await registry.getModel(providerId, request.modelId);
       const prepared = await prepareModelRequest(model, request);
-      yield* provider.stream(prepared);
+      yield* provider.streamModel?.(model, prepared) ?? provider.stream(prepared);
     })();
   }
 
@@ -537,6 +550,9 @@ export class ProviderRegistry {
         ...(result.etag === undefined ? {} : { etag: result.etag }),
         source: structuredClone(result.source),
         models: structuredClone(models),
+        ...(result.imageModels === undefined
+          ? {}
+          : { imageModels: structuredClone(result.imageModels) }),
       };
     }
     const validated = validateCatalogSnapshot(candidate, provider.id);

@@ -43,6 +43,6 @@ The pure codec emits no headers and does not resolve `RADIUS_API_KEY`, OAuth cre
 
 Local fixtures cover prepared context and option conversion, verified images, same-gateway replay, strict tools, reasoning, caching, safe routing metadata, positioned text and thinking, fragmented tools, replay signatures, usage and cost, requested and routed identity, native stop reasons, redacted failures, cancellation, malformed input, unsupported history, and exact terminal normalization. No live provider request was performed.
 
-## Deferred work
+## Registration status and deferred work
 
-Radius provider registration, dynamic discovery wiring, API-key and OAuth acquisition, concrete endpoint and header composition, HTTP and SSE transport, timeout enforcement, bounded retries, runtime selection, daemon and SDK changes, CLI and TUI integration, and live provider smoke tests remain in their planned slices.
+Radius API-key registration, explicit persisted discovery, endpoint and header composition, HTTP and SSE transport, timeout enforcement, and bounded retries were completed in `118fd89`. Radius OAuth, runtime selection, daemon and SDK changes, CLI and TUI integration, and live provider smoke tests remain in their planned slices.

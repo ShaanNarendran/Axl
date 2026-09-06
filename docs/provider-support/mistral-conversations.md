@@ -39,6 +39,6 @@ The decoder consumes already framed SSE data. It handles native text and thinkin
 
 Local fixtures cover generated compatibility metadata, prepared history and image encoding, strict tools, reasoning effort and prompt mode, prompt caching and affinity, sampling, interleaved thinking and text, fragmented tools, usage and cost, routed identity, native stop reasons, redacted provider failures, cancellation, malformed input, unsupported replay data, and exact terminal normalization. No live provider request was performed.
 
-## Deferred work
+## Registration status and deferred work
 
-Provider registration, API-key acquisition, concrete endpoint and header composition, HTTP and SSE transport, timeout enforcement, bounded retries, runtime selection, daemon and SDK changes, CLI and TUI integration, and live provider smoke tests remain in their planned slices.
+Built in API-key registration, endpoint and header composition, HTTP and SSE transport, timeout enforcement, and bounded retries were completed in `118fd89`. Runtime selection, daemon and SDK changes, CLI and TUI integration, and live provider smoke tests remain in their planned slices.

@@ -47,6 +47,6 @@ Actual ADC discovery, service-account file loading, token exchange and refresh, 
 
 Local fixtures cover generated Vertex compatibility metadata, strict Gemini 3 tools, shared request conversion, dialect isolation, Express Mode API-key headers, regional ADC routing, service-account routing, global and multi-region hosts, custom collection endpoints, API versions, publisher model paths, malformed configuration, secret isolation, replay provenance, usage, routed identity, and exact terminal behavior. No live provider request was performed.
 
-## Deferred work
+## Registration status and deferred work
 
-Provider registration, cloud credential acquisition and refresh, HTTP transport, timeout enforcement, bounded retries, runtime selection, daemon and SDK changes, CLI and TUI integration, and live provider smoke tests remain in their planned slices.
+Built in Express Mode API-key registration, HTTP transport, timeout enforcement, and bounded retries were completed in `118fd89`. ADC and service-account acquisition and refresh, runtime selection, daemon and SDK changes, CLI and TUI integration, and live provider smoke tests remain in their planned slices.

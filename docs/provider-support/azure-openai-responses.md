@@ -47,6 +47,6 @@ Streaming reuses the shared Responses decoder for text, reasoning, tools, usage,
 
 Local fixtures cover Azure host normalization, proxy query preservation, default and dated API versions, deployment maps, API key and resolved custom headers, prepared body composition, stream shape, Azure replay provenance, HTTP failures with credential redaction, cancellation, missing configuration, and preservation of the complete legacy model catalog.
 
-## Deferred work
+## Registration status and deferred work
 
-Azure provider registration under the planned canonical provider inventory, Microsoft Entra credential acquisition and refresh, timeout enforcement, bounded HTTP retries, retry guidance, and broader product integration remain in their owning slices. This codec slice does not add Codex behavior or change persisted replay formats.
+Canonical `azure-openai-responses` registration, API-key dispatch, timeout enforcement, bounded HTTP retries, and retry guidance were completed in `118fd89`. Microsoft Entra credential acquisition and refresh and broader product integration remain in their owning slices. No persisted replay format changed.

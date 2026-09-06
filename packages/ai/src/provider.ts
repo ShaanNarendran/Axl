@@ -35,6 +35,7 @@ export type ModelCatalogRefreshResult =
   | (ModelCatalogRefreshMetadata & {
       readonly status: "updated";
       readonly models: readonly ModelInfo[];
+      readonly imageModels?: readonly ImageModelInfo[];
       readonly sourceUpdatedAt?: number;
       readonly etag?: string;
     })
@@ -64,6 +65,8 @@ export interface ModelProvider {
    * enforce this with `normalizeModelStream`.
    */
   stream(request: ModelRequest): AsyncIterable<ModelStreamEvent>;
+  /** Dispatches a registry-resolved model, including a restored dynamic catalog model. */
+  streamModel?(model: ModelInfo, request: ModelRequest): AsyncIterable<ModelStreamEvent>;
   /** Optional deferred-response seam. */
   defer?(request: ModelRequest): Promise<DeferredResponse>;
   /** Optional native image catalog owned by this same provider. */

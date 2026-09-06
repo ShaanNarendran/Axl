@@ -5,8 +5,8 @@ import { randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { validateModelCatalog } from "./catalog-validation.ts";
-import type { ModelInfo } from "./model.ts";
+import { validateEndpointPolicy, validateModelCatalog } from "./catalog-validation.ts";
+import type { ImageModelInfo, ModelInfo } from "./model.ts";
 
 const PROVIDER_IDENTIFIER = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SOURCE_IDENTIFIER = /^[a-z0-9]+(?:[a-z0-9._:/-]*[a-z0-9])?$/i;
@@ -39,6 +39,7 @@ export interface CatalogSnapshot {
   readonly etag?: string;
   readonly source: CatalogSourceMetadata;
   readonly models: readonly ModelInfo[];
+  readonly imageModels?: readonly ImageModelInfo[];
 }
 
 export interface CatalogStoreOperationOptions {
@@ -159,6 +160,7 @@ export function validateCatalogSnapshot(
       "etag",
       "source",
       "models",
+      "imageModels",
     ]),
     expectedProviderId,
     "snapshot",
@@ -200,6 +202,32 @@ export function validateCatalogSnapshot(
   for (const model of snapshot.models as readonly ModelInfo[]) {
     if (model.providerId !== expectedProviderId) {
       fail(expectedProviderId, `contains model ${model.modelId} owned by ${model.providerId}`);
+    }
+  }
+  if (snapshot.imageModels !== undefined) {
+    if (!Array.isArray(snapshot.imageModels))
+      fail(expectedProviderId, "has a non-array image catalog");
+    const imageIds = new Set<string>();
+    for (const model of snapshot.imageModels as readonly ImageModelInfo[]) {
+      if (
+        typeof model !== "object" ||
+        model === null ||
+        model.providerId !== expectedProviderId ||
+        typeof model.modelId !== "string" ||
+        model.modelId.length === 0 ||
+        typeof model.displayName !== "string" ||
+        model.displayName.length === 0 ||
+        model.apiDialect !== "openrouter-images" ||
+        !Array.isArray(model.input) ||
+        !model.input.includes("text") ||
+        !Array.isArray(model.output) ||
+        !model.output.includes("image") ||
+        imageIds.has(model.modelId)
+      ) {
+        fail(expectedProviderId, "contains an invalid image model");
+      }
+      if (model.endpoint !== undefined) validateEndpointPolicy(model.endpoint, model.modelId);
+      imageIds.add(model.modelId);
     }
   }
   return structuredClone(snapshot) as unknown as CatalogSnapshot;

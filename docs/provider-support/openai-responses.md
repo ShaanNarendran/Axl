@@ -50,6 +50,6 @@ Pi was used to identify compatibility and replay cases. The Axl codec is an inde
 
 Session model-port adapters retain emitted replay metadata in memory and attach it to the matching assistant content and tool calls before the next prepared dispatch. Retention remains scoped to the live port instance and exact provider, dialect, and model identity. Persisted JSONL events and daemon wire versions remain unchanged, so replay metadata is intentionally unavailable after process restart or history reconstruction.
 
-## Deferred work
+## Registration status and deferred work
 
-Full OpenAI provider registration, authentication, endpoint policy, timeout enforcement, bounded retries, Codex Responses behavior, and product integration are deferred to their planned slices.
+OpenAI API-key registration, mixed Chat and Responses dispatch, endpoint policy, timeout enforcement, and bounded retries were completed in `118fd89`. OpenAI Codex OAuth and product integration remain deferred to their planned slices.
