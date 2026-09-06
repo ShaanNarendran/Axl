@@ -339,6 +339,8 @@ export class AgentSession {
     if (options.configProvider !== undefined) {
       await session.append(options.boundaryOperationId, "config.provider", options.configProvider);
     }
+    if (options.configRequest !== undefined)
+      await session.append(options.boundaryOperationId, "config.request", options.configRequest);
     if (options.configModel !== undefined) {
       await session.append(options.boundaryOperationId, "config.model", options.configModel);
     }

@@ -30,10 +30,14 @@ const INPUT_PREVIEW_ROWS = 8;
 const FULL_INPUT_PREVIEW_ROWS = 40;
 
 function previewText(text: string, limit: number): string {
-  const safe = sanitizeTerminalText(text);
-  if (safe.length <= limit) return safe;
+  if (text.length <= limit) return sanitizeTerminalText(text);
   const half = Math.floor(limit / 2);
-  return `${safe.slice(0, half)}\n…\n${safe.slice(-half)}`;
+  // Omitted text is never rendered, so sanitize only the bounded visible ends.
+  // Include a small margin because removed control sequences consume source bytes.
+  const margin = 256;
+  const start = sanitizeTerminalText(text.slice(0, half + margin)).slice(0, half);
+  const end = sanitizeTerminalText(text.slice(-half - margin)).slice(-half);
+  return `${start}\n…\n${end}`;
 }
 
 function inputPreview(

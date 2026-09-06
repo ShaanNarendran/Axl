@@ -151,7 +151,7 @@ test("disabled providers perform no catalog, refresh, or dispatch work", async (
       catalogCalls += 1;
       return [model];
     },
-    refreshModels: async (context) => {
+    refreshModelCatalog: async (context) => {
       refreshCalls += 1;
       return {
         status: "updated",
@@ -201,7 +201,7 @@ test("explicit refresh isolates provider failures", async () => {
     displayName: "Healthy",
     authMethods: ["keyless"],
     listModels: async () => [refreshed],
-    refreshModels: async (context) => ({
+    refreshModelCatalog: async (context) => ({
       status: "updated",
       providerId: context.providerId,
       generation: context.generation,
@@ -220,7 +220,7 @@ test("explicit refresh isolates provider failures", async () => {
     displayName: "Failed",
     authMethods: ["keyless"],
     listModels: async () => [],
-    refreshModels: async () => {
+    refreshModelCatalog: async () => {
       throw new Error("catalog unavailable");
     },
     stream: () => {
@@ -258,7 +258,7 @@ test("explicit refresh honors cancellation before provider work", async () => {
     displayName: "Cancelled",
     authMethods: ["keyless"],
     listModels: async () => [],
-    refreshModels: async (context) => {
+    refreshModelCatalog: async (context) => {
       refreshCalls += 1;
       return {
         status: "updated",
@@ -366,7 +366,7 @@ test("restores a persisted dynamic catalog before network refresh", async () => 
     displayName: "Dynamic",
     authMethods: ["keyless"],
     listModels: async () => [],
-    refreshModels: async (context) => {
+    refreshModelCatalog: async (context) => {
       refreshCalls += 1;
       restoredBeforeRefresh =
         context.previous?.generation === 4 &&
@@ -422,7 +422,7 @@ test("failed and malformed refreshes retain the previous valid catalog", async (
     displayName: "Retained",
     authMethods: ["keyless"],
     listModels: async () => [],
-    refreshModels: async (context) => {
+    refreshModelCatalog: async (context) => {
       if (!malformed) throw new Error("remote unavailable");
       return {
         status: "updated",
@@ -479,7 +479,7 @@ test("cancelled and superseded refreshes cannot replace the last-known-good cata
     displayName: "Racing",
     authMethods: ["keyless"],
     listModels: async () => [],
-    refreshModels: (context) => {
+    refreshModelCatalog: (context) => {
       call += 1;
       if (call === 1) {
         markStarted?.();
@@ -551,6 +551,124 @@ test("cancelled and superseded refreshes cannot replace the last-known-good cata
   assert.equal((await store.read("racing"))?.generation, 2);
 });
 
+test("supersession during persistence rolls back the rejected snapshot across restart", async () => {
+  class SupersedingStore extends InMemoryCatalogStore {
+    onCommit: (() => void) | undefined;
+    override async write(providerId: string, snapshot: CatalogSnapshot): Promise<void> {
+      await super.write(providerId, snapshot);
+      const callback = this.onCommit;
+      this.onCommit = undefined;
+      callback?.();
+    }
+  }
+  const store = new SupersedingStore();
+  const previous = makeFakeModelInfo({ providerId: "atomic", modelId: "previous" });
+  await store.write("atomic", {
+    version: 1,
+    providerId: "atomic",
+    generation: 1,
+    checkedAt: 1,
+    updatedAt: 1,
+    source: { id: "atomic-api", kind: "provider_api" },
+    models: [previous],
+  });
+  const candidate = makeFakeModelInfo({ providerId: "atomic", modelId: "candidate" });
+  const provider: ModelProvider = {
+    id: "atomic",
+    displayName: "Atomic",
+    authMethods: ["keyless"],
+    listModels: async () => [],
+    refreshModelCatalog: async (context) => ({
+      status: "updated",
+      providerId: "atomic",
+      generation: context.generation,
+      source: { id: "atomic-api", kind: "provider_api" },
+      models: [candidate],
+    }),
+    stream: () => {
+      throw new Error("not used");
+    },
+  };
+  const registry = new ProviderRegistry({ catalogStore: store });
+  registry.register(provider);
+  store.onCommit = () => {
+    registry.setEnabled("atomic", false);
+    registry.setEnabled("atomic", true);
+  };
+  const result = await registry.refresh({ providerId: "atomic" });
+  assert.deepEqual(result.supersededProviderIds, ["atomic"]);
+  assert.equal((await store.read("atomic"))?.models[0]?.modelId, "previous");
+
+  const restarted = new ProviderRegistry({ catalogStore: store });
+  restarted.register(provider);
+  await restarted.restoreCatalogs({ providerId: "atomic" });
+  assert.equal((await restarted.getModel("atomic", "previous")).modelId, "previous");
+  await assert.rejects(restarted.getModel("atomic", "candidate"), /no model/);
+});
+
+test("restored snapshots reject unsafe provider endpoints before dispatch", async () => {
+  const unsafe = {
+    version: 1 as const,
+    providerId: "restored",
+    generation: 1,
+    checkedAt: 1,
+    updatedAt: 1,
+    source: { id: "restored-api", kind: "provider_api" as const },
+    models: [
+      {
+        ...makeFakeModelInfo({ providerId: "restored" }),
+        endpoint: { type: "fixed" as const, baseUrl: "http://169.254.169.254/latest" },
+      },
+    ],
+  };
+  const store = {
+    read: async () => unsafe,
+    write: async () => undefined,
+    delete: async () => undefined,
+  };
+  const registry = new ProviderRegistry({ catalogStore: store });
+  registry.register({
+    id: "restored",
+    displayName: "Restored",
+    authMethods: ["keyless"],
+    listModels: async () => [],
+    refreshModelCatalog: async (context) => ({
+      status: "not_modified",
+      providerId: "restored",
+      generation: context.generation,
+      source: unsafe.source,
+    }),
+    stream: () => {
+      throw new Error("must not dispatch");
+    },
+  });
+  const result = await registry.restoreCatalogs({ providerId: "restored" });
+  assert.equal(result.restoredProviderIds.length, 0);
+  assert.ok(result.errors.has("restored"));
+});
+
+test("legacy provider refresh and compatibility metadata remain source-compatible", async () => {
+  const model: ModelInfo = {
+    ...makeFakeModelInfo({ providerId: "legacy", apiDialect: "legacy-wire" }),
+    compatibility: { strictJsonSchema: false },
+  };
+  const provider: ModelProvider = {
+    id: "legacy",
+    displayName: "Legacy",
+    authMethods: ["keyless"],
+    listModels: async () => [model],
+    refreshModels: async () => [model],
+    stream: () => {
+      throw new Error("not used");
+    },
+  };
+  const registry = new ProviderRegistry();
+  registry.register(provider);
+  const result = await registry.refresh({ providerId: "legacy" });
+  assert.deepEqual(result.refreshedProviderIds, ["legacy"]);
+  assert.equal((await registry.getModel("legacy", "fake-model")).apiDialect, "legacy-wire");
+});
+
 test("dynamic refresh isolates corrupt persisted providers from healthy providers", async () => {
   class IsolatedStore extends InMemoryCatalogStore {
     override read(providerId: string): Promise<CatalogSnapshot | undefined> {
@@ -564,7 +682,7 @@ test("dynamic refresh isolates corrupt persisted providers from healthy provider
     displayName: id,
     authMethods: ["keyless"],
     listModels: async () => [],
-    refreshModels: async (context) => ({
+    refreshModelCatalog: async (context) => ({
       status: "updated",
       providerId: context.providerId,
       generation: context.generation,

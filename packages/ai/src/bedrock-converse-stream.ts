@@ -12,6 +12,7 @@ import {
   type PreparedModelRequest,
   type PreparedRequestMessage,
 } from "./request-preparation.ts";
+import { stripTrailingSlashes } from "./transport-safety.ts";
 import { withUsageCost } from "./usage.ts";
 
 const EMPTY_TEXT_PLACEHOLDER = "<empty>";
@@ -126,7 +127,7 @@ function requestUrl(modelId: string, baseUrl: string | undefined, region: string
   if (url.username || url.password || url.hash) {
     throw new BedrockConverseStreamCodecError("Bedrock base URL contains unsupported URL data");
   }
-  url.pathname = `${url.pathname.replace(/\/+$/, "")}/model/${encodeURIComponent(
+  url.pathname = `${stripTrailingSlashes(url.pathname)}/model/${encodeURIComponent(
     nonEmpty(modelId, "model ID"),
   )}/converse-stream`;
   return url.toString();

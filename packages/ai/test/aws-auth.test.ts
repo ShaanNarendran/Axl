@@ -124,6 +124,19 @@ test("stored Bedrock bearer credentials never fall through to AWS signing", asyn
   assert.equal(chainCalls, 0);
 });
 
+test("Bedrock credential SDK promises are bounded by cancellation", async () => {
+  const provider = createAmazonBedrockProvider({
+    store: new InMemoryCredentialStore(),
+    context: context({ AWS_REGION: "us-east-1" }),
+    awsAuth: { credentials: () => () => new Promise(() => undefined) },
+  });
+  assert.ok(provider.authentication);
+  const controller = new AbortController();
+  const resolution = provider.authentication.resolve({ signal: controller.signal });
+  controller.abort();
+  await assert.rejects(resolution, { name: "AbortError" });
+});
+
 test("Bedrock credential failures are explicit and do not produce unsigned requests", async () => {
   let fetches = 0;
   const provider = createAmazonBedrockProvider({

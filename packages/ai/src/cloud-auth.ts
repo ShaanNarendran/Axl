@@ -12,6 +12,7 @@ import {
   type ResolvedAuth,
 } from "./auth.ts";
 import type { ApiKeyCredential, ProviderEnv } from "./credentials.ts";
+import { raceWithSignal } from "./transport-safety.ts";
 
 const AZURE_SCOPE = "https://cognitiveservices.azure.com/.default";
 const GOOGLE_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
@@ -181,12 +182,15 @@ async function googleAccessToken(
       ...(settings.project === undefined ? {} : { projectId: settings.project }),
     });
   try {
-    const [client, discoveredProject] = await Promise.all([
-      auth.getClient(),
-      settings.project === undefined ? auth.getProjectId() : Promise.resolve(settings.project),
-    ]);
+    const [client, discoveredProject] = await raceWithSignal(
+      Promise.all([
+        auth.getClient(),
+        settings.project === undefined ? auth.getProjectId() : Promise.resolve(settings.project),
+      ]),
+      signal,
+    );
     signal.throwIfAborted();
-    const access = await client.getAccessToken();
+    const access = await raceWithSignal(client.getAccessToken(), signal);
     signal.throwIfAborted();
     const token = safeToken(typeof access === "string" ? access : access?.token, "google-vertex");
     return {

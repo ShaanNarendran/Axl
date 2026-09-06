@@ -267,4 +267,15 @@ test("rejects malformed requests, responses, and blob boundary violations", asyn
     decodeOpenRouterImageResponse({ data: [] }, { model: imageModel(), request: request() }),
     /contains no images/,
   );
+  await assert.rejects(
+    encodeOpenRouterImageRequest(imageModel(), request({ prompt: "x".repeat(1024 * 1024 + 1) })),
+    /byte limit/,
+  );
+  await assert.rejects(
+    decodeOpenRouterImageResponse(
+      { data: [{ b64_json: "A".repeat(8 * 1024 * 1024 + 1) }] },
+      { model: imageModel(), request: request() },
+    ),
+    /bounded base64 data/,
+  );
 });

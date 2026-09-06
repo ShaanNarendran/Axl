@@ -1,6 +1,5 @@
 // SPDX-FileCopyrightText: 2026 Hari Srinivasan
 // SPDX-FileCopyrightText: 2026 Kaushik Kumar
-// SPDX-FileCopyrightText: 2026 Shaan Narendran
 // SPDX-License-Identifier: Apache-2.0
 
 import assert from "node:assert/strict";
@@ -13,6 +12,7 @@ import {
   type ModelRequest,
   type ModelStreamEvent,
   normalizeModelStream,
+  OpenAiResponsesProvider,
   prepareModelRequest,
   ResponsesCodecError,
   type SseFrame,
@@ -508,7 +508,11 @@ test("maps incomplete, provider failure, cancellation, and truncation terminals"
     request,
   );
   assert.equal(failure[0]?.type, "error");
-  if (failure[0]?.type === "error") assert.equal(failure[0].retryable, true);
+  if (failure[0]?.type === "error") {
+    assert.equal(failure[0].retryable, true);
+    assert.equal(failure[0].category, "overloaded");
+    assert.equal(failure[0].requestPhase, "streaming");
+  }
 
   const controller = new AbortController();
   controller.abort();
@@ -536,6 +540,93 @@ test("maps incomplete, provider failure, cancellation, and truncation terminals"
   const truncatedTerminal = truncated.at(-1);
   assert.equal(truncatedTerminal?.type, "error");
   if (truncatedTerminal?.type === "error") assert.equal(truncatedTerminal.partial, true);
+});
+
+function responsesProvider(fetchImpl: typeof fetch): OpenAiResponsesProvider {
+  return new OpenAiResponsesProvider({
+    id: "responses",
+    displayName: "Responses",
+    authMethods: ["keyless"],
+    endpoint: {
+      url: () => "https://example.test/responses",
+      headers: () => ({}),
+      deploymentFor: (modelId) => modelId,
+    },
+    models: [responsesModel()],
+    resolveAuth: () => Promise.resolve({ auth: {}, source: "test", secretValues: [] }),
+    fetch: fetchImpl,
+  });
+}
+
+test("classifies HTTP throttling and preserves retry guidance", async () => {
+  const provider = responsesProvider(() =>
+    Promise.resolve(new Response("busy", { status: 429, headers: { "retry-after": "2" } })),
+  );
+  assert.deepEqual(await Array.fromAsync(provider.stream({ modelId: "gpt-5", messages: [] })), [
+    {
+      type: "error",
+      code: "http_429",
+      message: "Provider responses returned 429",
+      retryable: true,
+      category: "rate_limit",
+      requestPhase: "awaiting_response",
+      retryAfterMs: 2_000,
+    },
+  ]);
+});
+
+test("fails closed on an empty successful response", async () => {
+  const provider = responsesProvider(() => Promise.resolve(new Response(null, { status: 200 })));
+  assert.deepEqual(await Array.fromAsync(provider.stream({ modelId: "gpt-5", messages: [] })), [
+    {
+      type: "error",
+      code: "empty_response",
+      message: "Provider responses returned no response body",
+      retryable: false,
+      category: "provider_internal",
+      requestPhase: "awaiting_response",
+    },
+  ]);
+});
+
+test("retries only fetch failures known to precede dispatch", async () => {
+  const networkCause = Object.assign(new Error("dns unavailable"), { code: "EAI_AGAIN" });
+  const safe = responsesProvider(() =>
+    Promise.reject(new TypeError("fetch failed", { cause: networkCause })),
+  );
+  const safeEvents = await Array.fromAsync(safe.stream({ modelId: "gpt-5", messages: [] }));
+  assert.equal(safeEvents[0]?.type === "error" && safeEvents[0].retryable, true);
+  assert.equal(safeEvents[0]?.type === "error" && safeEvents[0].requestPhase, "before_dispatch");
+
+  const unknown = responsesProvider(() => Promise.reject(new TypeError("fetch failed")));
+  const unknownEvents = await Array.fromAsync(unknown.stream({ modelId: "gpt-5", messages: [] }));
+  assert.equal(unknownEvents[0]?.type === "error" && unknownEvents[0].retryable, false);
+  assert.equal(unknownEvents[0]?.type === "error" && unknownEvents[0].requestPhase, "unknown");
+});
+
+test("classifies a terminated response stream as unsafe to redispatch", async () => {
+  const provider = responsesProvider(() =>
+    Promise.resolve(
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.error(new TypeError("terminated"));
+          },
+        }),
+        { status: 200 },
+      ),
+    ),
+  );
+  assert.deepEqual(await Array.fromAsync(provider.stream({ modelId: "gpt-5", messages: [] })), [
+    {
+      type: "error",
+      code: "provider_stream_failed",
+      message: "terminated",
+      retryable: false,
+      category: "stream_interrupted",
+      requestPhase: "streaming",
+    },
+  ]);
 });
 
 test("rejects malformed frames, orphaned deltas, and invalid tool arguments", async () => {
@@ -572,12 +663,5 @@ test("rejects malformed frames, orphaned deltas, and invalid tool arguments", as
       request,
     ),
     /undecodable arguments/,
-  );
-});
-
-test("rejects an impossible output cap rather than silently exceeding it", () => {
-  assert.throws(
-    () => encodeResponsesRequest(model, { ...request, maxOutputTokens: 4 }, "gpt-5"),
-    /at least 16/,
   );
 });

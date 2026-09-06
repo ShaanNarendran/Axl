@@ -18,7 +18,7 @@ import type {
   SafeProviderDiagnostic,
 } from "./model.ts";
 import type { ModelCatalogRefreshResult, ModelProvider } from "./provider.ts";
-import { prepareModelRequest } from "./request-preparation.ts";
+import { isPreparedModelRequest, prepareModelRequest } from "./request-preparation.ts";
 
 export type ProviderRegistryErrorCode =
   | "registry_disposed"
@@ -117,6 +117,12 @@ interface ProviderRefreshFailure {
   readonly providerId: string;
   readonly error: Error;
 }
+
+type RefreshableProvider = ModelProvider &
+  (
+    | Required<Pick<ModelProvider, "refreshModelCatalog">>
+    | Required<Pick<ModelProvider, "refreshModels">>
+  );
 
 function available(model: ModelInfo): boolean {
   return model.availability?.status !== "unavailable";
@@ -343,7 +349,9 @@ export class ProviderRegistry {
     return (async function* () {
       const provider = registry.get(providerId);
       const model = await registry.getModel(providerId, request.modelId);
-      const prepared = await prepareModelRequest(model, request);
+      const prepared = isPreparedModelRequest(request)
+        ? request
+        : await prepareModelRequest(model, request);
       yield* provider.streamModel?.(model, prepared) ?? provider.stream(prepared);
     })();
   }
@@ -441,7 +449,7 @@ export class ProviderRegistry {
   }
 
   private async refreshProvider(
-    provider: ModelProvider & Required<Pick<ModelProvider, "refreshModels">>,
+    provider: RefreshableProvider,
     callerSignal: AbortSignal | undefined,
   ): Promise<ProviderRefreshSuccess | ProviderRefreshFailure> {
     const state = this.beginRefresh(provider.id);
@@ -454,12 +462,23 @@ export class ProviderRegistry {
       const previous = await this.restoreProvider(provider, state.generation, signal);
       restored = previous !== undefined;
       signal.throwIfAborted();
-      const operation = provider.refreshModels({
-        providerId: provider.id,
-        generation: state.generation,
-        ...(previous === undefined ? {} : { previous: structuredClone(previous) }),
-        signal,
-      });
+      const operation =
+        provider.refreshModelCatalog !== undefined
+          ? provider.refreshModelCatalog({
+              providerId: provider.id,
+              generation: state.generation,
+              ...(previous === undefined ? {} : { previous: structuredClone(previous) }),
+              signal,
+            })
+          : (provider.refreshModels as () => Promise<readonly ModelInfo[]>)().then(
+              (models): ModelCatalogRefreshResult => ({
+                status: "updated",
+                providerId: provider.id,
+                generation: state.generation,
+                source: { id: `${provider.id}-legacy`, kind: "provider_api" },
+                models,
+              }),
+            );
       const result = await raceWithSignal(operation, signal);
       signal.throwIfAborted();
       const diagnostics = validateDiagnostics(result.diagnostics, provider.id);
@@ -588,10 +607,18 @@ export class ProviderRegistry {
     const queued = (async () => {
       await previous.catch(() => undefined);
       if (signal.aborted || this.refreshGenerations.get(providerId) !== generation) return false;
+      const previousSnapshot = this.snapshots.get(providerId);
       if (persist) await this.catalogStore.write(providerId, snapshot, { signal });
-      // Persistence is the commit point. Once it succeeds, publish the same
-      // generation in memory unless a newer provider refresh superseded it.
-      if (this.refreshGenerations.get(providerId) !== generation) return false;
+      if (signal.aborted || this.refreshGenerations.get(providerId) !== generation) {
+        // A store implementation may complete its atomic replacement at the same
+        // instant this generation is superseded. Roll that rejected generation
+        // back while the provider publication queue still excludes newer writes.
+        if (persist) {
+          if (previousSnapshot === undefined) await this.catalogStore.delete(providerId);
+          else await this.catalogStore.write(providerId, previousSnapshot);
+        }
+        return false;
+      }
       this.snapshots.set(providerId, structuredClone(snapshot));
       return true;
     })();
@@ -659,16 +686,14 @@ export class ProviderRegistry {
     return [...this.providers.values()].filter((entry) => entry.enabled);
   }
 
-  private refreshableEntries(providerId: string | undefined): readonly (RegistryEntry & {
-    provider: ModelProvider & Required<Pick<ModelProvider, "refreshModels">>;
-  })[] {
+  private refreshableEntries(
+    providerId: string | undefined,
+  ): readonly (RegistryEntry & { provider: RefreshableProvider })[] {
     const entries = providerId === undefined ? this.enabledEntries() : [this.entry(providerId)];
     return entries.filter(
-      (
-        entry,
-      ): entry is RegistryEntry & {
-        provider: ModelProvider & Required<Pick<ModelProvider, "refreshModels">>;
-      } => entry.provider.refreshModels !== undefined,
+      (entry): entry is RegistryEntry & { provider: RefreshableProvider } =>
+        entry.provider.refreshModelCatalog !== undefined ||
+        entry.provider.refreshModels !== undefined,
     );
   }
 

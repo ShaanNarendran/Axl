@@ -1,13 +1,13 @@
 // SPDX-FileCopyrightText: 2026 Hari Srinivasan
 // SPDX-FileCopyrightText: 2026 Kaushik Kumar
-// SPDX-FileCopyrightText: 2026 Shaan Narendran
 // SPDX-License-Identifier: Apache-2.0
 
 // Axl-native OpenAI Responses codec and legacy transport composition.
 
-import type { JsonObject, JsonValue, Usage } from "@axl/protocol";
+import type { JsonObject, JsonValue, ModelErrorCategory, Usage } from "@axl/protocol";
+import { EnvHttpProxyAgent, fetch as modelFetch } from "undici";
 
-import type { ProviderAuthentication, ResolvedAuth } from "./auth.ts";
+import { AuthError, type ProviderAuthentication, type ResolvedAuth } from "./auth.ts";
 import { assertModelSupports } from "./capabilities.ts";
 import { safeProviderMessage } from "./diagnostics.ts";
 import type {
@@ -27,10 +27,36 @@ import {
   prepareModelRequest,
 } from "./request-preparation.ts";
 import { decodeSseStream, type SseFrame } from "./sse.ts";
+import { safeEndpoint } from "./transport-safety.ts";
 import { withUsageCost } from "./usage.ts";
 
 /** OpenAI Responses rejects max_output_tokens below 16. */
 const MIN_OUTPUT_TOKENS = 16;
+let modelDispatcher: EnvHttpProxyAgent | undefined;
+function dispatcherFor(timeoutMs: number) {
+  modelDispatcher ??= new EnvHttpProxyAgent({
+    allowH2: false,
+    connect: { autoSelectFamilyAttemptTimeout: 2_000 },
+  });
+  return modelDispatcher.compose(
+    (dispatch) => (options, handler) =>
+      dispatch({ ...options, headersTimeout: timeoutMs, bodyTimeout: timeoutMs }, handler),
+  );
+}
+const IDLE_TIMEOUT_CODES = new Set(["UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT"]);
+const SAFE_CONNECT_FAILURES = new Set([
+  "EAI_AGAIN",
+  "ENOTFOUND",
+  "ECONNREFUSED",
+  "UND_ERR_CONNECT_TIMEOUT",
+]);
+const RATE_LIMIT_CODES = new Set([
+  "rate_limit",
+  "rate_limited",
+  "rate_limit_exceeded",
+  "too_many_requests",
+]);
+const OVERLOADED_CODES = new Set(["overloaded", "server_error", "temporarily_unavailable"]);
 const RESERVED_REQUEST_FIELDS = new Set([
   "model",
   "input",
@@ -372,8 +398,32 @@ function mapUsage(raw: unknown, model: ModelInfo, includeCost: boolean): Usage {
   return !includeCost || model.cost === undefined ? mapped : withUsageCost(model.cost, mapped);
 }
 
-function retryableProviderCode(code: string): boolean {
-  return code === "rate_limit_exceeded" || code === "server_error" || code === "timeout";
+function providerErrorCategory(code: string): ModelErrorCategory {
+  const normalized = code.toLowerCase();
+  if (RATE_LIMIT_CODES.has(normalized)) return "rate_limit";
+  if (OVERLOADED_CODES.has(normalized)) return "overloaded";
+  if (normalized === "timeout") return "timeout";
+  return "unknown";
+}
+
+function retryAfterMs(headers: Headers, now = Date.now()): number | undefined {
+  const value = headers.get("retry-after")?.trim();
+  if (!value) return undefined;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.round(seconds * 1_000);
+  const date = Date.parse(value);
+  return Number.isFinite(date) ? Math.max(0, date - now) : undefined;
+}
+
+function nestedErrorCode(error: unknown): string | undefined {
+  let current = error;
+  for (let depth = 0; depth < 4; depth += 1) {
+    if (typeof current !== "object" || current === null) return undefined;
+    const candidate = current as { code?: unknown; cause?: unknown };
+    if (typeof candidate.code === "string") return candidate.code;
+    current = candidate.cause;
+  }
+  return undefined;
 }
 
 interface OutputSlot {
@@ -726,11 +776,14 @@ export async function* decodeResponsesStream(
           : typeof event.message === "string"
             ? event.message
             : "Provider reported a failure";
+      const category = providerErrorCategory(code);
       yield {
         type: "error",
         code,
         message: safeProviderMessage(rawMessage, options.secretValues),
-        retryable: retryableProviderCode(code),
+        retryable: category === "rate_limit" || category === "overloaded" || category === "timeout",
+        category,
+        requestPhase: "streaming",
         ...(emittedContent ? { partial: true } : {}),
         response: metadata(typeof response?.status === "string" ? response.status : undefined),
       };
@@ -798,7 +851,13 @@ export class OpenAiResponsesProvider implements ModelProvider {
     model: ModelInfo,
     request: ModelRequest,
   ): AsyncGenerator<ModelStreamEvent, void, undefined> {
-    let response: Response;
+    let url: string;
+    let init: {
+      method: string;
+      headers: Record<string, string>;
+      body: string;
+      signal?: AbortSignal;
+    };
     let prepared: PreparedModelRequest;
     let secretValues: readonly string[] = [];
     try {
@@ -812,7 +871,11 @@ export class OpenAiResponsesProvider implements ModelProvider {
         prepared,
         this.endpoint.deploymentFor(model.modelId, resolved),
       );
-      url = this.endpoint.url(resolved);
+      url = safeEndpoint(this.endpoint.url(resolved), {
+        label: `Provider ${this.id} request endpoint`,
+        allowLoopbackHttp: true,
+        allowQuery: true,
+      });
       init = {
         method: "POST",
         headers: {
@@ -825,12 +888,50 @@ export class OpenAiResponsesProvider implements ModelProvider {
         ...(request.signal === undefined ? {} : { signal: request.signal }),
       };
     } catch (error) {
-      yield this.failure(request, error, secretValues);
+      yield this.failure(
+        request,
+        error,
+        secretValues,
+        "provider_request_setup_failed",
+        "before_dispatch",
+        false,
+        error instanceof AuthError
+          ? "authentication"
+          : error instanceof ResponsesCodecError
+            ? "invalid_request"
+            : "unknown",
+      );
+      return;
+    }
+
+    let response: Pick<Response, "ok" | "status" | "headers" | "body">;
+    try {
+      response =
+        this.fetchImpl === undefined
+          ? await modelFetch(url, {
+              ...init,
+              dispatcher: dispatcherFor(request.httpIdleTimeoutMs ?? 300_000),
+            })
+          : await this.fetchImpl(url, init);
+    } catch (error) {
+      const nativeCode = nestedErrorCode(error);
+      const safeToRetry = nativeCode !== undefined && SAFE_CONNECT_FAILURES.has(nativeCode);
+      yield this.failure(
+        request,
+        error,
+        secretValues,
+        "provider_request_failed",
+        safeToRetry ? "before_dispatch" : "unknown",
+        safeToRetry,
+        "network",
+      );
       return;
     }
 
     if (!response.ok) {
-      const detail = safeProviderMessage(await response.text().catch(() => ""), secretValues);
+      await response.body?.cancel();
+      const retryable = response.status === 429 || [500, 502, 503, 504].includes(response.status);
+      const retryDelay = retryable ? retryAfterMs(response.headers) : undefined;
       yield {
         type: "error",
         code: `http_${response.status}`,
@@ -871,7 +972,15 @@ export class OpenAiResponsesProvider implements ModelProvider {
         includeCost: false,
       });
     } catch (error) {
-      yield this.failure(request, error, secretValues);
+      yield this.failure(
+        request,
+        error,
+        secretValues,
+        "provider_stream_failed",
+        "streaming",
+        false,
+        "stream_interrupted",
+      );
     }
   }
 
@@ -879,6 +988,10 @@ export class OpenAiResponsesProvider implements ModelProvider {
     request: ModelRequest,
     error: unknown,
     secretValues: readonly string[],
+    code: string,
+    requestPhase: "before_dispatch" | "awaiting_response" | "streaming" | "unknown",
+    retryable: boolean,
+    category: ModelErrorCategory,
   ): ModelStreamEvent {
     if (request.signal?.aborted) return { type: "aborted" };
     const transportCode = nestedErrorCode(error);
@@ -886,21 +999,22 @@ export class OpenAiResponsesProvider implements ModelProvider {
       return {
         type: "error",
         code: "model_request_idle_timeout",
-        message: `Provider transport was idle for ${request.httpIdleTimeoutMs ?? 300_000} ms while ${transportCode === "UND_ERR_HEADERS_TIMEOUT" ? "waiting for response headers" : "reading the response body"}`,
+        message: `Provider ${this.id} produced no HTTP data before the configured idle timeout`,
         retryable: false,
         category: "timeout",
-        requestPhase:
-          transportCode === "UND_ERR_HEADERS_TIMEOUT" ? "awaiting_response" : "streaming",
+        requestPhase: requestPhase === "streaming" ? "streaming" : "awaiting_response",
       };
     }
     return {
       type: "error",
-      code: "provider_request_failed",
+      code,
       message: safeProviderMessage(
         error instanceof Error ? error.message : "provider request failed",
         secretValues,
       ),
-      retryable: false,
+      retryable,
+      category,
+      requestPhase,
     };
   }
 }

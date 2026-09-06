@@ -218,7 +218,7 @@ export interface GenericCompatibility {
   readonly dialect: "fake";
 }
 
-/** Dialect-specific compatibility controls. No arbitrary compatibility keys are accepted. */
+/** Dialect-specific compatibility controls used by built-in codecs. */
 export type ModelCompatibility =
   | OpenAiChatCompatibility
   | OpenAiResponsesCompatibility
@@ -250,8 +250,8 @@ export interface ModelInfo {
   readonly providerId: string;
   readonly modelId: string;
   readonly displayName: string;
-  /** The wire dialect selected for this exact model. */
-  readonly apiDialect: ApiDialect;
+  /** The wire dialect selected for this exact model. Legacy providers may declare their own. */
+  readonly apiDialect: string;
   readonly capabilities: ModelCapabilities;
   /** Whether the model can think at all. False means only the `off` level. */
   readonly reasoning: boolean;
@@ -270,7 +270,8 @@ export interface ModelInfo {
   readonly availability?: ModelAvailability;
   /** Non-secret headers required by this model. Authentication headers are forbidden. */
   readonly headers?: Readonly<Record<string, string>>;
-  readonly compatibility?: ModelCompatibility;
+  /** Built-ins use typed controls; legacy providers may retain boolean compatibility metadata. */
+  readonly compatibility?: ModelCompatibility | Readonly<Record<string, boolean>>;
 }
 
 export interface ProviderModelIdentity {

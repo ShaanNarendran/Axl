@@ -25,6 +25,7 @@ import {
 
 export interface LocalRuntimeDefaults {
   readonly providerId?: string;
+  readonly requestSettings?: ModelRequestSettings;
   readonly modelId: string;
   readonly thinkingLevel: ThinkingLevel;
   readonly webFetch?: boolean;
@@ -327,8 +328,12 @@ export async function startLocalDaemon(options: LocalDaemonOptions): Promise<Axl
         readableRoots: [cwd],
         protectedPaths: [axlHome],
       };
+      const requestSettings = parseModelRequestSettings(
+        selection.requestSettings ?? defaults.requestSettings ?? DEFAULT_MODEL_REQUEST_SETTINGS,
+      );
       const model = ai.modelPortForRegistry(providers, {
         providerId: active.providerId,
+        requestSettings,
         modelId: active.modelId,
         thinkingLevel: thinking.effective,
         readBlob,

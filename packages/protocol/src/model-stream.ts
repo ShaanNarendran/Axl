@@ -63,6 +63,22 @@ export interface ToolDeclaration {
   readonly inputSchema: JsonObject;
 }
 
+export type ModelErrorCategory =
+  | "rate_limit"
+  | "overloaded"
+  | "network"
+  | "timeout"
+  | "authentication"
+  | "authorization"
+  | "invalid_request"
+  | "context_limit"
+  | "content_policy"
+  | "provider_internal"
+  | "stream_interrupted"
+  | "unknown";
+
+export type ModelRequestPhase = "before_dispatch" | "awaiting_response" | "streaming" | "unknown";
+
 export interface ProviderRetryGuidance {
   readonly retryAfterMs?: number;
   readonly resetAtEpochMs?: number;
@@ -92,6 +108,10 @@ export interface ModelStreamError {
   readonly retryable: boolean;
   /** True when content was emitted before this failure. */
   readonly partial?: boolean;
+  readonly category?: ModelErrorCategory;
+  readonly requestPhase?: ModelRequestPhase;
+  /** Compatibility field consumed by the kernel retry coordinator. */
+  readonly retryAfterMs?: number;
   readonly retry?: ProviderRetryGuidance;
   readonly response?: ProviderResponseMetadata;
   readonly diagnostics?: readonly SafeProviderDiagnostic[];
@@ -398,11 +418,41 @@ export function parseModelStreamEvent(value: unknown, path = "modelStreamEvent")
       event,
       path,
       ["type", "code", "message", "retryable"],
-      ["partial", "retry", "response", "diagnostics"],
+      ["partial", "category", "requestPhase", "retryAfterMs", "retry", "response", "diagnostics"],
     );
     string(event.code, `${path}.code`);
     string(event.message, `${path}.message`);
     boolean(event.retryable, `${path}.retryable`);
+    if (
+      event.category !== undefined &&
+      !new Set([
+        "rate_limit",
+        "overloaded",
+        "network",
+        "timeout",
+        "authentication",
+        "authorization",
+        "invalid_request",
+        "context_limit",
+        "content_policy",
+        "provider_internal",
+        "stream_interrupted",
+        "unknown",
+      ]).has(String(event.category))
+    ) {
+      fail(`${path}.category`, "is not recognized");
+    }
+    if (
+      event.requestPhase !== undefined &&
+      !new Set(["before_dispatch", "awaiting_response", "streaming", "unknown"]).has(
+        String(event.requestPhase),
+      )
+    ) {
+      fail(`${path}.requestPhase`, "is not recognized");
+    }
+    if (event.retryAfterMs !== undefined) {
+      nonNegativeNumber(event.retryAfterMs, `${path}.retryAfterMs`, true);
+    }
     validateTerminalMetadata(event, path);
     if (event.retry !== undefined) {
       const retry = object(event.retry, `${path}.retry`);

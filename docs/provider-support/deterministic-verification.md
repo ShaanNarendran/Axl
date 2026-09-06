@@ -54,6 +54,13 @@ Equivalent existing tests are retained as the requirement evidence. New tests ar
 - Same-model continuation retention: `request-preparation.test.ts`, `retains replay metadata only for its exact issuing model`; `provider-port.test.ts`, `retains replay metadata in assistant history for the next in-process turn`.
 - Cross-provider continuation sanitization: `provider-port.test.ts`, `strips foreign continuation state when a session changes providers`.
 - Foreign opaque reasoning rejection: `request-preparation.test.ts`, `rejects foreign redacted reasoning instead of dropping opaque content`.
+- Dynamic and custom endpoint policy, restored-origin dispatch checks, fail-closed rows, Anthropic environment headers, and image timeout: `remaining-providers.test.ts`.
+- SSE line, event, frame, and total limits: `sse.test.ts`.
+- AWS frame and split-prelude limits: `aws-event-stream.test.ts`.
+- Bounded buffered JSON and linear URL normalization: `transport-safety.test.ts`.
+- Vertex and Bedrock SDK cancellation: `cloud-auth.test.ts` and `aws-auth.test.ts`.
+- Persistence-commit supersession and legacy provider source compatibility: `registry.test.ts`.
+- Azure interactive login: `cloud-auth.test.ts` and the runtime provider inventory assertion in `local-runtime.test.ts`.
 
 ## Invariants
 

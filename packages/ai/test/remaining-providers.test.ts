@@ -259,18 +259,19 @@ test("dispatches Codex, Gateway, and image dialects through deterministic transp
   const radius = createRadiusProvider({
     store: new InMemoryCredentialStore(),
     context,
-    baseUrl: `https://radius.pi.dev${"/".repeat(10_000)}`,
+    baseUrl: "https://radius.pi.dev",
     fetch: async (input) => {
       const url = String(input);
       radiusRequests.push(url);
       if (url.endsWith("/v1/config")) {
         return Response.json({
-          baseUrl: "https://radius.example/v1",
+          baseUrl: "https://radius.pi.dev/v1",
           models: [
             {
               id: "auto",
               name: "Auto",
               reasoning: true,
+              toolUse: true,
               input: ["text"],
               cost: { input: 0, output: 0 },
               contextWindow: 128_000,
@@ -302,7 +303,7 @@ test("dispatches Codex, Gateway, and image dialects through deterministic transp
   assert.equal(radiusEvents.at(-1)?.type, "completed", JSON.stringify(radiusEvents));
   assert.deepEqual(radiusRequests, [
     "https://radius.pi.dev/v1/config",
-    "https://radius.example/v1/messages",
+    "https://radius.pi.dev/v1/messages",
   ]);
 
   const imageBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -425,12 +426,13 @@ test("refreshes dynamic catalogs only when explicitly requested and keeps provid
     calls.push(url);
     if (url.endsWith("/v1/config")) {
       return Response.json({
-        baseUrl: "https://radius.example/v1",
+        baseUrl: "https://radius.pi.dev/v1",
         models: [
           {
             id: "auto",
             name: "Auto",
             reasoning: true,
+            toolUse: true,
             input: ["text"],
             cost: { input: 0, output: 0 },
             contextWindow: 128000,
@@ -563,4 +565,248 @@ test("dispatches a restored dynamic catalog without an implicit refresh", async 
     // Registry supplies the validated restored model to the provider transport.
   }
   assert.equal(requests, 1);
+});
+
+test("rejects unsafe custom endpoints and secret-shaped headers before dispatch", () => {
+  const source = getStaticModelCatalog("deepseek")[0];
+  assert.ok(source);
+  for (const baseUrl of [
+    "http://example.com/v1",
+    "https://169.254.169.254/latest",
+    "https://10.0.0.1/v1",
+    "https://user:password@example.com/v1",
+    "https://example.com/v1#fragment",
+  ]) {
+    assert.throws(() =>
+      createCustomProvider({
+        store: new InMemoryCredentialStore(),
+        context,
+        baseUrl,
+        models: [{ ...source, providerId: "custom", modelId: "unsafe" }],
+      }),
+    );
+  }
+  for (const name of [
+    "Authorization",
+    "Cookie",
+    "Proxy-Authorization",
+    "X-Api-Key",
+    "x-service-token",
+  ]) {
+    assert.throws(() =>
+      createCustomProvider({
+        store: new InMemoryCredentialStore(),
+        context,
+        baseUrl: "https://example.com/v1",
+        headers: { [name]: "caller-secret" },
+        models: [{ ...source, providerId: "custom", modelId: "unsafe" }],
+      }),
+    );
+  }
+});
+
+test("rejects dynamic endpoint origin changes before persistence or dispatch", async () => {
+  const store = new InMemoryCatalogStore();
+  const requests: string[] = [];
+  const provider = createRadiusProvider({
+    store: new InMemoryCredentialStore(),
+    context,
+    fetch: async (input) => {
+      requests.push(String(input));
+      return Response.json({
+        baseUrl: "http://169.254.169.254/latest",
+        models: [
+          {
+            id: "unsafe",
+            name: "Unsafe",
+            reasoning: false,
+            toolUse: false,
+            input: ["text"],
+            contextWindow: 1_000,
+            maxTokens: 100,
+          },
+        ],
+      });
+    },
+  });
+  const registry = new ProviderRegistry({ catalogStore: store });
+  registry.register(provider);
+  const refreshed = await registry.refresh({ providerId: "radius" });
+  assert.equal(refreshed.refreshedProviderIds.length, 0);
+  assert.match(refreshed.errors.get("radius")?.message ?? "", /HTTPS|origin|disallowed/);
+  assert.deepEqual(requests, ["https://radius.pi.dev/v1/config"]);
+  assert.equal(await store.read("radius"), undefined);
+});
+
+test("rejects incomplete dynamic rows instead of guessing compatibility", async () => {
+  const factories = [
+    () =>
+      createOpenRouterProvider({
+        store: new InMemoryCredentialStore(),
+        context,
+        fetch: async () => Response.json({ data: [{ id: "x", name: "X" }] }),
+      }),
+    () =>
+      createGitHubCopilotProvider({
+        store: new InMemoryCredentialStore(),
+        context,
+        fetch: async () => Response.json({ data: [{ id: "x", name: "X" }] }),
+      }),
+    () =>
+      createCloudflareAiGatewayProvider({
+        store: new InMemoryCredentialStore(),
+        context,
+        fetch: async () => Response.json({ data: [{ id: "x", name: "X" }] }),
+      }),
+    () =>
+      createRadiusProvider({
+        store: new InMemoryCredentialStore(),
+        context,
+        fetch: async () =>
+          Response.json({ baseUrl: "https://radius.pi.dev/v1", models: [{ id: "x", name: "X" }] }),
+      }),
+  ];
+  for (const factory of factories) {
+    const provider = factory();
+    const registry = new ProviderRegistry();
+    registry.register(provider);
+    const result = await registry.refresh({ providerId: provider.id });
+    assert.equal(result.refreshedProviderIds.length, 0, provider.id);
+    assert.ok(result.errors.has(provider.id), provider.id);
+  }
+});
+
+test("rejects dynamic model counts above the publication limit", async () => {
+  const row = {
+    id: "model",
+    name: "Model",
+    architecture: { input_modalities: ["text"], output_modalities: ["text"] },
+    context_length: 1_000,
+    top_provider: { max_completion_tokens: 100 },
+    supported_parameters: [],
+  };
+  const provider = createOpenRouterProvider({
+    store: new InMemoryCredentialStore(),
+    context,
+    fetch: async () => Response.json({ data: Array.from({ length: 10_001 }, () => row) }),
+  });
+  const registry = new ProviderRegistry();
+  registry.register(provider);
+  const result = await registry.refresh({ providerId: "openrouter" });
+  assert.equal(result.refreshedProviderIds.length, 0);
+  assert.match(result.errors.get("openrouter")?.message ?? "", /bounded model array/);
+});
+
+test("revalidates restored dynamic origins before credentialed dispatch", async () => {
+  const source = getStaticModelCatalog("deepseek")[0];
+  assert.ok(source);
+  const store = new InMemoryCatalogStore();
+  await store.write("openrouter", {
+    version: 1,
+    providerId: "openrouter",
+    generation: 1,
+    checkedAt: 1,
+    updatedAt: 1,
+    source: { id: "openrouter-models", kind: "provider_api" },
+    models: [
+      {
+        ...source,
+        providerId: "openrouter",
+        modelId: "restored-foreign-origin",
+        endpoint: { type: "fixed", baseUrl: "https://attacker.example/v1" },
+      },
+    ],
+  });
+  let fetches = 0;
+  const provider = createOpenRouterProvider({
+    store: new InMemoryCredentialStore(),
+    context,
+    fetch: async () => {
+      fetches += 1;
+      throw new Error("must not dispatch");
+    },
+  });
+  const registry = new ProviderRegistry({ catalogStore: store });
+  registry.register(provider);
+  await registry.restoreCatalogs({ providerId: "openrouter" });
+  const events = await Array.fromAsync(
+    registry.stream("openrouter", { modelId: "restored-foreign-origin", messages: [] }),
+  );
+  assert.equal(events.at(-1)?.type, "error");
+  assert.equal(fetches, 0);
+});
+
+test("uses distinct Anthropic environment authentication headers", async () => {
+  for (const [name, expected] of [
+    ["ANTHROPIC_API_KEY", { apiKey: "fixture", authorization: null }],
+    ["ANTHROPIC_OAUTH_TOKEN", { apiKey: null, authorization: "Bearer fixture" }],
+  ] as const) {
+    let headers = new Headers();
+    const provider = createAnthropicProvider({
+      store: new InMemoryCredentialStore(),
+      context: {
+        env: (key) => (key === name ? "fixture" : undefined),
+        fileExists: () => Promise.resolve(false),
+      },
+      fetch: async (_input, init) => {
+        headers = new Headers(init?.headers);
+        return new Response('data: {"type":"message_stop"}\n\n', { status: 200 });
+      },
+    });
+    const model = (await provider.listModels())[0];
+    assert.ok(model);
+    await consume(provider, model.modelId);
+    assert.equal(headers.get("x-api-key"), expected.apiKey);
+    assert.equal(headers.get("authorization"), expected.authorization);
+    if (name === "ANTHROPIC_OAUTH_TOKEN")
+      assert.match(headers.get("anthropic-beta") ?? "", /oauth/);
+  }
+});
+
+test("times out non-cancellable image transport without retrying", async () => {
+  let imageFetches = 0;
+  const provider = createOpenRouterProvider({
+    store: new InMemoryCredentialStore(),
+    context,
+    fetch: async (input) => {
+      if (String(input).endsWith("/models")) {
+        return Response.json({
+          data: [
+            {
+              id: "image-timeout",
+              name: "Image timeout",
+              architecture: { input_modalities: ["text"], output_modalities: ["image"] },
+              context_length: 1_000,
+              top_provider: { max_completion_tokens: 100 },
+              supported_parameters: [],
+            },
+          ],
+        });
+      }
+      imageFetches += 1;
+      return new Promise<Response>(() => undefined);
+    },
+  });
+  const registry = new ProviderRegistry();
+  registry.register(provider);
+  await registry.refresh({ providerId: "openrouter" });
+  assert.ok(provider.generateImages);
+  const guard = setTimeout(() => undefined, 100);
+  try {
+    await assert.rejects(
+      provider.generateImages({
+        modelId: "image-timeout",
+        prompt: "fixture",
+        timeoutMs: 1,
+        maxRetries: 0,
+        writeBlob: async () => {
+          throw new Error("not reached");
+        },
+      }),
+      { name: "TimeoutError" },
+    );
+  } finally {
+    clearTimeout(guard);
+  }
+  assert.equal(imageFetches, 1);
 });

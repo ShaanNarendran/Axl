@@ -436,6 +436,7 @@ export class SessionManager {
       ...(runtime.retry === undefined ? {} : { retry: runtime.retry }),
       ...(runtime.sandbox === undefined ? {} : { sandbox: runtime.sandbox }),
       ...(runtime.configProvider === undefined ? {} : { configProvider: runtime.configProvider }),
+      ...(runtime.configRequest === undefined ? {} : { configRequest: runtime.configRequest }),
       ...(runtime.configModel === undefined ? {} : { configModel: runtime.configModel }),
       ...(runtime.configThinking === undefined ? {} : { configThinking: runtime.configThinking }),
       ...(runtime.configProfile === undefined ? {} : { configProfile: runtime.configProfile }),
@@ -1084,6 +1085,7 @@ export class SessionManager {
     for (const event of events) {
       if (event.type === "config.provider") providerId = event.payload.providerId;
       else if (event.type === "config.model") modelId = event.payload.modelId;
+      else if (event.type === "config.request") requestSettings = event.payload;
       else if (event.type === "config.thinking") thinkingLevel = event.payload.requested;
       else if (event.type === "config.profile") profile = event.payload.profile;
       else if (event.type === "config.tools") {
@@ -1093,6 +1095,7 @@ export class SessionManager {
     }
     return this.open(sessionId, created.payload.cwd, {
       ...(providerId === undefined ? {} : { providerId }),
+      ...(requestSettings === undefined ? {} : { requestSettings }),
       ...(modelId === undefined ? {} : { modelId }),
       ...(thinkingLevel === undefined ? {} : { thinkingLevel }),
       ...(webFetch === undefined ? {} : { webFetch }),
@@ -1403,7 +1406,11 @@ export class SessionManager {
     const active = deferredTurn("turn", operationId);
     managed.activeTurn = active;
     try {
-      await this.captureWorkspaceCheckpoint(managed);
+      try {
+        await this.captureWorkspaceCheckpoint(managed, active.controller.signal);
+      } catch (error) {
+        if (!active.controller.signal.aborted) throw error;
+      }
       let result = await managed.session.runTurn(
         content,
         active.controller.signal,
@@ -1561,7 +1568,11 @@ export class SessionManager {
     const active = deferredTurn("shell", operationId);
     managed.activeTurn = active;
     try {
-      await this.captureWorkspaceCheckpoint(managed);
+      try {
+        await this.captureWorkspaceCheckpoint(managed, active.controller.signal);
+      } catch (error) {
+        if (!active.controller.signal.aborted) throw error;
+      }
       const event = await managed.session.runShell(
         command,
         excluded,
@@ -1710,10 +1721,13 @@ export class SessionManager {
     }
   }
 
-  private async captureWorkspaceCheckpoint(managed: ManagedSession): Promise<void> {
+  private async captureWorkspaceCheckpoint(
+    managed: ManagedSession,
+    signal?: AbortSignal,
+  ): Promise<void> {
     if (!managed.workspaceCheckpointsEnabled) return;
     try {
-      await this.workspaceCheckpoints.capture(managed.session.log.sessionId, managed.cwd);
+      await this.workspaceCheckpoints.capture(managed.session.log.sessionId, managed.cwd, signal);
       delete managed.checkpointError;
     } catch (error) {
       if (error instanceof WorkspaceCheckpointError) {

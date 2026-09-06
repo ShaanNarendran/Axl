@@ -51,7 +51,15 @@ function terminalForFailure(
   partial: boolean,
 ): TerminalModelStreamEvent {
   if (signal?.aborted) return { type: "aborted", ...(partial ? { partial: true } : {}) };
-  return { type: "error", code, message, retryable: false, ...(partial ? { partial: true } : {}) };
+  return {
+    type: "error",
+    code,
+    message,
+    retryable: false,
+    category: "stream_interrupted",
+    requestPhase: "streaming",
+    ...(partial ? { partial: true } : {}),
+  };
 }
 
 /** Collects a normalized stream; the last event is always terminal. */

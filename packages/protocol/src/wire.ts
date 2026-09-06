@@ -52,6 +52,7 @@ export type EventCursor = string;
 
 export interface SessionModelSelection {
   readonly providerId?: string;
+  readonly requestSettings?: ModelRequestSettings;
   readonly modelId?: string;
   readonly thinkingLevel?: ThinkingLevel;
 }
@@ -1433,6 +1434,14 @@ function selection(params: Record<string, unknown>, path: string): SessionSelect
   }
   return {
     ...(providerId === undefined ? {} : { providerId }),
+    ...(params.requestSettings === undefined
+      ? {}
+      : {
+          requestSettings: parseModelRequestSettings(
+            params.requestSettings,
+            `${path}.requestSettings`,
+          ),
+        }),
     ...(modelId === undefined ? {} : { modelId }),
     ...(thinkingLevel === undefined ? {} : { thinkingLevel: thinkingLevel as ThinkingLevel }),
     ...(params.webFetch === undefined ? {} : { webFetch: params.webFetch as boolean }),
@@ -1798,6 +1807,7 @@ export function parseWireRequest(value: unknown): WireRequest {
     const profile = sessionProfile(params.profile, "request.params.profile");
     if (
       configured.providerId === undefined &&
+      configured.requestSettings === undefined &&
       configured.modelId === undefined &&
       configured.thinkingLevel === undefined &&
       configured.webFetch === undefined &&
@@ -1806,7 +1816,7 @@ export function parseWireRequest(value: unknown): WireRequest {
     ) {
       throw new ProtocolValidationError(
         "request.params",
-        "must include providerId, modelId, thinkingLevel, webFetch, webSearch, or profile",
+        "must include providerId, modelId, thinkingLevel, requestSettings, webFetch, webSearch, or profile",
       );
     }
     return {

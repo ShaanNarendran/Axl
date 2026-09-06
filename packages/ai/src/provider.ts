@@ -57,8 +57,10 @@ export interface ModelProvider {
   /** Provider-owned, UI-neutral authentication lifecycle when authentication is configurable. */
   readonly authentication?: ProviderAuthentication;
   listModels(): Promise<readonly ModelInfo[]>;
-  /** Optional explicit live catalog refresh; providers without it have a static catalog. */
-  refreshModels?(context: ModelCatalogRefreshContext): Promise<ModelCatalogRefreshResult>;
+  /** Legacy additive refresh shape retained for existing provider implementations. */
+  refreshModels?(): Promise<readonly ModelInfo[]>;
+  /** Context-aware explicit live catalog refresh with persistence metadata. */
+  refreshModelCatalog?(context: ModelCatalogRefreshContext): Promise<ModelCatalogRefreshResult>;
   /**
    * Streams one model response. Failures before dispatch may throw; failures
    * after dispatch must terminate through a terminal stream event. Consumers

@@ -15,6 +15,7 @@ import {
   type ResolvedAuth,
 } from "./auth.ts";
 import type { ApiKeyCredential } from "./credentials.ts";
+import { raceWithSignal } from "./transport-safety.ts";
 
 export interface AwsCredentialIdentityLike {
   readonly accessKeyId: string;
@@ -126,7 +127,7 @@ async function sigv4(
   let credentials: AwsCredentialIdentityLike;
   try {
     signal.throwIfAborted();
-    credentials = validateCredentials(await provider());
+    credentials = validateCredentials(await raceWithSignal(provider(), signal));
     signal.throwIfAborted();
   } catch (cause) {
     if (signal.aborted) signal.throwIfAborted();

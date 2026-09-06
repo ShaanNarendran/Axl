@@ -7,6 +7,7 @@ import {
 } from "./anthropic-messages.ts";
 import { createEnvironmentApiKeyAuth } from "./api-key-auth.ts";
 import {
+  type AmbientAuthSource,
   type ApiKeyAuthMethod,
   type AuthContext,
   AuthError,
@@ -25,6 +26,7 @@ import {
   encodeBedrockConverseStreamRequest,
 } from "./bedrock-converse-stream.ts";
 import { getStaticModelCatalog } from "./catalog.ts";
+import { validateModelCatalog } from "./catalog-validation.ts";
 import {
   type CloudAuthFactories,
   createAzureEntraSource,
@@ -44,7 +46,7 @@ import {
   decodeMistralConversationsStream,
   encodeMistralConversationsRequest,
 } from "./mistral-conversations.ts";
-import type { ApiDialect, ImageGenerationRequest, ImageModelInfo, ModelInfo } from "./model.ts";
+import type { ImageGenerationRequest, ImageModelInfo, ModelInfo } from "./model.ts";
 import {
   createAnthropicOAuth,
   createGitHubCopilotOAuth,
@@ -66,6 +68,13 @@ import {
 } from "./openrouter-images.ts";
 import type { ModelCatalogRefreshContext, ModelProvider } from "./provider.ts";
 import { createStaticOpenAiChatProvider } from "./static-openai-chat-provider.ts";
+import {
+  delayWithSignal,
+  raceWithSignal,
+  readBoundedJson,
+  safeEndpoint,
+  stripTrailingSlashes,
+} from "./transport-safety.ts";
 
 export interface ProviderFactoryOptions {
   readonly store: CredentialStore;
@@ -74,12 +83,6 @@ export interface ProviderFactoryOptions {
   readonly now?: () => number;
   readonly cloudAuth?: CloudAuthFactories;
   readonly awsAuth?: AwsAuthFactories;
-}
-
-function stripTrailingSlashes(value: string): string {
-  let end = value.length;
-  while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
-  return value.slice(0, end);
 }
 
 const fixedBase = (model: ModelInfo): string => {
@@ -213,6 +216,7 @@ function apiKeyProvider(input: {
   models?: readonly ModelInfo[];
   codecFor?: (model: ModelInfo) => HttpSseCodec;
   oauth?: ReturnType<typeof createAnthropicOAuth>;
+  validateEndpoint?: (url: URL, model: ModelInfo, resolved: ResolvedAuth) => void;
 }): HttpSseProvider {
   const method = createEnvironmentApiKeyAuth({
     providerId: input.id,
@@ -235,6 +239,7 @@ function apiKeyProvider(input: {
     models: input.models ?? getStaticModelCatalog(input.id),
     resolveAuth: (signal) => authentication.resolve({ signal }),
     codecFor: input.codecFor ?? codecs(input.id),
+    ...(input.validateEndpoint === undefined ? {} : { validateEndpoint: input.validateEndpoint }),
     ...(input.options.fetch === undefined ? {} : { fetch: input.options.fetch }),
     ...(input.options.now === undefined ? {} : { now: input.options.now }),
   });
@@ -248,14 +253,55 @@ export const createOpenAiProvider = (options: ProviderFactoryOptions): ModelProv
     options,
   });
 
-export const createAnthropicProvider = (options: ProviderFactoryOptions): ModelProvider =>
-  apiKeyProvider({
-    id: "anthropic",
-    displayName: "Anthropic",
-    environmentVariables: ["ANTHROPIC_API_KEY", "ANTHROPIC_OAUTH_TOKEN"],
-    options,
-    oauth: createAnthropicOAuth(options),
+export const createAnthropicProvider = (options: ProviderFactoryOptions): ModelProvider => {
+  const id = "anthropic";
+  const apiKey = createEnvironmentApiKeyAuth({
+    providerId: id,
+    displayName: "Anthropic API key",
+    environmentVariables: ["ANTHROPIC_API_KEY"],
   });
+  const oauthEnvironment: AmbientAuthSource = {
+    type: "environment",
+    displayName: "Anthropic OAuth token",
+    resolve: async ({ context, signal }) => {
+      signal.throwIfAborted();
+      const token = context.env("ANTHROPIC_OAUTH_TOKEN");
+      if (!token) return undefined;
+      return {
+        auth: {
+          headers: {
+            authorization: `Bearer ${token}`,
+            "anthropic-beta": "claude-code-20250219,oauth-2025-04-20",
+          },
+        },
+        source: "ANTHROPIC_OAUTH_TOKEN",
+        secretValues: [token, "claude-code-20250219,oauth-2025-04-20"],
+      };
+    },
+  };
+  const authentication = createProviderAuthentication({
+    providerId: id,
+    declaredMethods: ["environment", "file", "oauth"],
+    methods: {
+      apiKey,
+      oauth: createAnthropicOAuth(options),
+      sources: [{ ...apiKey, type: "environment" }, oauthEnvironment],
+    },
+    store: options.store,
+    context: options.context,
+  });
+  return new HttpSseProvider({
+    id,
+    displayName: "Anthropic",
+    authMethods: authentication.methods,
+    authentication,
+    models: getStaticModelCatalog(id),
+    resolveAuth: (signal) => authentication.resolve({ signal }),
+    codecFor: codecs(id),
+    ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
+    ...(options.now === undefined ? {} : { now: options.now }),
+  });
+};
 
 export const createGoogleProvider = (options: ProviderFactoryOptions): ModelProvider =>
   apiKeyProvider({
@@ -304,37 +350,6 @@ export const createOpenCodeGoProvider = (options: ProviderFactoryOptions): Model
     codecFor: codecs("opencode-go", { anthropicBearer: true }),
   });
 
-const unavailable = (providerId: string, reason: string): readonly ModelInfo[] =>
-  getStaticModelCatalog(providerId).map((model) => ({
-    ...model,
-    availability: { status: "unavailable", reason },
-  }));
-
-function deferredProvider(input: {
-  id: string;
-  displayName: string;
-  methods: readonly ("oauth" | "ambient" | "environment")[];
-  reason: string;
-}): ModelProvider {
-  const models = unavailable(input.id, input.reason);
-  return {
-    id: input.id,
-    displayName: input.displayName,
-    authMethods: input.methods,
-    listModels: () => Promise.resolve(models),
-    stream: async function* () {
-      yield {
-        type: "error",
-        code: "provider_auth_deferred",
-        message: input.reason,
-        retryable: false,
-        category: "authentication",
-        requestPhase: "before_dispatch",
-      };
-    },
-  };
-}
-
 export function createOpenAiCodexProvider(options: ProviderFactoryOptions): ModelProvider {
   const id = "openai-codex";
   const oauth = createOpenAiCodexOAuth(options);
@@ -362,15 +377,7 @@ export function createOpenAiCodexProvider(options: ProviderFactoryOptions): Mode
   });
 }
 
-export function createAmazonBedrockProvider(options?: ProviderFactoryOptions): ModelProvider {
-  if (options === undefined) {
-    return deferredProvider({
-      id: "amazon-bedrock",
-      displayName: "Amazon Bedrock",
-      methods: ["environment", "ambient"],
-      reason: "AWS credential acquisition and SigV4 authentication are deferred to Step 10",
-    });
-  }
+export function createAmazonBedrockProvider(options: ProviderFactoryOptions): ModelProvider {
   const id = "amazon-bedrock";
   const method = createBedrockStoredAuth(options.awsAuth);
   const authentication = createProviderAuthentication({
@@ -413,6 +420,19 @@ export function createAmazonBedrockProvider(options?: ProviderFactoryOptions): M
 
 const azureAuth = (providerId: string): ApiKeyAuthMethod => ({
   displayName: "Azure OpenAI API key",
+  login: async (interaction) => {
+    const key = await interaction.prompt({
+      type: "secret",
+      message: "Enter Azure OpenAI API key",
+    });
+    const baseUrl = await interaction.prompt({
+      type: "text",
+      message: "Enter Azure OpenAI base URL",
+    });
+    if (key.length === 0) throw new TypeError("Azure OpenAI API key cannot be empty");
+    safeEndpoint(baseUrl, { label: "Azure OpenAI base URL", allowLoopbackHttp: true });
+    return { type: "api_key", key, env: { AZURE_OPENAI_BASE_URL: baseUrl } };
+  },
   resolve: async ({ context, credential, signal }) => {
     signal.throwIfAborted();
     const key = credential?.key ?? context.env("AZURE_OPENAI_API_KEY");
@@ -585,6 +605,9 @@ export function createCloudflareWorkersAiProvider(options: ProviderFactoryOption
   });
 }
 
+const MAX_DYNAMIC_MODELS = 10_000;
+const MAX_DYNAMIC_NAME_LENGTH = 512;
+
 function dynamicModel(
   providerId: string,
   endpoint: string,
@@ -594,10 +617,19 @@ function dynamicModel(
   if (typeof value !== "object" || value === null || Array.isArray(value))
     throw new TypeError(`${providerId} returned a malformed model`);
   const row = value as Record<string, unknown>;
-  if (typeof row.id !== "string" || row.id.length === 0 || typeof row.name !== "string")
-    throw new TypeError(`${providerId} returned a model without an identity`);
-  const rawDialect: ApiDialect = (row.apiDialect ?? row.api ?? "openai-chat") as ApiDialect;
   if (
+    typeof row.id !== "string" ||
+    row.id.length === 0 ||
+    row.id.length > 256 ||
+    typeof row.name !== "string" ||
+    row.name.length === 0 ||
+    row.name.length > MAX_DYNAMIC_NAME_LENGTH
+  ) {
+    throw new TypeError(`${providerId} returned a model without a bounded identity`);
+  }
+  const rawDialect = row.apiDialect ?? row.api;
+  if (
+    typeof rawDialect !== "string" ||
     ![
       "openai-chat",
       "openai-responses",
@@ -605,52 +637,82 @@ function dynamicModel(
       "google-generative-ai",
       "gateway-messages",
     ].includes(rawDialect)
-  )
-    throw new TypeError(`${providerId} returned unsupported dialect ${rawDialect}`);
+  ) {
+    throw new TypeError(`${providerId} returned missing or unsupported dialect metadata`);
+  }
   const dialect = rawDialect as
     | "openai-chat"
     | "openai-responses"
     | "anthropic-messages"
     | "google-generative-ai"
     | "gateway-messages";
-  const context = Number(row.context_length ?? row.contextWindow ?? 128_000);
-  const output = Number(
-    (row.top_provider as Record<string, unknown> | undefined)?.max_completion_tokens ??
-      row.maxOutputTokens ??
-      Math.min(context, 16_384),
-  );
+  const topProvider =
+    typeof row.top_provider === "object" &&
+    row.top_provider !== null &&
+    !Array.isArray(row.top_provider)
+      ? (row.top_provider as Record<string, unknown>)
+      : undefined;
+  const contextValue = row.context_length ?? row.contextWindow;
+  const outputValue = topProvider?.max_completion_tokens ?? row.maxOutputTokens;
+  const context = Number(contextValue);
+  const output = Number(outputValue);
   if (
+    contextValue === undefined ||
+    outputValue === undefined ||
     !Number.isSafeInteger(context) ||
     context <= 0 ||
     !Number.isSafeInteger(output) ||
     output <= 0 ||
     output > context
-  )
-    throw new TypeError(`${providerId} returned invalid model limits`);
-  const input = (row.architecture as Record<string, unknown> | undefined)?.input_modalities;
+  ) {
+    throw new TypeError(`${providerId} returned missing or invalid model limits`);
+  }
+  const architecture =
+    typeof row.architecture === "object" &&
+    row.architecture !== null &&
+    !Array.isArray(row.architecture)
+      ? (row.architecture as Record<string, unknown>)
+      : undefined;
+  const input = architecture?.input_modalities;
   const supported = row.supported_parameters;
+  if (
+    !Array.isArray(input) ||
+    input.length > 32 ||
+    !input.every((item) => typeof item === "string" && item.length <= 128)
+  ) {
+    throw new TypeError(`${providerId} returned missing input capability metadata`);
+  }
+  if (
+    !Array.isArray(supported) ||
+    supported.length > 128 ||
+    !supported.every((item) => typeof item === "string" && item.length <= 128)
+  ) {
+    throw new TypeError(`${providerId} returned missing supported-parameter metadata`);
+  }
   const baseCompatibility =
     dialect === "openai-chat"
       ? { dialect, supportsUsageInStreaming: true, maxTokensField: "max_tokens" as const }
       : { dialect };
-  return {
+  const model = {
     providerId,
     modelId: row.id,
     displayName: row.name,
     apiDialect: dialect,
     capabilities: {
-      toolUse: !Array.isArray(supported) || supported.includes("tools"),
-      structuredOutput: Array.isArray(supported) && supported.includes("structured_outputs"),
-      imageInput: Array.isArray(input) && input.includes("image"),
+      toolUse: supported.includes("tools"),
+      structuredOutput: supported.includes("structured_outputs"),
+      imageInput: input.includes("image"),
     },
-    reasoning: Array.isArray(supported) && supported.includes("reasoning"),
+    reasoning: supported.includes("reasoning"),
     contextWindow: context,
     maxOutputTokens: output,
-    endpoint: { type: "fixed", baseUrl: endpoint },
+    endpoint: { type: "fixed", baseUrl: endpoint } as const,
     ...(headers === undefined ? {} : { headers }),
-    availability: { status: "available" },
+    availability: { status: "available" as const },
     compatibility: baseCompatibility,
-  };
+  } satisfies ModelInfo;
+  validateModelCatalog([model]);
+  return model;
 }
 
 function dynamicProvider(input: {
@@ -662,9 +724,11 @@ function dynamicProvider(input: {
   options: ProviderFactoryOptions;
   headers?: (resolved: ResolvedAuth) => Readonly<Record<string, string>>;
   endpoint?: (resolved: ResolvedAuth) => string;
+  allowEndpoint?: (url: URL) => boolean;
   rowFilter?: (row: unknown) => boolean;
   onRows?: (rows: readonly unknown[], endpoint: string) => readonly ImageModelInfo[] | undefined;
   modelHeaders?: Readonly<Record<string, string>>;
+  defaultDialect?: "openai-chat";
   oauth?: ReturnType<typeof createOpenRouterOAuth>;
   apiKey?: ApiKeyAuthMethod;
 }): ModelProvider {
@@ -682,6 +746,19 @@ function dynamicProvider(input: {
     store: input.options.store,
     context: input.options.context,
   });
+  const approvedBase = (resolved: ResolvedAuth): string => {
+    const base = safeEndpoint(input.endpoint?.(resolved) ?? input.baseUrl, {
+      label: `${input.displayName} endpoint`,
+    });
+    if (
+      input.allowEndpoint !== undefined
+        ? !input.allowEndpoint(new URL(base))
+        : new URL(base).origin !== new URL(input.baseUrl).origin
+    ) {
+      throw new TypeError(`${input.displayName} endpoint has an unapproved origin`);
+    }
+    return base;
+  };
   const provider = new HttpSseProvider({
     id: input.id,
     displayName: input.displayName,
@@ -690,22 +767,29 @@ function dynamicProvider(input: {
     models: [],
     resolveAuth: (signal) => authentication.resolve({ signal }),
     codecFor: codecs(input.id, { anthropicBearer: true }),
+    validateEndpoint: (url, _model, resolved) => {
+      if (url.origin !== new URL(approvedBase(resolved)).origin)
+        throw new TypeError(`${input.displayName} request endpoint has an unapproved origin`);
+    },
     ...(input.options.fetch === undefined ? {} : { fetch: input.options.fetch }),
   });
   const fetchImpl = input.options.fetch ?? fetch;
   return Object.assign(provider, {
-    refreshModels: async (context: ModelCatalogRefreshContext) => {
+    refreshModelCatalog: async (context: ModelCatalogRefreshContext) => {
       const resolved = await authentication.resolve({ signal: context.signal });
-      const base = input.endpoint?.(resolved) ?? input.baseUrl;
-      const response = await fetchImpl(`${stripTrailingSlashes(base)}/models`, {
-        headers: {
-          accept: "application/json",
-          authorization: bearer(resolved, input.id),
-          ...input.headers?.(resolved),
-          ...(context.previous?.etag ? { "if-none-match": context.previous.etag } : {}),
-        },
-        signal: context.signal,
-      });
+      const base = approvedBase(resolved);
+      const response = await raceWithSignal(
+        fetchImpl(`${base}/models`, {
+          headers: {
+            accept: "application/json",
+            authorization: bearer(resolved, input.id),
+            ...input.headers?.(resolved),
+            ...(context.previous?.etag ? { "if-none-match": context.previous.etag } : {}),
+          },
+          signal: context.signal,
+        }),
+        context.signal,
+      );
       if (response.status === 304)
         return {
           status: "not_modified" as const,
@@ -714,19 +798,36 @@ function dynamicProvider(input: {
           source: { id: `${input.id}-models`, kind: input.sourceKind },
         };
       if (!response.ok) throw new Error(`${input.displayName} catalog returned ${response.status}`);
-      const body = (await response.json()) as {
+      const body = (await readBoundedJson(response, undefined, context.signal)) as {
         data?: unknown[];
         models?: unknown[];
         baseUrl?: unknown;
       };
       const rows = body.data ?? body.models;
-      if (!Array.isArray(rows))
-        throw new TypeError(`${input.displayName} catalog has no model array`);
-      const endpoint = typeof body.baseUrl === "string" ? body.baseUrl : base;
+      if (!Array.isArray(rows) || rows.length > MAX_DYNAMIC_MODELS)
+        throw new TypeError(`${input.displayName} catalog has no bounded model array`);
+      const endpoint = safeEndpoint(typeof body.baseUrl === "string" ? body.baseUrl : base, {
+        label: `${input.displayName} model endpoint`,
+        expectedOrigin: base,
+      });
+      const normalizedRows = rows.map((row) => ({
+        raw: row,
+        model: dynamicModel(
+          input.id,
+          endpoint,
+          input.defaultDialect === undefined || typeof row !== "object" || row === null
+            ? row
+            : {
+                ...(row as Record<string, unknown>),
+                apiDialect: (row as Record<string, unknown>).apiDialect ?? input.defaultDialect,
+              },
+          input.modelHeaders,
+        ),
+      }));
       const imageModels = input.onRows?.(rows, endpoint);
-      const models = rows
-        .filter((row) => input.rowFilter?.(row) ?? true)
-        .map((row) => dynamicModel(input.id, endpoint, row, input.modelHeaders));
+      const models = normalizedRows
+        .filter(({ raw }) => input.rowFilter?.(raw) ?? true)
+        .map(({ model }) => model);
       return {
         status: "updated" as const,
         providerId: input.id,
@@ -760,6 +861,7 @@ export function createOpenRouterProvider(options: ProviderFactoryOptions): Model
     sourceKind: "provider_api",
     options,
     oauth: createOpenRouterOAuth(options),
+    defaultDialect: "openai-chat",
     rowFilter: (row) => hasOutput(row, "text"),
     onRows: (rows, endpoint) => {
       imageModels = rows
@@ -767,10 +869,20 @@ export function createOpenRouterProvider(options: ProviderFactoryOptions): Model
         .map((row) => {
           const value = row as Record<string, unknown>;
           const architecture = value.architecture as Record<string, unknown>;
+          if (
+            typeof value.id !== "string" ||
+            value.id.length === 0 ||
+            value.id.length > 256 ||
+            typeof value.name !== "string" ||
+            value.name.length === 0 ||
+            value.name.length > MAX_DYNAMIC_NAME_LENGTH
+          ) {
+            throw new TypeError("OpenRouter returned invalid image model identity");
+          }
           return {
             providerId: "openrouter",
-            modelId: value.id as string,
-            displayName: value.name as string,
+            modelId: value.id,
+            displayName: value.name,
             apiDialect: "openrouter-images",
             input:
               Array.isArray(architecture.input_modalities) &&
@@ -789,6 +901,10 @@ export function createOpenRouterProvider(options: ProviderFactoryOptions): Model
   return Object.assign(provider, {
     listImageModels: () => Promise.resolve(imageModels),
     generateImages: async (request: ImageGenerationRequest) => {
+      const timeout = AbortSignal.timeout(request.timeoutMs ?? 120_000);
+      const signal =
+        request.signal === undefined ? timeout : AbortSignal.any([request.signal, timeout]);
+      const controlledRequest = { ...request, signal };
       const model = imageModels.find((candidate) => candidate.modelId === request.modelId);
       if (model === undefined)
         throw new TypeError(`OpenRouter has no image model ${request.modelId}`);
@@ -799,24 +915,46 @@ export function createOpenRouterProvider(options: ProviderFactoryOptions): Model
           "openrouter",
           "OpenRouter authentication is unavailable",
         );
-      const resolved = await authentication.resolve(
-        request.signal === undefined ? {} : { signal: request.signal },
+      const resolved = await raceWithSignal(authentication.resolve({ signal }), signal);
+      const encoded = await raceWithSignal(
+        encodeOpenRouterImageRequest(model, controlledRequest),
+        signal,
       );
-      const encoded = await encodeOpenRouterImageRequest(model, request);
-      const response = await fetchImpl("https://openrouter.ai/api/v1/images", {
-        method: "POST",
-        headers: {
-          authorization: bearer(resolved, "openrouter"),
-          "content-type": "application/json",
-        },
-        body: JSON.stringify(encoded.body),
-        ...(request.signal === undefined ? {} : { signal: request.signal }),
-      });
-      const body = await response.json();
-      if (!response.ok) throw new Error(`OpenRouter image generation returned ${response.status}`);
+      const maximumRetries = Math.min(request.maxRetries ?? 2, 10);
+      let response: Response | undefined;
+      for (let attempt = 0; attempt <= maximumRetries; attempt += 1) {
+        response = await raceWithSignal(
+          fetchImpl("https://openrouter.ai/api/v1/images", {
+            method: "POST",
+            headers: {
+              authorization: bearer(resolved, "openrouter"),
+              "content-type": "application/json",
+            },
+            body: JSON.stringify(encoded.body),
+            signal,
+          }),
+          signal,
+        );
+        if (
+          response.ok ||
+          attempt === maximumRetries ||
+          ![429, 500, 502, 503, 504].includes(response.status)
+        )
+          break;
+        await response.body?.cancel();
+        const delay = Math.min(250 * 2 ** attempt, request.maxRetryDelayMs ?? 30_000);
+        await delayWithSignal(delay, signal);
+      }
+      if (response === undefined || !response.ok) {
+        await response?.body?.cancel();
+        throw new Error(
+          `OpenRouter image generation returned ${response?.status ?? "no response"}`,
+        );
+      }
+      const body = await readBoundedJson(response, 64 * 1024 * 1024, signal);
       return decodeOpenRouterImageResponse(body, {
         model,
-        request,
+        request: controlledRequest,
         secretValues: resolved.secretValues,
       });
     },
@@ -839,6 +977,10 @@ export const createGitHubCopilotProvider = (options: ProviderFactoryOptions): Mo
     oauth: createGitHubCopilotOAuth(options),
     apiKey: createGitHubCopilotTokenAuth(options),
     endpoint: (resolved) => resolved.auth.baseUrl ?? "https://api.individual.githubcopilot.com",
+    allowEndpoint: (url) =>
+      url.protocol === "https:" &&
+      (url.hostname === "api.individual.githubcopilot.com" ||
+        url.hostname.endsWith(".githubcopilot.com")),
     headers: () => requiredHeaders,
     modelHeaders: requiredHeaders,
   });
@@ -873,21 +1015,30 @@ export function createCloudflareAiGatewayProvider(options: ProviderFactoryOption
     models: [],
     resolveAuth: (signal) => authentication.resolve({ signal }),
     codecFor: codecs(id, { anthropicBearer: true }),
+    validateEndpoint: (url, _model, resolved) => {
+      if (url.origin !== new URL(base(resolved)).origin)
+        throw new TypeError("Cloudflare AI Gateway request endpoint has an unapproved origin");
+    },
     ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
   });
   return Object.assign(provider, {
-    refreshModels: async (context: ModelCatalogRefreshContext) => {
+    refreshModelCatalog: async (context: ModelCatalogRefreshContext) => {
       const resolved = await authentication.resolve({ signal: context.signal });
       const endpoint = base(resolved);
-      const response = await fetchImpl(`${endpoint}/models`, {
-        headers: { authorization: bearer(resolved, id), accept: "application/json" },
-        signal: context.signal,
-      });
+      const response = await raceWithSignal(
+        fetchImpl(`${endpoint}/models`, {
+          headers: { authorization: bearer(resolved, id), accept: "application/json" },
+          signal: context.signal,
+        }),
+        context.signal,
+      );
       if (!response.ok)
         throw new Error(`Cloudflare AI Gateway catalog returned ${response.status}`);
-      const body = (await response.json()) as { data?: unknown[] };
-      if (!Array.isArray(body.data))
-        throw new TypeError("Cloudflare AI Gateway catalog has no model array");
+      const body = (await readBoundedJson(response, undefined, context.signal)) as {
+        data?: unknown[];
+      };
+      if (!Array.isArray(body.data) || body.data.length > MAX_DYNAMIC_MODELS)
+        throw new TypeError("Cloudflare AI Gateway catalog has no bounded model array");
       const models = body.data.map((row) => dynamicModel(id, endpoint, row));
       return {
         status: "updated" as const,
@@ -904,7 +1055,10 @@ export function createRadiusProvider(
   options: ProviderFactoryOptions & { baseUrl?: string },
 ): ModelProvider {
   const id = "radius";
-  const gateway = stripTrailingSlashes(options.baseUrl ?? "https://radius.pi.dev");
+  const gateway = safeEndpoint(options.baseUrl ?? "https://radius.pi.dev", {
+    label: "Radius gateway endpoint",
+    allowLoopbackHttp: options.baseUrl !== undefined,
+  });
   const method = createEnvironmentApiKeyAuth({
     providerId: id,
     displayName: "Radius API key",
@@ -926,29 +1080,61 @@ export function createRadiusProvider(
     models: [],
     resolveAuth: (signal) => authentication.resolve({ signal }),
     codecFor: codecs(id),
+    validateEndpoint: (url) => {
+      if (url.origin !== new URL(gateway).origin)
+        throw new TypeError("Radius request endpoint has an unapproved origin");
+    },
     ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
   });
   return Object.assign(provider, {
-    refreshModels: async (context: ModelCatalogRefreshContext) => {
+    refreshModelCatalog: async (context: ModelCatalogRefreshContext) => {
       const resolved = await authentication.resolve({ signal: context.signal });
-      const response = await fetchImpl(`${gateway}/v1/config`, {
-        headers: { accept: "application/json", authorization: bearer(resolved, id) },
-        signal: context.signal,
-      });
+      const response = await raceWithSignal(
+        fetchImpl(`${gateway}/v1/config`, {
+          headers: { accept: "application/json", authorization: bearer(resolved, id) },
+          signal: context.signal,
+        }),
+        context.signal,
+      );
       if (!response.ok) throw new Error(`Radius catalog returned ${response.status}`);
-      const body = (await response.json()) as { baseUrl?: unknown; models?: unknown[] };
-      if (typeof body.baseUrl !== "string" || !Array.isArray(body.models))
-        throw new TypeError("Radius config is malformed");
-      const endpoint = stripTrailingSlashes(body.baseUrl);
+      const body = (await readBoundedJson(response, undefined, context.signal)) as {
+        baseUrl?: unknown;
+        models?: unknown[];
+      };
+      if (
+        typeof body.baseUrl !== "string" ||
+        !Array.isArray(body.models) ||
+        body.models.length > MAX_DYNAMIC_MODELS
+      ) {
+        throw new TypeError("Radius config is malformed or exceeds model limits");
+      }
+      const endpoint = safeEndpoint(body.baseUrl, {
+        label: "Radius model endpoint",
+        allowLoopbackHttp: options.baseUrl !== undefined,
+        expectedOrigin: gateway,
+      });
       const models = body.models.map((row) => {
         if (typeof row !== "object" || row === null || Array.isArray(row))
           throw new TypeError("Radius returned a malformed model");
         const value = row as Record<string, unknown>;
+        if (
+          typeof value.reasoning !== "boolean" ||
+          typeof value.toolUse !== "boolean" ||
+          !Array.isArray(value.input) ||
+          !value.input.every((item) => typeof item === "string")
+        ) {
+          throw new TypeError("Radius returned incomplete capability metadata");
+        }
         return dynamicModel(id, endpoint, {
           ...value,
           apiDialect: "gateway-messages",
           context_length: value.contextWindow,
           maxOutputTokens: value.maxTokens,
+          architecture: { input_modalities: value.input },
+          supported_parameters: [
+            ...(value.toolUse ? ["tools"] : []),
+            ...(value.reasoning ? ["reasoning"] : []),
+          ],
         });
       });
       return {
@@ -991,12 +1177,28 @@ export function createCustomProvider(options: CustomProviderOptions): ModelProvi
   }
   const baseUrl = options.baseUrl;
   if (!baseUrl) throw new TypeError("User configured endpoint requires baseUrl");
+  const endpoint = safeEndpoint(baseUrl, {
+    label: "User configured endpoint",
+    allowLoopbackHttp: true,
+  });
+  const supportedDialects = new Set([
+    "openai-chat",
+    "openai-responses",
+    "anthropic-messages",
+    "google-generative-ai",
+    "mistral-conversations",
+    "gateway-messages",
+  ]);
+  if (models.some((model) => !supportedDialects.has(model.apiDialect))) {
+    throw new TypeError("User configured endpoint contains an unsupported API dialect");
+  }
   const normalized = models.map((model) => ({
     ...model,
     providerId: "custom",
-    endpoint: { type: "fixed", baseUrl } as const,
+    endpoint: { type: "fixed", baseUrl: endpoint } as const,
     headers: { ...model.headers, ...options.headers },
   }));
+  validateModelCatalog(normalized);
   if ((options.apiKeyEnvironmentVariables?.length ?? 0) === 0) {
     return new HttpSseProvider({
       id: "custom",
@@ -1005,6 +1207,10 @@ export function createCustomProvider(options: CustomProviderOptions): ModelProvi
       models: normalized,
       resolveAuth: () => Promise.resolve({ auth: {}, source: "keyless", secretValues: [] }),
       codecFor: codecs("custom", { keyless: true }),
+      validateEndpoint: (url) => {
+        if (url.origin !== new URL(endpoint).origin)
+          throw new TypeError("User configured request endpoint changed origin");
+      },
       ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
     });
   }
@@ -1014,5 +1220,9 @@ export function createCustomProvider(options: CustomProviderOptions): ModelProvi
     environmentVariables: options.apiKeyEnvironmentVariables ?? [],
     options,
     models: normalized,
+    validateEndpoint: (url) => {
+      if (url.origin !== new URL(endpoint).origin)
+        throw new TypeError("User configured request endpoint changed origin");
+    },
   });
 }

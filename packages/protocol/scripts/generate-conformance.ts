@@ -209,6 +209,7 @@ const params = {
     providerId: "provider-1",
     modelId: "model-1",
     thinkingLevel: "medium",
+    requestSettings: { maxOutputTokens: null, httpIdleTimeoutMs: 300_000 },
   },
   "session.interaction.respond": {
     sessionId,

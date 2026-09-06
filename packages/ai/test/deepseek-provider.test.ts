@@ -256,6 +256,25 @@ test("reports cancellation, timeout, and redacted transport failures", async () 
     },
   ]);
 
+  let retryAttempts = 0;
+  const retryController = new AbortController();
+  const retrying = createDeepSeekProvider({
+    store: new InMemoryCredentialStore(),
+    context: context({ DEEPSEEK_API_KEY: "secret-value" }),
+    fetch: async () => {
+      retryAttempts += 1;
+      retryController.abort();
+      return new Response("busy", { status: 429, headers: { "retry-after": "30" } });
+    },
+  });
+  assert.deepEqual(
+    await events(
+      retrying.stream({ modelId: model.modelId, messages: [], signal: retryController.signal }),
+    ),
+    [{ type: "aborted" }],
+  );
+  assert.equal(retryAttempts, 1);
+
   const failed = createDeepSeekProvider({
     store: new InMemoryCredentialStore(),
     context: context({ DEEPSEEK_API_KEY: "secret-value" }),

@@ -183,7 +183,10 @@ function parseArguments(argv: readonly string[]): CliArguments {
       parsed.prompt.push(...argv.slice(index + 1));
       break;
     }
-    if (argument === "--socket") parsed.socket = next();
+    if (argument === "--interrupt") parsed.interrupt = true;
+    else if (argument === "--yes") parsed.yes = true;
+    else if (argument === "--force") parsed.force = true;
+    else if (argument === "--socket") parsed.socket = next();
     else if (argument === "--provider") parsed.provider = next();
     else if (argument === "--output") parsed.output = next();
     else if (argument === "--raw") parsed.raw = true;
@@ -278,6 +281,23 @@ function parseArguments(argv: readonly string[]): CliArguments {
     if (parsed.providerTarget === undefined)
       throw new Error(`${parsed.command} requires a provider ID`);
   }
+  if (
+    (parsed.interrupt || parsed.yes || parsed.force) &&
+    parsed.daemonAction !== "stop" &&
+    parsed.daemonAction !== "restart"
+  )
+    throw new Error("--interrupt, --yes, and --force require daemon stop or restart");
+  if (parsed.force && (parsed.daemonAction !== "stop" || !parsed.yes))
+    throw new Error("--force requires daemon stop --yes after graceful shutdown was requested");
+  if (parsed.command === "daemon" && parsed.sessionId !== undefined)
+    throw new Error("Unexpected daemon argument");
+  if (
+    (parsed.maxOutputTokens !== undefined || parsed.httpIdleTimeoutMs !== undefined) &&
+    (parsed.resume || parsed.sessionId !== undefined)
+  )
+    throw new Error(
+      "Request settings flags select new sessions; use /request to configure a resumed session",
+    );
   if (parsed.resume && parsed.sessionId !== undefined) {
     throw new Error("--resume cannot be combined with a session ID");
   }
@@ -361,6 +381,7 @@ function samePlacement(left: LocalSessionPlacement, right: LocalSessionPlacement
 
 interface ActiveConfig {
   readonly providerId: string;
+  readonly requestSettings: ModelRequestSettings;
   readonly modelId: string;
   readonly thinkingLevel: ThinkingLevel;
   readonly webFetch: boolean;
@@ -598,6 +619,7 @@ async function runHeadless(
   const opened = await client.request("session.create", {
     cwd: input.cwd,
     providerId: input.active.providerId,
+    requestSettings: input.active.requestSettings,
     modelId: input.active.modelId,
     thinkingLevel: input.active.thinkingLevel,
     webFetch: input.active.webFetch,
@@ -864,6 +886,16 @@ async function main(): Promise<void> {
 
   const active: ActiveConfig = {
     providerId: cli.provider ?? settings.providerId ?? "azure-openai-responses",
+    requestSettings: parseModelRequestSettings({
+      maxOutputTokens:
+        cli.maxOutputTokens === undefined
+          ? (settings.requestSettings?.maxOutputTokens ?? null)
+          : cli.maxOutputTokens,
+      httpIdleTimeoutMs:
+        cli.httpIdleTimeoutMs ??
+        settings.requestSettings?.httpIdleTimeoutMs ??
+        DEFAULT_MODEL_REQUEST_SETTINGS.httpIdleTimeoutMs,
+    }),
     modelId: cli.model ?? settings.modelId ?? "gpt-5",
     thinkingLevel: cli.thinking ?? settings.thinkingLevel ?? "medium",
     webFetch: cli.webFetch ?? settings.webFetch ?? true,
@@ -923,7 +955,7 @@ async function main(): Promise<void> {
         clientKind,
       );
     } catch (error) {
-      if (error instanceof SecurityModeMismatchError) throw error;
+      if (error instanceof SecurityModeMismatchError || !missingDaemon(error)) throw error;
       return connectOrStartDaemon({
         requestSettings: active.requestSettings,
         socketPath: target.socketPath,
@@ -1081,6 +1113,7 @@ async function main(): Promise<void> {
     reconnectClient: () => connectTarget(currentTarget),
     onPreferenceChange: persistSettings,
     currentProvider: active.providerId,
+    requestSettings: active.requestSettings,
     currentModel: active.modelId,
     currentThinking: active.thinkingLevel,
     ...(cli.profile === undefined ? {} : { profile: cli.profile }),
@@ -1099,5 +1132,10 @@ async function main(): Promise<void> {
 main().catch((error: unknown) => {
   if (process.stdout.isTTY) process.stdout.write("\r\x1b[2K");
   process.stderr.write(`axl: ${providerErrorMessage(error)}\n`);
-  process.exit(1);
+  process.exit(
+    error instanceof AxlClientError &&
+      ["busy", "confirmation_required", "state_changed"].includes(error.code)
+      ? 2
+      : 1,
+  );
 });

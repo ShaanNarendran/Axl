@@ -116,7 +116,7 @@ test("keeps dynamic refresh explicit and enables Codex only with OAuth", async (
   });
   for (const id of ["github-copilot", "openrouter", "cloudflare-ai-gateway", "radius"]) {
     const provider = providers.find((candidate) => candidate.id === id);
-    assert.ok(provider?.refreshModels, id);
+    assert.ok(provider?.refreshModelCatalog, id);
     assert.deepEqual(await provider.listModels(), [], id);
   }
   assert.equal(fetches, 0);

@@ -13,13 +13,13 @@ This document specifies typed RPC, negotiation, errors, package ownership, and t
 
 ## Current baseline
 
-Wire version 11 uses newline-delimited JSON over a Unix socket. It includes typed request and result envelopes, initialization, capability negotiation, structured errors, idempotency keys, subscription identities, paged snapshots, acknowledged opaque cursors, presence, daemon security reporting, direct shell events, transient activity, session-bound blobs, workspace review, session profiles, web-tool selection, manual compaction, steering, follow-ups, and canonical model-retry attempts.
+Wire version 12 uses newline-delimited JSON over a Unix socket. It includes typed request and result envelopes, initialization, capability negotiation, structured errors, idempotency keys, subscription identities, paged snapshots, acknowledged opaque cursors, presence, daemon security reporting, direct shell events, transient activity, session-bound blobs, workspace review, session profiles, web-tool selection, manual compaction, steering, follow-ups, canonical model-retry attempts, provider management, and model-request configuration.
 
-The TUI consumes these contracts through `packages/sdk`. Version 11 adds daemon-owned model request settings plus canonical effective-request events. Host-control version 1 remains separate from session wire negotiation and is available only to trusted process hosts.
+The TUI consumes these contracts through `packages/sdk`. The two former branch tips both used version 11 for incompatible additions: provider management on the feature branch and daemon-owned request settings on `main`. Version 12 combines both surfaces. Host-control version 1 remains separate from session wire negotiation and is available only to trusted process hosts.
 
 ## Versioning
 
-The current wire version is 11. Version 8 introduced typed envelopes, initialization, errors, retry metadata, subscriptions, cursors, acknowledgements, and presence. Version 9 adds the canonical `model.retry_scheduled` event. Version 10 adds `daemon_stopping` as a pre-RPC and universal RPC error. Version 11 adds `config.request` and `model.request_configured` events and request settings in session create and configure RPCs. Compatible capability additions that do not alter accepted wire data do not require a bump. Pre-1.0 clients require an exact wire-version match.
+The current wire version is 12. Version 8 introduced typed envelopes, initialization, errors, retry metadata, subscriptions, cursors, acknowledgements, and presence. Version 9 adds the canonical `model.retry_scheduled` event. Version 10 adds `daemon_stopping` as a pre-RPC and universal RPC error. The two incompatible version-11 development surfaces are superseded. Version 12 combines provider-management RPCs with `config.request`, `model.request_configured`, and request settings in session create and configure RPCs. Compatible capability additions that do not alter accepted wire data do not require a bump. Pre-1.0 clients require an exact wire-version match.
 
 The daemon sends `hello` first:
 

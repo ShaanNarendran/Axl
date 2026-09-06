@@ -350,7 +350,9 @@ export function createProviderManagementService(
               code: "catalog_failure",
               message: "The provider catalog could not be listed",
               action:
-                provider.refreshModels === undefined ? "configure_provider" : "refresh_catalog",
+                provider.refreshModelCatalog === undefined && provider.refreshModels === undefined
+                  ? "configure_provider"
+                  : "refresh_catalog",
             };
           }
         }
@@ -367,7 +369,8 @@ export function createProviderManagementService(
           loginMethods: loginMethods(provider),
           authentication: authenticationStatus(provider),
           catalog: {
-            refreshable: provider.refreshModels !== undefined,
+            refreshable:
+              provider.refreshModelCatalog !== undefined || provider.refreshModels !== undefined,
             ...(snapshot === undefined
               ? {}
               : {
@@ -387,7 +390,7 @@ export function createProviderManagementService(
       signal?.throwIfAborted();
       if (params.providerId !== undefined) {
         const { provider } = registration(params.providerId);
-        if (provider.refreshModels === undefined) {
+        if (provider.refreshModelCatalog === undefined && provider.refreshModels === undefined) {
           throw providerFailure(
             "catalog_refresh_unsupported",
             `Provider ${provider.id} has a static catalog`,
@@ -407,7 +410,12 @@ export function createProviderManagementService(
           params.providerId === undefined
             ? registry
                 .registrations()
-                .filter((entry) => entry.enabled && entry.provider.refreshModels)
+                .filter(
+                  (entry) =>
+                    entry.enabled &&
+                    (entry.provider.refreshModelCatalog !== undefined ||
+                      entry.provider.refreshModels !== undefined),
+                )
             : [registration(params.providerId)];
         const providers = selected.map(({ provider }) => {
           const error = result.errors.get(provider.id);

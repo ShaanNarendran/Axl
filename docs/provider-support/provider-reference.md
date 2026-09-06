@@ -57,7 +57,7 @@ Endpoint paths shown below are the effective request base or full request endpoi
 | `opencode-go` | API key, `OPENCODE_API_KEY` | `https://opencode.ai/zen/go/v1` | Static, model-selected Chat, Responses, or Messages | Shares an environment variable with Zen but not stored credentials |
 | `ant-ling` | API key, `ANT_LING_API_KEY` | `https://api.ant-ling.com/v1/chat/completions` | Static, OpenAI Chat | Catalog declares no prompt-cache support |
 | `radius` | API key, `RADIUS_API_KEY`; gateway browser or device OAuth | Configured gateway, default `https://radius.pi.dev`; `/v1/config` discovery and returned `/messages` base | Dynamic, Gateway messages | Public wire and OAuth contracts are not fully stable; explicit refresh is required without a cache |
-| `custom` | Caller-selected API-key environment names or keyless mode | Caller-supplied HTTP or HTTPS base URL | Caller-supplied models and dialect metadata | Available through `createCustomProvider`; the first-party CLI and TUI do not yet expose custom-provider configuration |
+| `custom` | Caller-selected API-key environment names or keyless mode | Caller-supplied HTTPS base URL, or HTTP only on an explicit loopback address | Caller-supplied models and dialect metadata | Available through `createCustomProvider`; the first-party CLI and TUI do not yet expose custom-provider configuration |
 
 ## Endpoint and regional settings
 
@@ -84,7 +84,7 @@ Provider settings are not credentials unless explicitly identified as a key or t
 
 API-key providers accept provider-scoped interactive key entry and the environment variable listed in the matrix. OAuth is implemented for OpenAI Codex, Anthropic, GitHub Copilot, OpenRouter, Kimi For Coding, Radius, and xAI. Browser flows use PKCE where supported. Device flows obey expiry, cancellation, polling intervals, and `slow_down` guidance. Authorization URLs rendered by first-party clients must be validated HTTPS URLs without embedded credentials.
 
-Azure uses the official Azure Identity default credential chain when no stored key or `AZURE_OPENAI_API_KEY` is available. Vertex uses the official Google Auth Library for service accounts and ADC. Bedrock uses `AWS_BEARER_TOKEN_BEDROCK` before the official AWS default credential chain, which includes environment, SSO, web identity, shared configuration, process, container, and instance-role sources. Cloud SDK token caches and refresh remain inside those SDK credential objects.
+Azure supports provider-scoped interactive API-key login, which stores the key with its required Azure base URL. Azure uses the official Azure Identity default credential chain when no stored key or `AZURE_OPENAI_API_KEY` is available. Vertex uses the official Google Auth Library for service accounts and ADC. Bedrock uses `AWS_BEARER_TOKEN_BEDROCK` before the official AWS default credential chain, which includes environment, SSO, web identity, shared configuration, process, container, and instance-role sources. Cloud SDK token caches and refresh remain inside those SDK credential objects.
 
 `axl logout <provider-id>` removes only the named provider's stored credential. It does not alter environment variables, cloud tool configuration, or another regional identity.
 
@@ -94,13 +94,13 @@ Compatibility controls are reviewed model metadata, not free-form user configura
 
 Request preparation rejects a control when the selected model and dialect do not declare a safe wire representation. Required strict schemas are never silently weakened. Custom sampling fields require an explicit model allowlist. Authentication-shaped headers and metadata are rejected. Opaque signatures and continuation identifiers are retained only for the exact issuing provider, dialect, and model; foreign continuation state is removed, while unsafe foreign redacted reasoning fails closed.
 
-The detailed codec behavior and limitations remain in the focused records in this directory. The executable requirement map is in [`deterministic-verification.md`](deterministic-verification.md).
+Behavioral provenance and durable compatibility decisions are recorded in [`implementation-notes.md`](implementation-notes.md). The executable requirement map is in [`deterministic-verification.md`](deterministic-verification.md).
 
 ## User-configured endpoints
 
 `createCustomProvider` supports caller-supplied model metadata for OpenAI Chat, OpenAI Responses, Anthropic Messages, Google Generative AI, Mistral Conversations, and Gateway messages. This covers compatible servers such as Ollama, llama.cpp, vLLM, SGLang, and LM Studio only when the caller supplies accurate model capabilities and dialect metadata.
 
-The base URL may use HTTP or HTTPS so loopback development servers are possible. Embedded URL credentials are forbidden. Custom headers must be non-secret and pass catalog validation; authorization-shaped headers are forbidden. Authentication is either keyless or uses explicit caller-selected environment-variable names. A missing model list, missing base URL, unsupported dialect, unsafe header, or unsupported compatibility control fails explicitly.
+The base URL must use HTTPS unless it is an explicit loopback development server. Loopback, private, link-local, multicast, and local-name remote destinations are rejected. Embedded URL credentials, fragments, and endpoint queries are forbidden. Custom headers must be non-secret and pass catalog validation; authorization, cookie, proxy authorization, API-key, token, credential, password, and secret-shaped headers are forbidden. Authentication is either keyless or uses explicit caller-selected environment-variable names. A missing model list, missing base URL, unsupported dialect, unsafe header, or unsupported compatibility control fails explicitly.
 
 The built-in `custom` registration is intentionally an unconfigured placeholder. The current first-party CLI, daemon settings, and TUI do not expose a custom-provider configuration file or command. Applications embedding `@axl/ai` can construct and register it directly. This is a known product-surface limitation, not a silent fallback to OpenAI.
 
@@ -108,7 +108,7 @@ The built-in `custom` registration is intentionally an unconfigured placeholder.
 
 Static models come from reviewed local provider-scoped source shards and overlays and are generated into the compact index and provider shards at `packages/ai/src/catalog.generated.ts` and `packages/ai/src/catalog.generated/`. Follow [`packages/ai/catalog/README.md`](../../packages/ai/catalog/README.md) for the exact update procedure. Generation is offline and deterministic.
 
-GitHub Copilot, OpenRouter, Cloudflare AI Gateway, and Radius have dynamic catalogs. `axl refresh [provider-id]` is the only first-party refresh trigger. A refresh authenticates, fetches, validates the complete candidate, writes a provider-scoped snapshot atomically, and publishes only the current generation. Cancellation, malformed responses, failed fetches, corrupt snapshots, and superseded refreshes cannot replace the last-known-good catalog. Startup may restore a validated cached snapshot without credentials or network work. Listing never refreshes.
+GitHub Copilot, OpenRouter, Cloudflare AI Gateway, and Radius have dynamic catalogs. `axl refresh [provider-id]` is the only first-party refresh trigger. A refresh authenticates, reads a bounded response, validates the complete candidate and provider-specific endpoint origin, writes a provider-scoped snapshot atomically, and publishes only the current generation. Dispatch revalidates endpoint policy, including restored snapshots, before attaching credentials or prompts. Cancellation, malformed responses, failed fetches, corrupt snapshots, and superseded refreshes cannot replace the last-known-good catalog. Startup may restore a validated cached snapshot without credentials or network work. Listing never refreshes.
 
 ## Known limitations
 
@@ -120,7 +120,7 @@ GitHub Copilot, OpenRouter, Cloudflare AI Gateway, and Radius have dynamic catal
 - Vercel OIDC is not implemented. Vercel AI Gateway API-key authentication is supported.
 - Some subscription and gateway protocols do not publish complete stable wire specifications. Their behavior is pinned to the provenance recorded in the focused support documents and deterministic fixtures.
 - Dynamic providers may have no selectable models before the first successful explicit refresh when no valid cached snapshot exists.
-- The aggregate repository test command has a pre-existing intermittent TUI timing and temporary-directory cleanup flake. Focused failing cases pass individually; no timeout or valid test is weakened.
+- TUI daemon cleanup is ordered before temporary-directory removal, and expanded multi-tool rendering remains bounded while retaining complete inputs and results. The test timeout and valid assertions are unchanged.
 
 ## Deterministic verification
 

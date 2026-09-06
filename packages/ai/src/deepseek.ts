@@ -12,6 +12,7 @@ import { getStaticModelCatalog } from "./catalog.ts";
 import type { CredentialStore } from "./credentials.ts";
 import type { ModelInfo } from "./model.ts";
 import { type OpenAiChatEndpoint, OpenAiChatProvider } from "./openai-chat-provider.ts";
+import { stripTrailingSlashes } from "./transport-safety.ts";
 
 export const DEEPSEEK_PROVIDER_ID = "deepseek";
 export const DEEPSEEK_DISPLAY_NAME = "DeepSeek";
@@ -34,7 +35,7 @@ function endpointBaseUrl(model: ModelInfo): string {
   if (url.protocol !== "https:" || url.username.length > 0 || url.password.length > 0) {
     throw new TypeError(`DeepSeek model ${model.modelId} has an invalid endpoint`);
   }
-  const baseUrl = url.toString().replace(/\/+$/, "");
+  const baseUrl = stripTrailingSlashes(url.toString());
   if (baseUrl !== DEEPSEEK_BASE_URL) {
     throw new TypeError(`DeepSeek model ${model.modelId} has an unexpected endpoint`);
   }

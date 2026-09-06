@@ -77,7 +77,6 @@ async function startStack(
   providerManagement?: ProviderManagementService,
 ) {
   const directory = await mkdtemp(join(tmpdir(), "axl-tui-"));
-  context.after(() => rm(directory, { recursive: true, force: true }));
   const socketPath = join(directory, "axl.sock");
   const daemon = new AxlDaemon({
     socketPath,
@@ -106,7 +105,10 @@ async function startStack(
     }),
   });
   await daemon.start();
-  context.after(() => daemon.stop());
+  context.after(async () => {
+    await daemon.stop();
+    await rm(directory, { recursive: true, force: true });
+  });
   return { socketPath, directory: await realpath(directory) };
 }
 
@@ -1138,9 +1140,11 @@ test("Ctrl+V paste, Shift+Enter, and searchable hotkeys behave", async (context)
 });
 
 test("Escape interrupts a running operation", async (context) => {
+  let operationStarted = false;
   let operationAborted = false;
   const blockingPort: ModelPort = {
     stream(request) {
+      operationStarted = true;
       return (async function* (): AsyncGenerator<ModelStreamEvent> {
         await new Promise<void>((resolve) => {
           if (request.signal?.aborted) resolve();
@@ -1164,7 +1168,7 @@ test("Escape interrupts a running operation", async (context) => {
 
   await until(() => text().includes("\x1b[>4;2m"), "keyboard negotiation");
   input.write("start work\r");
-  await until(() => text().includes("Working"), "working state");
+  await until(() => text().includes("Working") && operationStarted, "running model operation");
   input.write("\x1b[27u");
   await until(() => operationAborted, "escape interruption");
   app.stop();
@@ -2107,7 +2111,6 @@ test("/login renders a provider-neutral injected dialog", async (context) => {
 
 test("/reload requests a runtime rebuild and renders the boundary", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "axl-tui-"));
-  context.after(() => rm(directory, { recursive: true, force: true }));
   const socketPath = join(directory, "axl.sock");
   const daemon = new AxlDaemon({
     socketPath,
@@ -2127,7 +2130,10 @@ test("/reload requests a runtime rebuild and renders the boundary", async (conte
     }),
   });
   await daemon.start();
-  context.after(() => daemon.stop());
+  context.after(async () => {
+    await daemon.stop();
+    await rm(directory, { recursive: true, force: true });
+  });
 
   const input = new PassThrough();
   const { output, text } = captureOutput();
@@ -2603,6 +2609,7 @@ test("request settings are visible, configurable, persisted, and survive resume"
     output,
     cwd: directory,
     color: false,
+    currentProvider: "test-provider",
     currentModel: "test-model",
     onPreferenceChange: (update) => {
       preferences.push(update);

@@ -63,7 +63,7 @@ test("the port records fitted configuration before dispatch and preserves reason
   });
   const port = modelPortForSession(provider, {
     modelId: model.modelId,
-    thinkingLevel: "max",
+    thinkingLevel: "high",
     requestSettings: { maxOutputTokens: null, httpIdleTimeoutMs: 0 },
   });
   let recorded = false;
@@ -81,6 +81,6 @@ test("the port records fitted configuration before dispatch and preserves reason
   }
   assert.equal(recorded, true);
   assert.equal(provider.requests[0]?.maxOutputTokens, 5904);
-  assert.equal(provider.requests[0]?.thinkingLevel, "max");
+  assert.equal(provider.requests[0]?.thinkingLevel, "high");
   assert.equal(provider.requests[0]?.httpIdleTimeoutMs, 0);
 });

@@ -23,7 +23,12 @@ async function provider(t: TestContext, handle: (response: ServerResponse) => vo
     id: "timeout-test",
     displayName: "Timeout test",
     authMethods: ["keyless"],
-    models: [makeFakeModelInfo()],
+    models: [
+      makeFakeModelInfo({
+        apiDialect: "openai-responses",
+        compatibility: { dialect: "openai-responses" },
+      }),
+    ],
     resolveAuth: async () => ({ auth: {}, source: "test", secretValues: [] }),
     endpoint: {
       url: () => `http://127.0.0.1:${address.port}/responses`,

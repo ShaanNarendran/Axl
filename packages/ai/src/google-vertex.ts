@@ -14,6 +14,7 @@ import {
 } from "./google-shared.ts";
 import type { PreparedModelRequest } from "./request-preparation.ts";
 import type { SseFrame } from "./sse.ts";
+import { stripTrailingSlashes } from "./transport-safety.ts";
 
 export const DEFAULT_GOOGLE_VERTEX_API_VERSION = "v1";
 
@@ -119,7 +120,7 @@ function parseBaseUrl(value: string): URL {
   if (url.username || url.password || url.hash) {
     throw new GoogleVertexCodecError("Google Vertex base URL contains unsupported URL data");
   }
-  url.pathname = url.pathname.replace(/\/+$/, "");
+  url.pathname = stripTrailingSlashes(url.pathname);
   return url;
 }
 
@@ -159,7 +160,7 @@ function customBaseUrl(value: string, version: string): URL {
 
 function appendResource(url: URL, resource: string): URL {
   const result = new URL(url);
-  result.pathname = `${result.pathname.replace(/\/+$/, "")}/${resource}:streamGenerateContent`;
+  result.pathname = `${stripTrailingSlashes(result.pathname)}/${resource}:streamGenerateContent`;
   result.searchParams.set("alt", "sse");
   return result;
 }

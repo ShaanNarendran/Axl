@@ -3510,6 +3510,7 @@ test("configuration changes rebuild and log the selected model and thinking", as
         ...(selection.providerId === undefined
           ? {}
           : { configProvider: { providerId: selection.providerId } }),
+        configRequest: selection.requestSettings ?? DEFAULT_MODEL_REQUEST_SETTINGS,
         ...(selection.modelId === undefined ? {} : { configModel: { modelId: selection.modelId } }),
         ...(selection.thinkingLevel === undefined
           ? {}
@@ -3560,7 +3561,7 @@ test("configuration changes rebuild and log the selected model and thinking", as
   assert.equal(changed.profile, "standard");
   assert.equal(changed.webFetch, false);
   assert.equal(changed.webSearch, false);
-  assert.equal(changed.boundaryEventIds.length, 3);
+  assert.equal(changed.boundaryEventIds.length, 4);
 
   client.close();
   await daemon.stop();
@@ -3574,6 +3575,7 @@ test("configuration changes rebuild and log the selected model and thinking", as
       ...(selection.providerId === undefined
         ? {}
         : { configProvider: { providerId: selection.providerId } }),
+      configRequest: selection.requestSettings ?? DEFAULT_MODEL_REQUEST_SETTINGS,
       ...(selection.modelId === undefined ? {} : { configModel: { modelId: selection.modelId } }),
       ...(selection.thinkingLevel === undefined
         ? {}

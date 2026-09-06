@@ -47,24 +47,39 @@ interface PortTurnRequest {
  * expects. It is satisfied structurally, and the kernel never imports this package.
  * Streams are normalized, so the kernel always sees exactly one terminal.
  */
-function providerRequest(
+async function configureRequest(
+  model: Parameters<typeof fitModelRequest>[0],
   request: PortTurnRequest,
   options: SessionPortOptions,
-  messages: readonly RequestModelMessage[] = request.messages,
+  messages: readonly RequestModelMessage[],
 ) {
-  return {
+  const settings = options.requestSettings ?? DEFAULT_MODEL_REQUEST_SETTINGS;
+  const requestedMaximum =
+    request.maxOutputTokens ?? options.maxOutputTokens ?? settings.maxOutputTokens ?? undefined;
+  const raw = {
     modelId: options.modelId,
     ...(request.system === undefined ? {} : { system: request.system }),
     messages,
     tools: request.tools,
     ...(options.thinkingLevel === undefined ? {} : { thinkingLevel: options.thinkingLevel }),
-    ...(request.maxOutputTokens === undefined && options.maxOutputTokens === undefined
+    ...(requestedMaximum === undefined ? {} : { maxOutputTokens: requestedMaximum }),
+    httpIdleTimeoutMs: settings.httpIdleTimeoutMs,
+    ...(request.estimatedInputTokens === undefined
       ? {}
-      : { maxOutputTokens: request.maxOutputTokens ?? options.maxOutputTokens }),
+      : { estimatedInputTokens: request.estimatedInputTokens }),
     ...(request.toolChoice === undefined ? {} : { toolChoice: request.toolChoice }),
     ...(options.readBlob === undefined ? {} : { readBlob: options.readBlob }),
     ...(request.signal === undefined ? {} : { signal: request.signal }),
   };
+  const configuration = fitModelRequest(model, raw);
+  const prepared = await prepareModelRequest(model, raw);
+  await request.onRequestConfigured?.(configuration);
+  return Object.freeze({
+    ...prepared,
+    maxOutputTokens: configuration.maxOutputTokens,
+    httpIdleTimeoutMs: configuration.httpIdleTimeoutMs,
+    estimatedInputTokens: configuration.estimatedInputTokens,
+  });
 }
 
 type ReplayEvent = Extract<ModelStreamEvent, { type: "replay_metadata" }>;
@@ -224,16 +239,16 @@ export function modelPortForSession(
       retainStream(
         normalizeModelStream(
           (async function* () {
-            const models = await provider.listModels();
-            const model = models.find((candidate) => candidate.modelId === options.modelId);
+            request.signal?.throwIfAborted();
+            const model = (await provider.listModels()).find(
+              (candidate) => candidate.modelId === options.modelId,
+            );
             if (model === undefined) {
               throw new Error(`Provider ${provider.id} has no model ${options.modelId}`);
             }
             const messages = retainReplayMetadata(request.messages, replayTurns);
-            const prepared = await prepareModelRequest(
-              model,
-              providerRequest(request, options, messages),
-            );
+            const prepared = await configureRequest(model, request, options, messages);
+            request.signal?.throwIfAborted();
             yield* provider.stream(prepared);
           })(),
           request.signal,
@@ -254,15 +269,20 @@ export function modelPortForRegistry(
 ): { stream(request: PortTurnRequest): AsyncIterable<ModelStreamEvent> } {
   const replayTurns: ReplayEvent[][] = [];
   return {
-    stream: (request) => {
-      const messages = retainReplayMetadata(request.messages, replayTurns);
-      return retainStream(
+    stream: (request) =>
+      retainStream(
         normalizeModelStream(
-          registry.stream(options.providerId, providerRequest(request, options, messages)),
+          (async function* () {
+            request.signal?.throwIfAborted();
+            const model = await registry.getModel(options.providerId, options.modelId);
+            const messages = retainReplayMetadata(request.messages, replayTurns);
+            const configured = await configureRequest(model, request, options, messages);
+            request.signal?.throwIfAborted();
+            yield* registry.stream(options.providerId, configured);
+          })(),
           request.signal,
         ),
         replayTurns,
-      );
-    },
+      ),
   };
 }

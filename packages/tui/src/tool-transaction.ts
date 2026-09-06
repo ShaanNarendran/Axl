@@ -280,7 +280,15 @@ export class ToolTransactionStore implements Component {
         `${groupId}:header`,
       );
     }
-    for (const component of components) append(component.render(width), component.sourceId);
+    for (const component of components) {
+      const rendered = component.render(width);
+      append(
+        !compact && components.length > 1
+          ? rendered.filter((line) => line.trim().length > 0)
+          : rendered,
+        component.sourceId,
+      );
+    }
     append(
       [
         palette.dim(

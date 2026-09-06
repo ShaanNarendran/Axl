@@ -207,6 +207,16 @@ export class AxlDaemon {
   private readonly presenceTimeoutMs: number;
   private readonly providerManagement: ProviderManagementService | undefined;
   private readonly capabilities: readonly string[];
+  private readonly hostOptions: Pick<
+    DaemonOptions,
+    "buildVersion" | "onStopped" | "forceTerminate"
+  >;
+  private lifecycle: DaemonHostStatus["state"] = "running";
+  private shutdownError: string | undefined;
+  private stopping: Promise<void> | undefined;
+  private readonly pending = new Set<Promise<void>>();
+  private readonly admitted = new Map<string, WireRequest>();
+  private readonly controls = new Set<Socket>();
   private readonly daemonInstanceId = randomUUID();
   private commandJournal: CommandJournal | undefined;
   private dataLock: DataDirectoryLock | undefined;
@@ -332,6 +342,7 @@ export class AxlDaemon {
     // Every request admitted before the gate must finish its journal outcome first.
     await Promise.all([...this.pending]);
     await this.sessions.disposeAll();
+    await this.providerManagement?.dispose?.();
     await this.dataLock?.release({ allowMissing: true });
     this.dataLock = undefined;
     await this.removeOwnedSocket();
@@ -427,17 +438,13 @@ export class AxlDaemon {
       );
     };
     try {
-      await this.sessions.disposeAll();
-    } finally {
-      try {
-        await this.providerManagement?.dispose?.();
-      } finally {
-        try {
-          await this.removeOwnedSocket();
-        } finally {
-          await this.dataLock?.release({ allowMissing: true });
-          this.dataLock = undefined;
-        }
+      if (state.initialized || state.control)
+        throw new DaemonError("bad_request", "Host control requires its own connection");
+      state.control = true;
+      this.controls.add(socket);
+      const request = parseHostRequest(value);
+      if (request.method !== "status" && request.instanceId !== this.daemonInstanceId) {
+        throw new DaemonError("state_changed", "Daemon instance changed; inspect status again");
       }
       if (request.method === "shutdown") {
         const status = this.hostStatus(request.context);
@@ -984,8 +991,16 @@ export class AxlDaemon {
       case "provider.auth.logout":
         return this.providers().logout(request.params, signal);
       case "session.create": {
-        const { cwd, providerId, modelId, thinkingLevel, webFetch, webSearch, profile } =
-          request.params;
+        const {
+          cwd,
+          providerId,
+          modelId,
+          thinkingLevel,
+          webFetch,
+          webSearch,
+          profile,
+          requestSettings,
+        } = request.params;
         const reservation = this.creationReservation(acceptance);
         const created = await this.sessions.create(
           cwd,
@@ -1095,8 +1110,16 @@ export class AxlDaemon {
       case "session.reload":
         return this.sessions.reload(request.params.sessionId, this.mutationOperationId(acceptance));
       case "session.configure": {
-        const { sessionId, providerId, modelId, thinkingLevel, webFetch, webSearch, profile } =
-          request.params;
+        const {
+          sessionId,
+          providerId,
+          modelId,
+          thinkingLevel,
+          webFetch,
+          webSearch,
+          profile,
+          requestSettings,
+        } = request.params;
         return this.sessions.configure(
           sessionId,
           {

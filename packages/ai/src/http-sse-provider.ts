@@ -18,6 +18,7 @@ import {
   prepareModelRequest,
 } from "./request-preparation.ts";
 import { decodeSseStream, type SseFrame } from "./sse.ts";
+import { raceWithSignal, safeEndpoint } from "./transport-safety.ts";
 
 const DEFAULT_TIMEOUT_MS = 120_000;
 const DEFAULT_MAX_RETRIES = 2;
@@ -62,6 +63,7 @@ export interface HttpSseProviderOptions {
   readonly models: readonly ModelInfo[];
   readonly resolveAuth: (signal: AbortSignal) => Promise<ResolvedAuth>;
   readonly codecFor: (model: ModelInfo) => HttpSseCodec;
+  readonly validateEndpoint?: (url: URL, model: ModelInfo, resolved: ResolvedAuth) => void;
   readonly fetch?: typeof fetch;
   readonly now?: () => number;
 }
@@ -112,6 +114,9 @@ export class HttpSseProvider implements ModelProvider {
   private models: readonly ModelInfo[];
   private readonly resolveAuth: (signal: AbortSignal) => Promise<ResolvedAuth>;
   private readonly codecFor: (model: ModelInfo) => HttpSseCodec;
+  private readonly validateEndpoint:
+    | ((url: URL, model: ModelInfo, resolved: ResolvedAuth) => void)
+    | undefined;
   private readonly fetchImpl: typeof fetch;
   private readonly now: () => number;
 
@@ -123,6 +128,7 @@ export class HttpSseProvider implements ModelProvider {
     this.models = [...options.models];
     this.resolveAuth = options.resolveAuth;
     this.codecFor = options.codecFor;
+    this.validateEndpoint = options.validateEndpoint;
     this.fetchImpl = options.fetch ?? fetch;
     this.now = options.now ?? Date.now;
   }
@@ -164,19 +170,18 @@ export class HttpSseProvider implements ModelProvider {
       prepared = isPreparedModelRequest(request)
         ? request
         : await prepareModelRequest(model, request);
-      resolved = await this.resolveAuth(signal);
+      resolved = await raceWithSignal(this.resolveAuth(signal), signal);
       secrets = resolved.secretValues;
       codec = this.codecFor(model);
       encoded = codec.encode(model, prepared, resolved);
-      const url = new URL(encoded.url);
-      if (
-        !new Set(["https:", "http:"]).has(url.protocol) ||
-        url.username ||
-        url.password ||
-        url.hash
-      ) {
-        throw new TypeError(`Provider ${this.id} produced an unsafe endpoint`);
-      }
+      const requestUrl = new URL(
+        safeEndpoint(encoded.url, {
+          label: `Provider ${this.id} request endpoint`,
+          allowLoopbackHttp: this.id === "custom" || this.id === "radius",
+          allowQuery: true,
+        }),
+      );
+      this.validateEndpoint?.(requestUrl, model, resolved);
     } catch (error) {
       yield this.failure(
         request,
@@ -203,17 +208,23 @@ export class HttpSseProvider implements ModelProvider {
         const headers =
           resolved.auth.signRequest === undefined
             ? unsignedHeaders
-            : await resolved.auth.signRequest(
-                { method: "POST", url: encoded.url, headers: unsignedHeaders, body },
+            : await raceWithSignal(
+                resolved.auth.signRequest(
+                  { method: "POST", url: encoded.url, headers: unsignedHeaders, body },
+                  signal,
+                ),
                 signal,
               );
         signal.throwIfAborted();
-        response = await this.fetchImpl(encoded.url, {
-          method: "POST",
-          headers,
-          body,
+        response = await raceWithSignal(
+          this.fetchImpl(encoded.url, {
+            method: "POST",
+            headers,
+            body,
+            signal,
+          }),
           signal,
-        });
+        );
       } catch (error) {
         yield this.failure(
           request,
@@ -230,7 +241,19 @@ export class HttpSseProvider implements ModelProvider {
       if (retryable && attempt < maximumRetries) {
         const delay = retryDelay(response, attempt, maximumDelay, this.now());
         await response.body?.cancel();
-        await wait(delay, signal);
+        try {
+          await wait(delay, signal);
+        } catch (error) {
+          yield this.failure(
+            request,
+            signal,
+            error,
+            secrets,
+            "provider_request_failed",
+            "before_dispatch",
+          );
+          return;
+        }
         continue;
       }
       await response.body?.cancel();
@@ -267,9 +290,14 @@ export class HttpSseProvider implements ModelProvider {
       const events =
         codec.decodeBody?.(response.body, decodeOptions) ??
         codec.decode(decodeSseStream(response.body), decodeOptions);
-      for await (const event of events) {
+      const iterator = events[Symbol.asyncIterator]();
+      for (;;) {
+        const next = await raceWithSignal(iterator.next(), signal);
+        if (next.done) break;
+        const event = next.value;
         if (!new Set(["completed", "error", "aborted"]).has(event.type)) partial = true;
         yield event;
+        if (new Set(["completed", "error", "aborted"]).has(event.type)) return;
       }
     } catch (error) {
       yield this.failure(

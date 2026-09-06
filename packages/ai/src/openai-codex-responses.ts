@@ -14,6 +14,7 @@ import {
   type ResponsesDecodeOptions,
 } from "./openai-responses.ts";
 import { isPreparedModelRequest, type PreparedModelRequest } from "./request-preparation.ts";
+import { stripTrailingSlashes } from "./transport-safety.ts";
 import type { SseFrame } from "./sse.ts";
 
 const DEFAULT_CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex";
@@ -90,7 +91,7 @@ export function extractOpenAiCodexAccountId(token: string): string {
 
 /** Resolves the Codex Responses endpoint without guessing proxy path rewrites. */
 export function openAiCodexResponsesUrl(baseUrl?: string): string {
-  const base = (baseUrl?.trim() || DEFAULT_CODEX_BASE_URL).replace(/\/+$/, "");
+  const base = stripTrailingSlashes(baseUrl?.trim() || DEFAULT_CODEX_BASE_URL);
   let url: URL;
   try {
     url = new URL(base);

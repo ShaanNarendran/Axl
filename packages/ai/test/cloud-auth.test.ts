@@ -49,6 +49,28 @@ test("Azure Entra acquires a scoped token lazily and asks again on later resolut
   assert.deepEqual(first?.secretValues, ["entra-token-1"]);
 });
 
+test("Azure exposes interactive API-key login with endpoint settings", async () => {
+  const store = new InMemoryCredentialStore();
+  const provider = createAzureOpenAiResponsesProvider({
+    store,
+    context: context({}),
+  });
+  assert.ok(provider.authentication);
+  const answers = ["azure-login-key", "https://sample.openai.azure.com/openai/v1"];
+  const state = await provider.authentication.login("api_key", {
+    signal: new AbortController().signal,
+    prompt: async () => answers.shift() ?? "",
+    notify: () => undefined,
+  });
+  assert.equal(state.phase, "authenticated");
+  const stored = await store.read("azure-openai-responses");
+  assert.equal(stored?.type, "api_key");
+  assert.equal(
+    stored?.type === "api_key" ? stored.env?.AZURE_OPENAI_BASE_URL : undefined,
+    "https://sample.openai.azure.com/openai/v1",
+  );
+});
+
 test("stored Azure credentials never fall through to Entra", async () => {
   const store = new InMemoryCredentialStore();
   await login(store, "azure-openai-responses", { type: "api_key", key: "bad-stored-key" });
@@ -68,6 +90,24 @@ test("stored Azure credentials never fall through to Entra", async () => {
   const resolved = await provider.authentication?.resolve();
   assert.equal(resolved?.auth.apiKey, "bad-stored-key");
   assert.equal(entraCalls, 0);
+});
+
+test("Vertex credential SDK promises are bounded by cancellation", async () => {
+  const provider = createGoogleVertexProvider({
+    store: new InMemoryCredentialStore(),
+    context: context({ GOOGLE_CLOUD_LOCATION: "us-central1" }),
+    cloudAuth: {
+      googleAuth: () => ({
+        getProjectId: () => new Promise<string>(() => undefined),
+        getClient: () => new Promise(() => undefined),
+      }),
+    },
+  });
+  assert.ok(provider.authentication);
+  const controller = new AbortController();
+  const resolution = provider.authentication.resolve({ signal: controller.signal });
+  controller.abort();
+  await assert.rejects(resolution, { name: "AbortError" });
 });
 
 test("Vertex ADC acquires tokens and discovers a project without persisting them", async () => {

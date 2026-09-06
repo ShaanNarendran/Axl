@@ -99,6 +99,7 @@ export interface PreparedReasoning {
   readonly clamped: boolean;
   readonly providerValue?: string;
   readonly tokenBudget?: number;
+  readonly maxTokens?: number;
 }
 
 export interface RequestSanitization {
@@ -729,7 +730,7 @@ function prepareReasoning(model: ModelInfo, request: ModelRequest): PreparedReas
       : { requestedMaxTokens: request.maxOutputTokens }),
     ...(budgets === undefined ? {} : { budgets }),
   });
-  return Object.freeze({
+  const prepared = {
     ...clamp,
     ...(compatibility?.dialect !== "google-generative-ai" ||
     providerValue === undefined ||
@@ -737,7 +738,12 @@ function prepareReasoning(model: ModelInfo, request: ModelRequest): PreparedReas
       ? {}
       : { providerValue }),
     tokenBudget: fitted.thinkingBudget,
+  };
+  Object.defineProperty(prepared, "maxTokens", {
+    value: fitted.maxTokens,
+    enumerable: false,
   });
+  return Object.freeze(prepared);
 }
 
 function resolvedMaxOutputTokens(
@@ -753,9 +759,7 @@ function resolvedMaxOutputTokens(
     fail("request.maxOutputTokens", `exceeds model limit ${model.maxOutputTokens}`);
   }
   if (reasoning?.tokenBudget === undefined) return requested;
-  return requested === undefined
-    ? model.maxOutputTokens
-    : Math.min(requested + reasoning.tokenBudget, model.maxOutputTokens);
+  return reasoning.maxTokens ?? model.maxOutputTokens;
 }
 
 function prepareCache(
@@ -1116,6 +1120,8 @@ export async function prepareModelRequest(
       "thinkingLevel",
       "thinkingBudgets",
       "maxOutputTokens",
+      "httpIdleTimeoutMs",
+      "estimatedInputTokens",
       "toolChoice",
       "sampling",
       "cache",
@@ -1172,6 +1178,8 @@ export async function prepareModelRequest(
   }
   for (const [field, value] of [
     ["timeoutMs", request.timeoutMs],
+    ["httpIdleTimeoutMs", request.httpIdleTimeoutMs],
+    ["estimatedInputTokens", request.estimatedInputTokens],
     ["maxRetries", request.maxRetries],
     ["maxRetryDelayMs", request.maxRetryDelayMs],
   ] as const) {
@@ -1237,6 +1245,12 @@ export async function prepareModelRequest(
       ? {}
       : { thinkingBudgets: Object.freeze({ ...request.thinkingBudgets }) }),
     ...(maxOutputTokens === undefined ? {} : { maxOutputTokens }),
+    ...(request.httpIdleTimeoutMs === undefined
+      ? {}
+      : { httpIdleTimeoutMs: request.httpIdleTimeoutMs }),
+    ...(request.estimatedInputTokens === undefined
+      ? {}
+      : { estimatedInputTokens: request.estimatedInputTokens }),
     ...(request.toolChoice === undefined ? {} : { toolChoice: request.toolChoice }),
     ...(sampling === undefined ? {} : { sampling }),
     cache,

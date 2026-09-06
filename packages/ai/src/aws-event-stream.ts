@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 const decoder = new TextDecoder();
+export const MAX_AWS_EVENT_STREAM_FRAME_BYTES = 16 * 1024 * 1024;
+export const MAX_AWS_EVENT_STREAM_TOTAL_BYTES = 64 * 1024 * 1024;
 
 function crc32(bytes: Uint8Array): number {
   let crc = 0xffffffff;
@@ -39,21 +41,36 @@ function eventType(headers: Uint8Array): string {
 export async function* decodeAwsEventStream(
   body: ReadableStream<Uint8Array>,
 ): AsyncGenerator<Record<string, unknown>> {
-  let buffered = new Uint8Array();
+  let storage = new Uint8Array(64 * 1024);
+  let start = 0;
+  let end = 0;
+  let received = 0;
   for await (const chunk of body) {
-    const joined = new Uint8Array(buffered.length + chunk.length);
-    joined.set(buffered);
-    joined.set(chunk, buffered.length);
-    buffered = joined;
-    while (buffered.length >= 16) {
-      const view = new DataView(buffered.buffer, buffered.byteOffset, buffered.byteLength);
+    received += chunk.byteLength;
+    if (received > MAX_AWS_EVENT_STREAM_TOTAL_BYTES)
+      throw new TypeError("AWS event stream response exceeds its byte limit");
+    const pending = end - start;
+    if (pending + chunk.byteLength > MAX_AWS_EVENT_STREAM_FRAME_BYTES)
+      throw new TypeError("AWS event stream pending data exceeds its byte limit");
+    if (storage.length - end < chunk.byteLength) {
+      const capacity = Math.max(storage.length * 2, pending + chunk.byteLength);
+      const next = new Uint8Array(capacity);
+      next.set(storage.subarray(start, end));
+      storage = next;
+      end = pending;
+      start = 0;
+    }
+    storage.set(chunk, end);
+    end += chunk.byteLength;
+    while (end - start >= 16) {
+      const view = new DataView(storage.buffer, storage.byteOffset + start, end - start);
       const total = view.getUint32(0);
       const headersLength = view.getUint32(4);
-      if (total < 16 || headersLength > total - 16)
-        throw new TypeError("AWS event stream message has invalid lengths");
-      if (buffered.length < total) break;
-      const message = buffered.slice(0, total);
-      buffered = buffered.slice(total);
+      if (total < 16 || total > MAX_AWS_EVENT_STREAM_FRAME_BYTES || headersLength > total - 16)
+        throw new TypeError("AWS event stream message has invalid or oversized lengths");
+      if (end - start < total) break;
+      const message = storage.subarray(start, start + total);
+      start += total;
       const messageView = new DataView(message.buffer, message.byteOffset, message.byteLength);
       if (crc32(message.subarray(0, 8)) !== messageView.getUint32(8))
         throw new TypeError("AWS event stream prelude checksum failed");
@@ -65,7 +82,8 @@ export async function* decodeAwsEventStream(
       if (typeof payload !== "object" || payload === null || Array.isArray(payload))
         throw new TypeError("AWS event stream payload is malformed");
       yield { [type]: payload };
+      if (start === end) start = end = 0;
     }
   }
-  if (buffered.length !== 0) throw new TypeError("AWS event stream ended with a partial message");
+  if (end !== start) throw new TypeError("AWS event stream ended with a partial message");
 }

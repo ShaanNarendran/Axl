@@ -5,6 +5,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import type { ApiKeyAuthMethod, OAuthAuthMethod, ProviderAuthInteraction } from "./auth.ts";
 import type { OAuthCredential } from "./credentials.ts";
+import { raceWithSignal, readBoundedJson, stripTrailingSlashes } from "./transport-safety.ts";
 
 export interface OAuthFactoryOptions {
   readonly fetch?: typeof fetch;
@@ -71,10 +72,14 @@ async function jsonRequest(
   init: RequestInit,
   operation: string,
 ): Promise<Json> {
-  const response = await fetchImpl(url, init);
+  const signal = init.signal as AbortSignal | undefined;
+  const response =
+    signal === undefined
+      ? await fetchImpl(url, init)
+      : await raceWithSignal(fetchImpl(url, init), signal);
   let body: unknown;
   try {
-    body = await response.json();
+    body = await readBoundedJson(response, undefined, signal);
   } catch (cause) {
     throw new Error(`${operation} returned invalid JSON with status ${response.status}`, { cause });
   }
@@ -305,10 +310,13 @@ async function pollFormToken(input: {
     expiresInSeconds: input.device.expiresInSeconds,
     sleep: input.sleep,
     poll: async () => {
-      const response = await input.fetchImpl(input.url, formRequest(input.fields, input.signal));
+      const response = await raceWithSignal(
+        input.fetchImpl(input.url, formRequest(input.fields, input.signal)),
+        input.signal,
+      );
       let body: Json;
       try {
-        body = object(await response.json(), input.operation);
+        body = object(await readBoundedJson(response, undefined, input.signal), input.operation);
       } catch {
         return {
           status: "failed" as const,
@@ -482,15 +490,21 @@ export function createOpenAiCodexOAuth(options: OAuthFactoryOptions = {}): OAuth
           expiresInSeconds: device.expiresInSeconds,
           sleep,
           poll: async () => {
-            const response = await fetchImpl(
-              "https://auth.openai.com/api/accounts/deviceauth/token",
-              jsonPost(
-                { device_auth_id: device.deviceCode, user_code: device.userCode },
-                interaction.signal,
+            const response = await raceWithSignal(
+              fetchImpl(
+                "https://auth.openai.com/api/accounts/deviceauth/token",
+                jsonPost(
+                  { device_auth_id: device.deviceCode, user_code: device.userCode },
+                  interaction.signal,
+                ),
               ),
+              interaction.signal,
             );
             if (response.status === 403 || response.status === 404) return { status: "pending" };
-            const body = object(await response.json(), "OpenAI Codex device token");
+            const body = object(
+              await readBoundedJson(response, undefined, interaction.signal),
+              "OpenAI Codex device token",
+            );
             if (!response.ok) {
               return {
                 status: "failed",
@@ -710,7 +724,7 @@ function copilotBaseUrl(token: string, domain: string): string {
   const endpoint = /(?:^|;)proxy-ep=([^;]+)/.exec(token)?.[1];
   if (endpoint) {
     const host = endpoint.replace(/^proxy\./, "api.");
-    return trustedUrl(`https://${host}`, "GitHub Copilot token").replace(/\/$/, "");
+    return stripTrailingSlashes(trustedUrl(`https://${host}`, "GitHub Copilot token"));
   }
   return domain === "github.com"
     ? "https://api.individual.githubcopilot.com"
@@ -834,18 +848,24 @@ export function createGitHubCopilotOAuth(options: OAuthFactoryOptions = {}): OAu
         expiresInSeconds: device.expiresInSeconds,
         sleep,
         poll: async () => {
-          const response = await fetchImpl(`https://${domain}/login/oauth/access_token`, {
-            ...formRequest(
-              { client_id: clientId, device_code: device.deviceCode, grant_type: DEVICE_GRANT },
-              interaction.signal,
-            ),
-            headers: {
-              accept: "application/json",
-              "content-type": "application/x-www-form-urlencoded",
-              "user-agent": headers["user-agent"],
-            },
-          });
-          const body = object(await response.json(), "GitHub device token");
+          const response = await raceWithSignal(
+            fetchImpl(`https://${domain}/login/oauth/access_token`, {
+              ...formRequest(
+                { client_id: clientId, device_code: device.deviceCode, grant_type: DEVICE_GRANT },
+                interaction.signal,
+              ),
+              headers: {
+                accept: "application/json",
+                "content-type": "application/x-www-form-urlencoded",
+                "user-agent": headers["user-agent"],
+              },
+            }),
+            interaction.signal,
+          );
+          const body = object(
+            await readBoundedJson(response, undefined, interaction.signal),
+            "GitHub device token",
+          );
           if (response.ok && typeof body.access_token === "string") {
             return { status: "complete", value: body.access_token };
           }
@@ -881,9 +901,9 @@ export function createRadiusOAuth(
   if (gateway.protocol !== "https:" && gateway.protocol !== "http:") {
     throw new Error("Radius gateway must use HTTP or HTTPS");
   }
-  gateway.pathname = gateway.pathname.replace(/\/+$/, "");
+  gateway.pathname = stripTrailingSlashes(gateway.pathname);
   const endpoint = (path: string) =>
-    new URL(path, `${gateway.toString().replace(/\/+$/, "")}/`).toString();
+    new URL(path, `${stripTrailingSlashes(gateway.toString())}/`).toString();
   const requestToken = async (
     fields: Readonly<Record<string, string>>,
     signal: AbortSignal,

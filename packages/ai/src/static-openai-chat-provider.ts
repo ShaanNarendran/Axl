@@ -11,6 +11,7 @@ import {
 } from "./auth.ts";
 import { getStaticModelCatalog } from "./catalog.ts";
 import { validateModelCatalog } from "./catalog-validation.ts";
+import { stripTrailingSlashes } from "./transport-safety.ts";
 import type { CredentialStore } from "./credentials.ts";
 import type { ModelInfo } from "./model.ts";
 import { type OpenAiChatEndpoint, OpenAiChatProvider } from "./openai-chat-provider.ts";
@@ -48,7 +49,7 @@ function normalizedBaseUrl(value: string, providerId: string): string {
   ) {
     throw new TypeError(`Provider ${providerId} has an unsafe fixed endpoint`);
   }
-  return url.toString().replace(/\/+$/, "");
+  return stripTrailingSlashes(url.toString());
 }
 
 function validateModels(

@@ -23,6 +23,7 @@ import {
   prepareModelRequest,
 } from "./request-preparation.ts";
 import { decodeSseStream } from "./sse.ts";
+import { raceWithSignal, safeEndpoint } from "./transport-safety.ts";
 
 const DEFAULT_TIMEOUT_MS = 120_000;
 const DEFAULT_MAX_RETRIES = 2;
@@ -166,7 +167,7 @@ export class OpenAiChatProvider implements ModelProvider {
       prepared = isPreparedModelRequest(request)
         ? request
         : await prepareModelRequest(model, request);
-      resolved = await this.resolveAuth(signal);
+      resolved = await raceWithSignal(this.resolveAuth(signal), signal);
       signal.throwIfAborted();
       secretValues = resolved.secretValues;
       const encoded = encodeOpenAiChatRequest(
@@ -174,7 +175,11 @@ export class OpenAiChatProvider implements ModelProvider {
         prepared,
         this.endpoint.wireModelId?.(model, resolved) ?? model.modelId,
       );
-      url = this.endpoint.url(model, resolved);
+      url = safeEndpoint(this.endpoint.url(model, resolved), {
+        label: `Provider ${this.id} request endpoint`,
+        allowLoopbackHttp: this.id === "custom",
+        allowQuery: true,
+      });
       init = {
         method: "POST",
         headers: {
@@ -210,8 +215,7 @@ export class OpenAiChatProvider implements ModelProvider {
     let response: Response | undefined;
     for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
       try {
-        response = await this.fetchImpl(url, init);
-        signal.throwIfAborted();
+        response = await raceWithSignal(this.fetchImpl(url, init), signal);
       } catch (error) {
         if (signal.aborted) {
           yield this.failure(
@@ -309,17 +313,24 @@ export class OpenAiChatProvider implements ModelProvider {
 
     let emittedContent = false;
     try {
-      for await (const event of decodeOpenAiChatStream(decodeSseStream(response.body), {
+      const events = decodeOpenAiChatStream(decodeSseStream(response.body), {
         model,
         request: prepared,
         startedAtMs,
         now: this.now,
         secretValues,
-      })) {
+      });
+      const iterator = events[Symbol.asyncIterator]();
+      for (;;) {
+        const next = await raceWithSignal(iterator.next(), signal);
+        if (next.done) break;
+        const event = next.value;
         if (event.type !== "completed" && event.type !== "error" && event.type !== "aborted") {
           emittedContent = true;
         }
         yield event;
+        if (event.type === "completed" || event.type === "error" || event.type === "aborted")
+          return;
       }
     } catch (error) {
       yield this.failure(

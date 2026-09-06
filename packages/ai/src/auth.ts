@@ -477,6 +477,7 @@ async function tryResolveApiKey(
     signal.throwIfAborted();
     return resolved === undefined ? undefined : validateResolvedAuth(resolved, providerId);
   } catch (error) {
+    if (signal.aborted) signal.throwIfAborted();
     if (error instanceof AuthError) throw error;
     throw new AuthError(
       "invalid_auth",

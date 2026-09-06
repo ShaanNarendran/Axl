@@ -21,6 +21,11 @@ import { withUsageCost } from "./usage.ts";
 const OPENROUTER_IMAGE_DIALECT = "openrouter-images";
 const MAX_INPUT_REFERENCES = 16;
 const MAX_OUTPUT_IMAGES = 10;
+const MAX_IMAGE_PROMPT_BYTES = 1024 * 1024;
+const MAX_ENCODED_IMAGE_BYTES = 8 * 1024 * 1024;
+const MAX_DECODED_IMAGE_BYTES = 6 * 1024 * 1024;
+const MAX_TOTAL_DECODED_IMAGE_BYTES = 16 * 1024 * 1024;
+const MAX_RESPONSE_TEXT_BYTES = 4_096;
 const ASPECT_RATIOS = new Set([
   "1:1",
   "1:2",
@@ -123,8 +128,12 @@ function validateModel(model: ImageModelInfo, request: ImageGenerationRequest): 
 }
 
 function validateRequest(request: ImageGenerationRequest): void {
-  if (typeof request.prompt !== "string" || request.prompt.trim().length === 0) {
-    inputError("Image prompt must be a non-empty string");
+  if (
+    typeof request.prompt !== "string" ||
+    request.prompt.trim().length === 0 ||
+    Buffer.byteLength(request.prompt) > MAX_IMAGE_PROMPT_BYTES
+  ) {
+    inputError("Image prompt must be non-empty and within its byte limit");
   }
   if (
     request.count !== undefined &&
@@ -294,17 +303,24 @@ function parseUsage(raw: unknown, model: ImageModelInfo): Usage | undefined {
   return model.cost === undefined ? usage : withUsageCost(model.cost, usage);
 }
 
+function stripBase64Padding(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 61) end -= 1;
+  return value.slice(0, end);
+}
+
 function decodeBase64(value: unknown, index: number): Uint8Array {
-  if (typeof value !== "string" || value.length === 0) {
-    responseError(`OpenRouter image ${index} has no base64 data`);
+  if (typeof value !== "string" || value.length === 0 || value.length > MAX_ENCODED_IMAGE_BYTES) {
+    responseError(`OpenRouter image ${index} has no bounded base64 data`);
   }
   if (!/^[A-Za-z0-9+/]*={0,2}$/.test(value) || value.length % 4 === 1) {
     responseError(`OpenRouter image ${index} has malformed base64 data`);
   }
   const bytes = new Uint8Array(Buffer.from(value, "base64"));
-  if (bytes.length === 0) responseError(`OpenRouter image ${index} decoded to empty data`);
-  const normalizedInput = value.replace(/=+$/, "");
-  const normalizedOutput = Buffer.from(bytes).toString("base64").replace(/=+$/, "");
+  if (bytes.length === 0 || bytes.length > MAX_DECODED_IMAGE_BYTES)
+    responseError(`OpenRouter image ${index} decoded outside its byte limit`);
+  const normalizedInput = stripBase64Padding(value);
+  const normalizedOutput = stripBase64Padding(Buffer.from(bytes).toString("base64"));
   if (normalizedInput !== normalizedOutput) {
     responseError(`OpenRouter image ${index} has malformed base64 data`);
   }
@@ -436,27 +452,42 @@ export async function decodeOpenRouterImageResponse(
   }
 
   const responseId = response.id ?? response.response_id;
-  if (responseId !== undefined && (typeof responseId !== "string" || responseId.length === 0)) {
+  if (
+    responseId !== undefined &&
+    (typeof responseId !== "string" ||
+      responseId.length === 0 ||
+      Buffer.byteLength(responseId) > MAX_RESPONSE_TEXT_BYTES)
+  ) {
     responseError("OpenRouter image response ID must be a non-empty string");
   }
   const routedModelId = response.model;
   if (
     routedModelId !== undefined &&
-    (typeof routedModelId !== "string" || routedModelId.length === 0)
+    (typeof routedModelId !== "string" ||
+      routedModelId.length === 0 ||
+      Buffer.byteLength(routedModelId) > MAX_RESPONSE_TEXT_BYTES)
   ) {
     responseError("OpenRouter routed model must be a non-empty string");
   }
 
   const images: BlobReference[] = [];
   const revisedPrompts = new Set<string>();
+  let decodedBytes = 0;
   for (const [index, rawImage] of response.data.entries()) {
     checkCancellation(options.request.signal);
     const image = object(rawImage);
     if (image === undefined) responseError(`OpenRouter image ${index} must be an object`);
     const bytes = decodeBase64(image.b64_json, index);
+    decodedBytes += bytes.byteLength;
+    if (decodedBytes > MAX_TOTAL_DECODED_IMAGE_BYTES)
+      responseError("OpenRouter image response exceeds its decoded byte limit");
     const imageMediaType = mediaType(image.media_type, bytes, index);
     if (image.revised_prompt !== undefined) {
-      if (typeof image.revised_prompt !== "string" || image.revised_prompt.length === 0) {
+      if (
+        typeof image.revised_prompt !== "string" ||
+        image.revised_prompt.length === 0 ||
+        Buffer.byteLength(image.revised_prompt) > MAX_RESPONSE_TEXT_BYTES
+      ) {
         responseError(`OpenRouter image ${index} has an invalid revised prompt`);
       }
       revisedPrompts.add(image.revised_prompt);

@@ -222,7 +222,7 @@ test("encodes prepared history, images, tools, caching, reasoning, and signing i
     },
     additionalModelRequestFields: {
       stopSequences: ["END"],
-      thinking: { type: "enabled", budget_tokens: 8_192, display: "summarized" },
+      thinking: { type: "enabled", budget_tokens: 7_268, display: "summarized" },
       anthropic_beta: ["interleaved-thinking-2025-05-14"],
     },
     requestMetadata: { team: "search" },

@@ -630,6 +630,7 @@ export class AxlApp {
     readonly text: string;
   }> = [];
   private sending = false;
+  private awaitingOperationOwnership = false;
   private interrupting = false;
   private activeRequest: "turn" | "shell" | "compaction" | undefined;
   private configuring = false;
@@ -954,6 +955,9 @@ export class AxlApp {
             ...(options.currentProvider === undefined
               ? {}
               : { providerId: options.currentProvider }),
+            ...(options.requestSettings === undefined
+              ? {}
+              : { requestSettings: options.requestSettings }),
             ...(options.currentModel === undefined ? {} : { modelId: options.currentModel }),
             ...(options.currentThinking === undefined
               ? {}
@@ -1550,8 +1554,11 @@ export class AxlApp {
     const overview = projection.overview;
     const activityChanged = this.liveAssistant.replace(overview.activity);
     if (this.hydrating) return;
+    if (overview.activeOperationId !== undefined) this.awaitingOperationOwnership = false;
     const working =
-      overview.activeOperationId !== undefined || (this.sending && this.activeRequest !== "turn");
+      overview.activeOperationId !== undefined ||
+      this.awaitingOperationOwnership ||
+      (this.sending && this.activeRequest !== "turn");
     if (activityChanged || working !== this.view.working) {
       this.setWorking(working);
       this.redraw();
@@ -1636,6 +1643,9 @@ export class AxlApp {
     const completesOperation =
       event.type === "session.error" ||
       (event.type === "assistant.message" && event.payload.stopReason !== "tool_use");
+    if (completesOperation || event.type === "context.compacted") {
+      this.awaitingOperationOwnership = false;
+    }
     if (event.type === "assistant.message") {
       this.liveAssistant.clear();
     }
@@ -1880,8 +1890,15 @@ export class AxlApp {
         if (this.providerOperation !== undefined) {
           this.providerOperation.abort();
           this.notice = this.view.palette.dim("· provider operation cancelled");
-        } else if (this.view.working) void this.interrupt();
-        else if (this.editorMode === "vim") this.vim.handle(key, this.editor);
+        } else if (
+          this.view.working ||
+          this.sending ||
+          this.activeRequest !== undefined ||
+          this.awaitingOperationOwnership ||
+          this.sessionSubscription?.projector.overview.activeOperationId !== undefined
+        ) {
+          void this.interrupt();
+        } else if (this.editorMode === "vim") this.vim.handle(key, this.editor);
         else {
           this.editor.clear();
           this.notice = undefined;
@@ -2163,15 +2180,6 @@ export class AxlApp {
     if (this.providerOperation !== undefined) {
       this.providerOperation.abort();
       this.notice = this.view.palette.dim("· provider operation cancelled");
-      return;
-    }
-    if (this.view.working) {
-      void this.interrupt();
-      return;
-    }
-    if (this.editor.text.length > 0) {
-      this.editor.clear();
-      this.notice = undefined;
       return;
     }
     const now = Date.now();
@@ -4690,8 +4698,16 @@ export class AxlApp {
       else await this.client.request("session.followUp", params);
     } catch (error) {
       const pendingIndex = this.pendingTurnInputs.indexOf(pending);
+      if (pendingIndex >= 0) this.pendingTurnInputs.splice(pendingIndex, 1);
+      if (
+        pendingIndex >= 0 &&
+        error instanceof AxlClientError &&
+        error.code === "operation_inactive"
+      ) {
+        await this.enqueuePrompt(queued, mode === "steer" ? "front" : "back");
+        return;
+      }
       if (pendingIndex >= 0) {
-        this.pendingTurnInputs.splice(pendingIndex, 1);
         this.pendingAttachments.unshift(...queued.attachments);
         this.editor.setText([queued.text, this.editor.text].filter(Boolean).join("\n\n"));
         this.notice = this.view.palette.error(
@@ -4748,6 +4764,7 @@ export class AxlApp {
           readonly text: string;
           readonly attachments: readonly BlobReference[];
         };
+        this.awaitingOperationOwnership = true;
         this.setWorking(true);
         this.view.beginResponse();
         this.redraw();
@@ -4761,6 +4778,7 @@ export class AxlApp {
             ],
           });
         } catch (error) {
+          this.awaitingOperationOwnership = false;
           if (this.isConnectionFailure(error)) {
             const restored = [
               queued.text,
@@ -4787,7 +4805,10 @@ export class AxlApp {
     } finally {
       this.sending = false;
       this.activeRequest = undefined;
-      this.setWorking(this.sessionSubscription?.projector.overview.activeOperationId !== undefined);
+      this.setWorking(
+        this.awaitingOperationOwnership ||
+          this.sessionSubscription?.projector.overview.activeOperationId !== undefined,
+      );
       this.redraw();
     }
   }
@@ -4808,6 +4829,7 @@ export class AxlApp {
   private async compact(instructions?: string): Promise<void> {
     this.sending = true;
     this.activeRequest = "compaction";
+    this.awaitingOperationOwnership = true;
     this.setWorking(true);
     this.notice = undefined;
     this.redraw();
@@ -4818,13 +4840,17 @@ export class AxlApp {
       });
       this.notice = undefined;
     } catch (error) {
+      this.awaitingOperationOwnership = false;
       this.notice = this.view.palette.error(
         `✖ ${error instanceof Error ? error.message : "compaction failed"}`,
       );
     } finally {
       this.sending = false;
       this.activeRequest = undefined;
-      this.setWorking(this.sessionSubscription?.projector.overview.activeOperationId !== undefined);
+      this.setWorking(
+        this.awaitingOperationOwnership ||
+          this.sessionSubscription?.projector.overview.activeOperationId !== undefined,
+      );
       this.redraw();
       void this.drainQueue();
     }
@@ -4853,12 +4879,14 @@ export class AxlApp {
     this.interrupting = true;
     try {
       let result = await this.client.request("session.interrupt", { sessionId: this.sessionId });
-      // Working is shown optimistically before session.send installs daemon ownership.
-      // Preserve an immediate Escape across that short admission window.
-      while (!result.interrupted && this.sending && !this.stopped) {
+      // Working is shown optimistically before send or compaction installs daemon ownership.
+      // Preserve an immediate Escape until admission finishes or a canonical terminal event clears
+      // the optimistic state. Stopping the app also ends the retry loop.
+      while (!result.interrupted && this.view.working && !this.stopped) {
         await new Promise((resolvePromise) => setTimeout(resolvePromise, 25));
         result = await this.client.request("session.interrupt", { sessionId: this.sessionId });
       }
+      if (result.interrupted) this.awaitingOperationOwnership = false;
     } catch {
       this.notice = this.view.palette.dim("· turn already finished");
       this.redraw();

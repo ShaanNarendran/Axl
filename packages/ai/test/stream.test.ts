@@ -49,6 +49,8 @@ test("converts a thrown provider error into an error terminal", async () => {
     code: "provider_stream_failure",
     message: "connection reset",
     retryable: false,
+    category: "stream_interrupted",
+    requestPhase: "streaming",
     partial: true,
   });
 });

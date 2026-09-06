@@ -248,7 +248,7 @@ test("encodes Gemini 2 token budgets, separate tool images, and disabled thinkin
   );
   assert.deepEqual(encodeGoogleGenerativeAiRequest(model, enabled).body.generationConfig, {
     maxOutputTokens: 1334,
-    thinkingConfig: { includeThoughts: true, thinkingBudget: 1234 },
+    thinkingConfig: { includeThoughts: true, thinkingBudget: 310 },
   });
 
   const disabled = await prepared(

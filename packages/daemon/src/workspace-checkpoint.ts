@@ -49,25 +49,31 @@ export class WorkspaceCheckpointStore {
     }
   }
 
-  capture(sessionId: SessionId, cwd: string): Promise<CheckpointRecord> {
-    return this.serialized(sessionId, () => this.captureUnlocked(sessionId, cwd));
+  capture(sessionId: SessionId, cwd: string, signal?: AbortSignal): Promise<CheckpointRecord> {
+    return this.serialized(sessionId, () => this.captureUnlocked(sessionId, cwd, signal));
   }
 
-  private async captureUnlocked(sessionId: SessionId, cwd: string): Promise<CheckpointRecord> {
+  private async captureUnlocked(
+    sessionId: SessionId,
+    cwd: string,
+    signal?: AbortSignal,
+  ): Promise<CheckpointRecord> {
     const paths = this.paths(sessionId);
-    await this.assertGitWorkspace(cwd);
-    await this.assertBoundedWorkspace(cwd);
+    await this.assertGitWorkspace(cwd, signal);
+    await this.assertBoundedWorkspace(cwd, signal);
     await mkdir(paths.root, { recursive: true, mode: 0o700 });
     try {
       await stat(paths.git);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-      await this.git(cwd, ["init", "--quiet", "--bare", paths.git]);
-      await this.snapshotGit(cwd, paths.git, ["config", "core.autocrlf", "false"]);
-      await this.snapshotGit(cwd, paths.git, ["config", "core.hooksPath", "/dev/null"]);
+      await this.git(cwd, ["init", "--quiet", "--bare", paths.git], signal);
+      await this.snapshotGit(cwd, paths.git, ["config", "core.autocrlf", "false"], signal);
+      await this.snapshotGit(cwd, paths.git, ["config", "core.hooksPath", "/dev/null"], signal);
     }
-    await this.snapshotGit(cwd, paths.git, ["add", "-A", "--", "."]);
-    const tree = decodeGit((await this.snapshotGit(cwd, paths.git, ["write-tree"])).stdout).trim();
+    await this.snapshotGit(cwd, paths.git, ["add", "-A", "--", "."], signal);
+    const tree = decodeGit(
+      (await this.snapshotGit(cwd, paths.git, ["write-tree"], signal)).stdout,
+    ).trim();
     const record: CheckpointRecord = { version: 1, checkpointId: randomUUID(), tree };
     const temporary = `${paths.record}.${randomUUID()}.tmp`;
     try {

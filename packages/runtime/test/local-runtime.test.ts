@@ -127,6 +127,7 @@ test("assembles an authoritative local runtime without a presentation client", a
   assert.equal(allProviders.providers.length, 41);
   const inventory = await client.listProviders({ providerId: "azure-openai-responses" });
   assert.equal(inventory.providers.length, 1);
+  assert.deepEqual(inventory.providers[0]?.loginMethods, ["api_key"]);
   assert.equal(
     inventory.providers[0]?.models.some((model) => model.modelId === "gpt-5"),
     true,

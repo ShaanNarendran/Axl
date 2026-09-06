@@ -302,7 +302,7 @@ test("uses prepared budgets for legacy thinking and supports explicit thinking d
       messages: [{ role: "user", content: [{ type: "text", text: "hello" }] }],
       max_tokens: 8_292,
       stream: true,
-      thinking: { type: "enabled", budget_tokens: 8_192, display: "summarized" },
+      thinking: { type: "enabled", budget_tokens: 7_268, display: "summarized" },
     },
     headers: {
       accept: "text/event-stream",

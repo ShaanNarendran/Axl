@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Kaushik Kumar
 // SPDX-License-Identifier: Apache-2.0
 
+import { safeEndpoint } from "./transport-safety.ts";
 import type {
   EndpointPolicy,
   ModelCachePolicy,
@@ -160,15 +161,9 @@ export class ModelCatalogValidationError extends Error {
 
 function validUrl(value: string, label: string, errors: string[]): void {
   try {
-    const url = new URL(value);
-    if (url.protocol !== "https:" && url.protocol !== "http:") {
-      errors.push(`${label} must use HTTP or HTTPS`);
-    }
-    if (url.username || url.password || url.search || url.hash) {
-      errors.push(`${label} must not contain credentials, a query, or a fragment`);
-    }
-  } catch {
-    errors.push(`${label} is not a valid URL`);
+    safeEndpoint(value, { label, allowLoopbackHttp: true });
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : `${label} is not a valid URL`);
   }
 }
 
@@ -346,7 +341,11 @@ export function validateModelCatalog(models: readonly ModelInfo[]): readonly Mod
     if (model.displayName.trim().length === 0 || model.displayName !== model.displayName.trim()) {
       errors.push(`${label} has an invalid display name`);
     }
-    if (!API_DIALECTS.has(model.apiDialect)) errors.push(`${label} has an invalid API dialect`);
+    const legacyCompatibility =
+      model.compatibility !== undefined &&
+      !("dialect" in model.compatibility && typeof model.compatibility.dialect === "string");
+    if (!API_DIALECTS.has(model.apiDialect) && !legacyCompatibility)
+      errors.push(`${label} has an invalid API dialect`);
     if (
       typeof model.capabilities.toolUse !== "boolean" ||
       typeof model.capabilities.structuredOutput !== "boolean" ||
@@ -399,10 +398,23 @@ export function validateModelCatalog(models: readonly ModelInfo[]): readonly Mod
     }
     if (model.endpoint !== undefined) collectEndpointErrors(model.endpoint, label, errors);
     if (model.compatibility !== undefined) {
-      validateCompatibility(model.compatibility, model, label, errors);
+      if ("dialect" in model.compatibility && typeof model.compatibility.dialect === "string") {
+        validateCompatibility(model.compatibility as ModelCompatibility, model, label, errors);
+      } else if (
+        Object.entries(model.compatibility).some(
+          ([name, value]) => forbiddenMetadataName(name) || typeof value !== "boolean",
+        )
+      ) {
+        errors.push(`${label} has invalid legacy compatibility metadata`);
+      }
     }
     for (const [name, value] of Object.entries(model.headers ?? {})) {
-      if (FORBIDDEN_HEADER.test(name) || /[\r\n]/.test(name) || /[\r\n]/.test(value)) {
+      if (
+        FORBIDDEN_HEADER.test(name) ||
+        forbiddenMetadataName(name) ||
+        /[\r\n]/.test(name) ||
+        /[\r\n]/.test(value)
+      ) {
         errors.push(`${label} contains an unsafe static header`);
       }
     }

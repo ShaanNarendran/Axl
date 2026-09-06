@@ -225,7 +225,7 @@ Provider secrets never pass through daemon RPC or SDK projection.
 5. Authorization launch is restricted to HTTPS URLs without embedded credentials.
 6. Canonical events, SDK cursors, catalogs, and client projections never contain credential values, OAuth codes, or prompt answers.
 
-Provider listing is offline and side-effect free. Authentication status and catalog refresh are separate explicit operations. API dialect is model metadata, not user-selectable configuration. See the [provider setup and compatibility reference](docs/provider-support/provider-reference.md) for every provider, environment variable, endpoint, region, authentication method, catalog type, custom-endpoint boundary, limitation, and opt-in smoke procedure. See [`docs/provider-support/product-integration.md`](docs/provider-support/product-integration.md) for the complete authority and workflow record.
+Provider listing is offline and side-effect free. Authentication status and catalog refresh are separate explicit operations. API dialect is model metadata, not user-selectable configuration. See the [provider setup and compatibility reference](docs/provider-support/provider-reference.md) for every provider, environment variable, endpoint, region, authentication method, catalog type, custom-endpoint boundary, limitation, and opt-in smoke procedure. Provider authority and client responsibilities follow [`docs/architecture/client-boundaries.md`](docs/architecture/client-boundaries.md).
 
 ## Session profiles
 
