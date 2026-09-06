@@ -102,7 +102,7 @@ Behavioral provenance and durable compatibility decisions are recorded in [`impl
 
 The base URL must use HTTPS unless it is an explicit loopback development server. Loopback, private, link-local, multicast, and local-name remote destinations are rejected. Embedded URL credentials, fragments, and endpoint queries are forbidden. Custom headers must be non-secret and pass catalog validation; authorization, cookie, proxy authorization, API-key, token, credential, password, and secret-shaped headers are forbidden. Authentication is either keyless or uses explicit caller-selected environment-variable names. A missing model list, missing base URL, unsupported dialect, unsafe header, or unsupported compatibility control fails explicitly.
 
-The built-in `custom` registration is intentionally an unconfigured placeholder. The current first-party CLI, daemon settings, and TUI do not expose a custom-provider configuration file or command. Applications embedding `@axl/ai` can construct and register it directly. This is a known product-surface limitation, not a silent fallback to OpenAI.
+The daemon loads an optional custom provider from `~/.axl/custom-provider.json`. The file accepts only `baseUrl`, a non-empty `models` array using the documented `ModelInfo` fields, optional non-secret `headers`, and optional `apiKeyEnvironmentVariables`. Model entries are assigned to the `custom` provider and the complete configuration passes the same endpoint, catalog, dialect, compatibility, and header validation as embedded callers. A malformed file fails daemon startup loudly. Omitting the file keeps the built-in `custom` registration as an unconfigured placeholder.
 
 ## Catalog lifecycle and updates
 
@@ -113,7 +113,6 @@ GitHub Copilot, OpenRouter, Cloudflare AI Gateway, and Radius have dynamic catal
 ## Known limitations
 
 - The first-party product surface supports text-model sessions. OpenRouter image generation is implemented in `@axl/ai`, but no daemon, SDK, CLI, or TUI image-generation command is exposed.
-- The first-party product does not yet expose configuration for the `custom` provider factory.
 - OpenAI Codex uses stateless SSE with complete prepared-history replay. It does not guess connection-scoped WebSocket continuation state.
 - OpenAI Chat rejects response-side `reasoning_details` rather than silently discarding it. Request-side replay of already retained same-model signatures is supported.
 - Opaque replay metadata is in-process only. Restart and persisted history reconstruction do not restore provider signatures or continuation IDs.

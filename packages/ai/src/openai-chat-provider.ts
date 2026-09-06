@@ -22,8 +22,9 @@ import {
   type PreparedModelRequest,
   prepareModelRequest,
 } from "./request-preparation.ts";
+import { registerResolvedSecrets } from "./secret-context.ts";
 import { decodeSseStream } from "./sse.ts";
-import { raceWithSignal, safeEndpoint } from "./transport-safety.ts";
+import { raceWithSignal, safeEndpoint, safeFetch } from "./transport-safety.ts";
 
 const DEFAULT_TIMEOUT_MS = 120_000;
 const DEFAULT_MAX_RETRIES = 2;
@@ -120,7 +121,7 @@ export class OpenAiChatProvider implements ModelProvider {
   private readonly endpoint: OpenAiChatEndpoint;
   private readonly models: readonly ModelInfo[];
   private readonly resolveAuth: (signal: AbortSignal) => Promise<ResolvedAuth>;
-  private readonly fetchImpl: typeof fetch;
+  private readonly fetchImpl: typeof fetch | undefined;
   private readonly now: () => number;
 
   constructor(options: OpenAiChatProviderOptions) {
@@ -131,7 +132,7 @@ export class OpenAiChatProvider implements ModelProvider {
     this.endpoint = options.endpoint;
     this.models = [...options.models];
     this.resolveAuth = options.resolveAuth;
-    this.fetchImpl = options.fetch ?? fetch;
+    this.fetchImpl = options.fetch;
     this.now = options.now ?? Date.now;
   }
 
@@ -170,6 +171,7 @@ export class OpenAiChatProvider implements ModelProvider {
       resolved = await raceWithSignal(this.resolveAuth(signal), signal);
       signal.throwIfAborted();
       secretValues = resolved.secretValues;
+      registerResolvedSecrets(secretValues);
       const encoded = encodeOpenAiChatRequest(
         model,
         prepared,
@@ -215,7 +217,15 @@ export class OpenAiChatProvider implements ModelProvider {
     let response: Response | undefined;
     for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
       try {
-        response = await raceWithSignal(this.fetchImpl(url, init), signal);
+        response = await raceWithSignal(
+          safeFetch(url, init, {
+            label: `Provider ${this.id} request endpoint`,
+            allowLoopbackHttp: this.id === "custom",
+            expectedOrigin: new URL(url).origin,
+            ...(this.fetchImpl === undefined ? {} : { fetch: this.fetchImpl }),
+          }),
+          signal,
+        );
       } catch (error) {
         if (signal.aborted) {
           yield this.failure(

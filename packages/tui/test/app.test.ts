@@ -1914,6 +1914,10 @@ test("provider commands group models, show status, mutate auth, and cancel refre
     color: false,
     currentProvider: "alpha",
     currentModel: "shared-model",
+    loginProvider: (providerId, method) => {
+      calls.push(`host-login:${providerId}:${method}`);
+      return Promise.resolve({ providerId, phase: "authenticated", method });
+    },
     onPreferenceChange: (update) => {
       preferences.push(update);
     },
@@ -1939,7 +1943,8 @@ test("provider commands group models, show status, mutate auth, and cancel refre
   input.write("/logout beta\r");
   await until(() => calls.includes("logout:beta"), "provider logout");
   input.write("/login beta\r");
-  await until(() => calls.includes("login:beta:api_key"), "provider login");
+  await until(() => calls.includes("host-login:beta:api_key"), "provider login");
+  assert.equal(calls.includes("login:beta:api_key"), false);
 
   blockRefresh = true;
   input.write("/refresh beta\r");

@@ -27,7 +27,7 @@ import { StringDecoder } from "node:string_decoder";
 import test, { type TestContext } from "node:test";
 import { promisify } from "node:util";
 
-import { type ModelPort, type ModelRetryOptions, ToolRegistry } from "@axl/kernel";
+import { JsonlEventLog, type ModelPort, type ModelRetryOptions, ToolRegistry } from "@axl/kernel";
 import type {
   CanonicalEvent,
   ModelStreamEvent,
@@ -3482,6 +3482,52 @@ test("ignores incomplete migration targets until their manifest is published", a
     assert.equal(error.code, "unknown_session");
     return true;
   });
+});
+
+test("provider-less version-1 sessions resume with the legacy Azure provider", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "axl-daemon-legacy-provider-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const dataDirectory = join(directory, "data");
+  const sessionId = parseSessionId("123e4567-e89b-42d3-a456-426614170111");
+  const { log } = await JsonlEventLog.open(
+    join(dataDirectory, "sessions", `${sessionId}.jsonl`),
+    sessionId,
+  );
+  await log.append({
+    version: 1,
+    id: "00000000-0000-4000-8000-000000000001",
+    sessionId,
+    parentId: null,
+    timestamp: 1,
+    type: "session.created",
+    payload: { cwd: directory },
+  });
+  await log.append({
+    version: 1,
+    id: "00000000-0000-4000-8000-000000000002",
+    sessionId,
+    parentId: "00000000-0000-4000-8000-000000000001",
+    timestamp: 2,
+    type: "config.model",
+    payload: { modelId: "gpt-5" },
+  });
+  const selections: Array<{ providerId?: string; modelId?: string }> = [];
+  const socketPath = join(directory, "axl.sock");
+  const daemon = new AxlDaemon({
+    socketPath,
+    dataDirectory,
+    runtime: ({ selection }) => {
+      selections.push(selection);
+      return { model: replyPort(), tools: new ToolRegistry() };
+    },
+  });
+  await daemon.start();
+  context.after(() => daemon.stop());
+  const client = await connectUnixClient(socketPath);
+  context.after(() => client.close());
+  await client.request("session.resume", { sessionId });
+  assert.equal(selections[0]?.providerId, "azure-openai-responses");
+  assert.equal(selections[0]?.modelId, "gpt-5");
 });
 
 test("configuration changes rebuild and log the selected model and thinking", async (context) => {

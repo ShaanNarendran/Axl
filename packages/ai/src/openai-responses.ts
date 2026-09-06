@@ -5,7 +5,6 @@
 // Axl-native OpenAI Responses codec and legacy transport composition.
 
 import type { JsonObject, JsonValue, ModelErrorCategory, Usage } from "@axl/protocol";
-import { EnvHttpProxyAgent, fetch as modelFetch } from "undici";
 
 import { AuthError, type ProviderAuthentication, type ResolvedAuth } from "./auth.ts";
 import { assertModelSupports } from "./capabilities.ts";
@@ -26,23 +25,13 @@ import {
   preparedBlobDataUrl,
   prepareModelRequest,
 } from "./request-preparation.ts";
+import { registerResolvedSecrets } from "./secret-context.ts";
 import { decodeSseStream, type SseFrame } from "./sse.ts";
-import { safeEndpoint } from "./transport-safety.ts";
+import { safeEndpoint, safeFetch } from "./transport-safety.ts";
 import { withUsageCost } from "./usage.ts";
 
 /** OpenAI Responses rejects max_output_tokens below 16. */
 const MIN_OUTPUT_TOKENS = 16;
-let modelDispatcher: EnvHttpProxyAgent | undefined;
-function dispatcherFor(timeoutMs: number) {
-  modelDispatcher ??= new EnvHttpProxyAgent({
-    allowH2: false,
-    connect: { autoSelectFamilyAttemptTimeout: 2_000 },
-  });
-  return modelDispatcher.compose(
-    (dispatch) => (options, handler) =>
-      dispatch({ ...options, headersTimeout: timeoutMs, bodyTimeout: timeoutMs }, handler),
-  );
-}
 const IDLE_TIMEOUT_CODES = new Set(["UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT"]);
 const SAFE_CONNECT_FAILURES = new Set([
   "EAI_AGAIN",
@@ -866,6 +855,7 @@ export class OpenAiResponsesProvider implements ModelProvider {
         : await prepareModelRequest(model, request);
       const resolved = await this.resolveAuth();
       secretValues = resolved.secretValues;
+      registerResolvedSecrets(secretValues);
       const encoded = encodeResponsesRequest(
         model,
         prepared,
@@ -906,13 +896,13 @@ export class OpenAiResponsesProvider implements ModelProvider {
 
     let response: Pick<Response, "ok" | "status" | "headers" | "body">;
     try {
-      response =
-        this.fetchImpl === undefined
-          ? await modelFetch(url, {
-              ...init,
-              dispatcher: dispatcherFor(request.httpIdleTimeoutMs ?? 300_000),
-            })
-          : await this.fetchImpl(url, init);
+      response = await safeFetch(url, init, {
+        label: `Provider ${this.id} request endpoint`,
+        allowLoopbackHttp: true,
+        expectedOrigin: new URL(url).origin,
+        idleTimeoutMs: request.httpIdleTimeoutMs ?? 300_000,
+        ...(this.fetchImpl === undefined ? {} : { fetch: this.fetchImpl }),
+      });
     } catch (error) {
       const nativeCode = nestedErrorCode(error);
       const safeToRetry = nativeCode !== undefined && SAFE_CONNECT_FAILURES.has(nativeCode);

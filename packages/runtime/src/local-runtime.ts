@@ -4,7 +4,7 @@
 // SPDX-FileCopyrightText: 2026 Srihari
 // SPDX-License-Identifier: Apache-2.0
 
-import { access, readdir } from "node:fs/promises";
+import { access, readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { CredentialStore } from "@axl/ai";
@@ -177,6 +177,41 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
+export async function loginProviderFromTrustedHost(input: {
+  readonly store: CredentialStore;
+  readonly adapter: TrustedProviderLoginAdapter;
+  readonly providerId: string;
+  readonly method: "api_key" | "oauth";
+  readonly signal?: AbortSignal;
+}): Promise<import("@axl/protocol").ProviderAuthenticationStatus> {
+  const ai = await import("@axl/ai");
+  const providers = ai.createBuiltinProviders({ store: input.store, context: ai.nodeAuthContext });
+  try {
+    const provider = providers.find((candidate) => candidate.id === input.providerId);
+    if (provider?.authentication === undefined) {
+      throw new Error(`Provider ${input.providerId} has no interactive authentication`);
+    }
+    if (!provider.authentication.loginMethods.includes(input.method)) {
+      throw new Error(`Provider ${input.providerId} does not support ${input.method} login`);
+    }
+    const signal = input.signal ?? new AbortController().signal;
+    const interaction = input.adapter.createInteraction({
+      providerId: input.providerId,
+      method: input.method,
+      signal,
+    });
+    const state = await provider.authentication.login(input.method, { ...interaction, signal });
+    return {
+      providerId: input.providerId,
+      phase: state.phase,
+      ...(state.method === undefined ? {} : { method: state.method }),
+      ...(state.source === undefined ? {} : { source: state.source }),
+    };
+  } finally {
+    await Promise.all(providers.map((provider) => provider.dispose?.()));
+  }
+}
+
 export interface LocalDaemonOptions {
   readonly buildVersion?: string;
   readonly onStopped?: () => void;
@@ -188,7 +223,6 @@ export interface LocalDaemonOptions {
   readonly store: CredentialStore;
   readonly unsafe: boolean;
   readonly sandbox?: LocalSandboxSelection;
-  readonly providerLogin?: TrustedProviderLoginAdapter;
 }
 
 /**
@@ -227,7 +261,23 @@ export async function startLocalDaemon(options: LocalDaemonOptions): Promise<Axl
       const providers = new ai.ProviderRegistry({
         catalogStore: new ai.FileCatalogStore(join(axlHome, "catalogs")),
       });
-      for (const provider of ai.createBuiltinProviders({ store, context: ai.nodeAuthContext })) {
+      const customPath = join(axlHome, "custom-provider.json");
+      let custom: import("@axl/ai").CustomProviderConfiguration | undefined;
+      try {
+        custom = ai.parseCustomProviderConfiguration(
+          JSON.parse(await readFile(customPath, "utf8")),
+        );
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+          throw new Error(`Failed to load custom provider configuration ${customPath}`, {
+            cause: error,
+          });
+        }
+      }
+      for (const provider of ai.createBuiltinProviders(
+        { store, context: ai.nodeAuthContext },
+        custom,
+      )) {
         providers.register(provider);
       }
       const restored = await providers.restoreCatalogs();
@@ -242,31 +292,21 @@ export async function startLocalDaemon(options: LocalDaemonOptions): Promise<Axl
   const { AxlDaemon } = await import("@axl/daemon");
   const providerManagement = {
     list: async (...args: Parameters<import("@axl/daemon").ProviderManagementService["list"]>) =>
-      createProviderManagementService((await loadAssembly()).providers, {
-        ...(options.providerLogin === undefined ? {} : { loginAdapter: options.providerLogin }),
-      }).list(...args),
+      createProviderManagementService((await loadAssembly()).providers).list(...args),
     refresh: async (
       ...args: Parameters<import("@axl/daemon").ProviderManagementService["refresh"]>
-    ) =>
-      createProviderManagementService((await loadAssembly()).providers, {
-        ...(options.providerLogin === undefined ? {} : { loginAdapter: options.providerLogin }),
-      }).refresh(...args),
+    ) => createProviderManagementService((await loadAssembly()).providers).refresh(...args),
     authenticationStatus: async (
       ...args: Parameters<import("@axl/daemon").ProviderManagementService["authenticationStatus"]>
     ) =>
-      createProviderManagementService((await loadAssembly()).providers, {
-        ...(options.providerLogin === undefined ? {} : { loginAdapter: options.providerLogin }),
-      }).authenticationStatus(...args),
+      createProviderManagementService((await loadAssembly()).providers).authenticationStatus(
+        ...args,
+      ),
     login: async (...args: Parameters<import("@axl/daemon").ProviderManagementService["login"]>) =>
-      createProviderManagementService((await loadAssembly()).providers, {
-        ...(options.providerLogin === undefined ? {} : { loginAdapter: options.providerLogin }),
-      }).login(...args),
+      createProviderManagementService((await loadAssembly()).providers).login(...args),
     logout: async (
       ...args: Parameters<import("@axl/daemon").ProviderManagementService["logout"]>
-    ) =>
-      createProviderManagementService((await loadAssembly()).providers, {
-        ...(options.providerLogin === undefined ? {} : { loginAdapter: options.providerLogin }),
-      }).logout(...args),
+    ) => createProviderManagementService((await loadAssembly()).providers).logout(...args),
     dispose: async () => {
       if (assemblyPromise !== undefined) (await assemblyPromise).providers.dispose();
     },
@@ -331,12 +371,16 @@ export async function startLocalDaemon(options: LocalDaemonOptions): Promise<Axl
       const requestSettings = parseModelRequestSettings(
         selection.requestSettings ?? defaults.requestSettings ?? DEFAULT_MODEL_REQUEST_SETTINGS,
       );
+      const providerSecrets = new Set<string>();
       const model = ai.modelPortForRegistry(providers, {
         providerId: active.providerId,
         requestSettings,
         modelId: active.modelId,
         thinkingLevel: thinking.effective,
         readBlob,
+        onResolvedSecrets: (values) => {
+          for (const value of values) providerSecrets.add(value);
+        },
       });
       const tools = new kernel.ToolRegistry();
       const overflowDirectory = join(stateDirectory, "tool-output");
@@ -403,7 +447,11 @@ export async function startLocalDaemon(options: LocalDaemonOptions): Promise<Axl
         ...(mcp === undefined ? {} : { extensionHost: mcp }),
         prompt,
         log: {
-          secretValues: [...mcpSecrets, ...(braveSearchKey === undefined ? [] : [braveSearchKey])],
+          secretValues: () => [
+            ...mcpSecrets,
+            ...(braveSearchKey === undefined ? [] : [braveSearchKey]),
+            ...providerSecrets,
+          ],
         },
         sandbox: sandbox.configuredPayload(),
         configProvider: { providerId: active.providerId },

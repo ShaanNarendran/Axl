@@ -5,7 +5,12 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import type { ApiKeyAuthMethod, OAuthAuthMethod, ProviderAuthInteraction } from "./auth.ts";
 import type { OAuthCredential } from "./credentials.ts";
-import { raceWithSignal, readBoundedJson, stripTrailingSlashes } from "./transport-safety.ts";
+import {
+  raceWithSignal,
+  readBoundedJson,
+  safeFetch,
+  stripTrailingSlashes,
+} from "./transport-safety.ts";
 
 export interface OAuthFactoryOptions {
   readonly fetch?: typeof fetch;
@@ -73,10 +78,13 @@ async function jsonRequest(
   operation: string,
 ): Promise<Json> {
   const signal = init.signal as AbortSignal | undefined;
+  const operationRequest = safeFetch(url, init, {
+    label: `${operation} endpoint`,
+    expectedOrigin: new URL(url).origin,
+    ...(fetchImpl === fetch ? {} : { fetch: fetchImpl }),
+  });
   const response =
-    signal === undefined
-      ? await fetchImpl(url, init)
-      : await raceWithSignal(fetchImpl(url, init), signal);
+    signal === undefined ? await operationRequest : await raceWithSignal(operationRequest, signal);
   let body: unknown;
   try {
     body = await readBoundedJson(response, undefined, signal);
@@ -311,7 +319,11 @@ async function pollFormToken(input: {
     sleep: input.sleep,
     poll: async () => {
       const response = await raceWithSignal(
-        input.fetchImpl(input.url, formRequest(input.fields, input.signal)),
+        safeFetch(input.url, formRequest(input.fields, input.signal), {
+          label: `${input.operation} endpoint`,
+          expectedOrigin: new URL(input.url).origin,
+          ...(input.fetchImpl === fetch ? {} : { fetch: input.fetchImpl }),
+        }),
         input.signal,
       );
       let body: Json;
@@ -491,12 +503,17 @@ export function createOpenAiCodexOAuth(options: OAuthFactoryOptions = {}): OAuth
           sleep,
           poll: async () => {
             const response = await raceWithSignal(
-              fetchImpl(
+              safeFetch(
                 "https://auth.openai.com/api/accounts/deviceauth/token",
                 jsonPost(
                   { device_auth_id: device.deviceCode, user_code: device.userCode },
                   interaction.signal,
                 ),
+                {
+                  label: "OpenAI Codex device token endpoint",
+                  expectedOrigin: "https://auth.openai.com",
+                  ...(fetchImpl === fetch ? {} : { fetch: fetchImpl }),
+                },
               ),
               interaction.signal,
             );
@@ -849,17 +866,25 @@ export function createGitHubCopilotOAuth(options: OAuthFactoryOptions = {}): OAu
         sleep,
         poll: async () => {
           const response = await raceWithSignal(
-            fetchImpl(`https://${domain}/login/oauth/access_token`, {
-              ...formRequest(
-                { client_id: clientId, device_code: device.deviceCode, grant_type: DEVICE_GRANT },
-                interaction.signal,
-              ),
-              headers: {
-                accept: "application/json",
-                "content-type": "application/x-www-form-urlencoded",
-                "user-agent": headers["user-agent"],
+            safeFetch(
+              `https://${domain}/login/oauth/access_token`,
+              {
+                ...formRequest(
+                  { client_id: clientId, device_code: device.deviceCode, grant_type: DEVICE_GRANT },
+                  interaction.signal,
+                ),
+                headers: {
+                  accept: "application/json",
+                  "content-type": "application/x-www-form-urlencoded",
+                  "user-agent": headers["user-agent"],
+                },
               },
-            }),
+              {
+                label: "GitHub device token endpoint",
+                expectedOrigin: `https://${domain}`,
+                ...(fetchImpl === fetch ? {} : { fetch: fetchImpl }),
+              },
+            ),
             interaction.signal,
           );
           const body = object(

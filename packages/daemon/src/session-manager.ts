@@ -1094,7 +1094,9 @@ export class SessionManager {
       }
     }
     return this.open(sessionId, created.payload.cwd, {
-      ...(providerId === undefined ? {} : { providerId }),
+      // Event-format v1 sessions created before provider selection was logged
+      // always used Azure OpenAI Responses.
+      providerId: providerId ?? "azure-openai-responses",
       ...(requestSettings === undefined ? {} : { requestSettings }),
       ...(modelId === undefined ? {} : { modelId }),
       ...(thinkingLevel === undefined ? {} : { thinkingLevel }),

@@ -18,6 +18,7 @@ import {
   OpenAiResponsesProvider,
   type ResponsesEndpoint,
 } from "./openai-responses.ts";
+import { safeFetch } from "./transport-safety.ts";
 import type { PreparedModelRequest } from "./request-preparation.ts";
 
 export const AZURE_OPENAI_PROVIDER_ID = "azure-openai";
@@ -196,9 +197,16 @@ export async function verifyAzureOpenAiAuth(
   const base = resolved.auth.baseUrl ?? resolved.env?.AZURE_OPENAI_BASE_URL;
   if (base === undefined) return { ok: false, detail: "no base URL resolved" };
   try {
-    const response = await fetchImpl(azureResourceUrl(resolved, "models"), {
-      headers: azureEndpoint.headers(resolved),
-    });
+    const url = azureResourceUrl(resolved, "models");
+    const response = await safeFetch(
+      url,
+      { headers: azureEndpoint.headers(resolved) },
+      {
+        label: "Azure OpenAI verification endpoint",
+        expectedOrigin: new URL(url).origin,
+        ...(fetchImpl === fetch ? {} : { fetch: fetchImpl }),
+      },
+    );
     if (response.ok) return { ok: true, status: response.status };
     const detail = (await response.text().catch(() => "")).slice(0, 300);
     return { ok: false, status: response.status, ...(detail ? { detail } : {}) };

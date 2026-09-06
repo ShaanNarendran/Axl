@@ -34,6 +34,7 @@ import {
   createOpenCodeGoProvider,
   createOpenCodeProvider,
   createOpenRouterProvider,
+  type CustomProviderConfiguration,
   type ProviderFactoryOptions,
   createRadiusProvider,
 } from "./remaining-providers.ts";
@@ -92,7 +93,10 @@ export const BUILTIN_PROVIDER_IDS = [
 ] as const;
 
 /** Constructs every planned built in registration without I/O. */
-export function createBuiltinProviders(options: ProviderFactoryOptions): readonly ModelProvider[] {
+export function createBuiltinProviders(
+  options: ProviderFactoryOptions,
+  custom?: CustomProviderConfiguration,
+): readonly ModelProvider[] {
   return [
     createOpenAiProvider(options),
     createAzureOpenAiResponsesProvider(options),
@@ -134,6 +138,6 @@ export function createBuiltinProviders(options: ProviderFactoryOptions): readonl
     createOpenCodeGoProvider(options),
     createAntLingProvider(options),
     createRadiusProvider(options),
-    createCustomProvider(options),
+    createCustomProvider({ ...options, ...custom }),
   ];
 }

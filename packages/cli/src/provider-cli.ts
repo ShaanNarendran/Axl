@@ -93,6 +93,10 @@ export async function runProviderCommand(input: {
   readonly command: "providers" | "models" | "login" | "logout" | "refresh";
   readonly providerId?: string;
   readonly loginMethod?: ProviderLoginMethod;
+  readonly login?: (
+    providerId: string,
+    method: ProviderLoginMethod,
+  ) => Promise<ProviderAuthenticationStatus>;
   readonly write: (value: string) => void;
 }): Promise<void> {
   const params = input.providerId === undefined ? {} : { providerId: input.providerId };
@@ -146,6 +150,9 @@ export async function runProviderCommand(input: {
   if (!provider.loginMethods.includes(method)) {
     throw new Error(`Provider ${input.providerId} does not support ${method} login`);
   }
-  const status = await input.client.loginProvider({ providerId: input.providerId, method });
+  const status =
+    input.login === undefined
+      ? await input.client.loginProvider({ providerId: input.providerId, method })
+      : await input.login(input.providerId, method);
   input.write(`${status.providerId}: ${authenticationLabel(status)}\n`);
 }

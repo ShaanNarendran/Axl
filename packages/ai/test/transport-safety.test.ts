@@ -8,6 +8,7 @@ import {
   MAX_JSON_RESPONSE_BYTES,
   readBoundedJson,
   safeEndpoint,
+  safeFetch,
   stripTrailingSlashes,
 } from "../src/index.ts";
 
@@ -41,6 +42,60 @@ test("trailing slash removal is linear and handles long non-matching input", () 
   const value = `${"/".repeat(100_000)}x`;
   assert.equal(stripTrailingSlashes(value), value);
   assert.equal(stripTrailingSlashes(`${value}///`), value);
+});
+
+test("safe transport rejects private DNS answers before dispatch", async () => {
+  let requests = 0;
+  await assert.rejects(
+    safeFetch(
+      "https://provider.example/v1/models",
+      { headers: { "x-api-key": "fake-secret" } },
+      {
+        label: "test provider",
+        fetch: async () => {
+          requests += 1;
+          return new Response("{}");
+        },
+        resolve: () => Promise.resolve([{ address: "169.254.169.254", family: 4 }]),
+      },
+    ),
+    /disallowed destination/,
+  );
+  assert.equal(requests, 0);
+});
+
+test("safe transport rejects cross-origin redirects without forwarding request data", async () => {
+  const requests: { url: string; headers: Headers; body: unknown }[] = [];
+  await assert.rejects(
+    safeFetch(
+      "https://provider.example/v1/responses",
+      {
+        method: "POST",
+        headers: { "x-api-key": "fake-secret" },
+        body: '{"prompt":"private prompt"}',
+      },
+      {
+        label: "test provider",
+        fetch: async (input, init) => {
+          requests.push({
+            url: String(input),
+            headers: new Headers(init?.headers),
+            body: init?.body,
+          });
+          return new Response(null, {
+            status: 307,
+            headers: { location: "http://127.0.0.1/internal" },
+          });
+        },
+        resolve: () => Promise.resolve([{ address: "8.8.8.8", family: 4 }]),
+      },
+    ),
+    /must use HTTPS|unapproved origin/,
+  );
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0]?.url, "https://provider.example/v1/responses");
+  assert.equal(requests[0]?.headers.get("x-api-key"), "fake-secret");
+  assert.equal(requests[0]?.body, '{"prompt":"private prompt"}');
 });
 
 test("bounded JSON rejects declared and chunked response overflow", async () => {

@@ -31,11 +31,13 @@ import {
   type LocalSessionPlacement,
   listLocalSessions,
   localSandboxStateKey,
+  loginProviderFromTrustedHost,
   startLocalDaemon,
 } from "@axl/runtime";
 import { type AxlClient, AxlClientError, subscribeSession } from "@axl/sdk";
 import { connectUnixClient, createUnixDaemonHost } from "@axl/sdk/unix";
 
+import { createTerminalProviderLoginAdapter } from "./provider-auth-ui.ts";
 import { providerErrorMessage, runProviderCommand, usageLine } from "./provider-cli.ts";
 import { loadTuiSettings, saveTuiSettings, type TuiSettings } from "./settings.ts";
 
@@ -506,10 +508,7 @@ async function connectOrStartDaemon(input: {
         ...(input.webFetch ? [] : ["--no-web-fetch"]),
         ...(input.webSearch ? [] : ["--no-web-search"]),
       ],
-      {
-        detached: true,
-        stdio: process.stdin.isTTY === true && process.stdout.isTTY === true ? "inherit" : "ignore",
-      },
+      { detached: true, stdio: "ignore" },
     );
     let childFailure: Error | undefined;
     child.once("error", (cause) => {
@@ -909,7 +908,6 @@ async function main(): Promise<void> {
   }
   if (cli.command === "daemon" && cli.daemonAction === undefined) {
     const { store } = await credentials();
-    const { createTerminalProviderLoginAdapter } = await import("./provider-auth-ui.ts");
     const daemon = await startLocalDaemon({
       buildVersion: AXL_VERSION,
       onStopped: () => process.exit(0),
@@ -921,7 +919,6 @@ async function main(): Promise<void> {
       store,
       unsafe: cli.unsafe,
       sandbox,
-      providerLogin: createTerminalProviderLoginAdapter(process.stdin, process.stdout),
     });
     const stop = (): void => {
       void daemon.stop().catch((error: unknown) => {
@@ -935,6 +932,21 @@ async function main(): Promise<void> {
     await new Promise(() => undefined);
     return;
   }
+
+  const loginFromThisHost = async (
+    providerId: string,
+    method: ProviderLoginMethod,
+    signal?: AbortSignal,
+  ) => {
+    const { store } = await credentials();
+    return loginProviderFromTrustedHost({
+      store,
+      adapter: createTerminalProviderLoginAdapter(process.stdin, process.stdout),
+      providerId,
+      method,
+      ...(signal === undefined ? {} : { signal }),
+    });
+  };
 
   const clientKind =
     cli.command === "json" || cli.command === "print"
@@ -1002,6 +1014,7 @@ async function main(): Promise<void> {
         command: cli.command as "providers" | "models" | "login" | "logout" | "refresh",
         ...(cli.providerTarget === undefined ? {} : { providerId: cli.providerTarget }),
         ...(cli.loginMethod === undefined ? {} : { loginMethod: cli.loginMethod }),
+        ...(cli.command === "login" ? { login: loginFromThisHost } : {}),
         write: (value) => process.stdout.write(value),
       });
     } finally {
@@ -1111,6 +1124,7 @@ async function main(): Promise<void> {
     ],
     clearStartupLine: startupIndicator,
     reconnectClient: () => connectTarget(currentTarget),
+    loginProvider: (providerId, method, signal) => loginFromThisHost(providerId, method, signal),
     onPreferenceChange: persistSettings,
     currentProvider: active.providerId,
     requestSettings: active.requestSettings,

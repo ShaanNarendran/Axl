@@ -19,7 +19,8 @@ import {
 import { redactEventForStorage } from "./redaction.ts";
 
 export interface EventLogOptions {
-  readonly secretValues?: readonly string[];
+  /** Read at each append so rotating credentials are redacted before persistence. */
+  readonly secretValues?: readonly string[] | (() => readonly string[]);
   /** Daemon-owned transformation available only when canonical encoding exceeds the limit. */
   readonly prepareOversizedEvent?: (
     event: CanonicalEvent,
@@ -223,7 +224,7 @@ async function appendDurably(path: string, line: Uint8Array): Promise<void> {
 export class JsonlEventLog {
   readonly path: string;
   readonly sessionId: SessionId;
-  private readonly secretValues: readonly string[];
+  private readonly secretValues: () => readonly string[];
   private readonly prepareOversizedEvent:
     | ((event: CanonicalEvent) => CanonicalEvent | Promise<CanonicalEvent>)
     | undefined;
@@ -232,7 +233,9 @@ export class JsonlEventLog {
   private constructor(path: string, sessionId: SessionId, options: EventLogOptions) {
     this.path = path;
     this.sessionId = sessionId;
-    this.secretValues = [...(options.secretValues ?? [])];
+    const secretValues = options.secretValues;
+    this.secretValues =
+      typeof secretValues === "function" ? secretValues : () => secretValues ?? [];
     this.prepareOversizedEvent = options.prepareOversizedEvent;
   }
 
@@ -252,7 +255,7 @@ export class JsonlEventLog {
   append(value: unknown): Promise<CanonicalEvent> {
     let redacted: CanonicalEvent;
     try {
-      redacted = redactEventForStorage(value, this.secretValues);
+      redacted = redactEventForStorage(value, this.secretValues());
       if (redacted.sessionId !== this.sessionId) {
         throw new ProtocolValidationError(
           "event.sessionId",

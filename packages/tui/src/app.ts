@@ -546,6 +546,12 @@ export interface AxlAppOptions {
   /** Compatibility hook called after the daemon accepts a model switch. */
   readonly onModelChange?: (modelId: string) => void;
   readonly suspendProcess?: () => void;
+  /** Provider authentication performed by the invoking trusted process host. */
+  readonly loginProvider?: (
+    providerId: string,
+    method: ProviderLoginMethod,
+    signal: AbortSignal,
+  ) => Promise<ProviderAuthenticationStatus>;
   /** Legacy process-host dialog retained for compatibility attachments. */
   readonly loadLogin?: () => Promise<LoginDialogDefinition>;
   readonly onExit?: () => void;
@@ -4490,10 +4496,17 @@ export class AxlApp {
     try {
       this.terminal.stop();
       terminalPaused = true;
-      const status = await this.client.loginProvider(
-        { providerId: provider.providerId, method: selectedMethod },
-        { signal: controller.signal },
-      );
+      const status =
+        this.options.loginProvider === undefined
+          ? await this.client.loginProvider(
+              { providerId: provider.providerId, method: selectedMethod },
+              { signal: controller.signal },
+            )
+          : await this.options.loginProvider(
+              provider.providerId,
+              selectedMethod,
+              controller.signal,
+            );
       this.notice = this.view.palette.dim(
         `· ${provider.displayName} · ${authenticationLabel(status)}`,
       );

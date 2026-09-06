@@ -19,11 +19,13 @@ import type { ModelProvider } from "./provider.ts";
 import type { RequestModelMessage } from "./model.ts";
 import type { ProviderRegistry } from "./registry.ts";
 import { prepareModelRequest } from "./request-preparation.ts";
+import { withResolvedSecretSink } from "./secret-context.ts";
 import { normalizeModelStream } from "./stream.ts";
 
 export interface SessionPortOptions {
   readonly modelId: string;
   readonly thinkingLevel?: ThinkingLevel;
+  readonly onResolvedSecrets?: (values: readonly string[]) => void;
   readonly maxOutputTokens?: number;
   readonly requestSettings?: ModelRequestSettings;
   readonly readBlob?: (reference: BlobReference) => Promise<Uint8Array>;
@@ -212,6 +214,27 @@ function retainReplayMetadata(
   });
 }
 
+function streamWithSecretSink(
+  stream: AsyncIterable<ModelStreamEvent>,
+  sink: ((values: readonly string[]) => void) | undefined,
+): AsyncIterable<ModelStreamEvent> {
+  return (async function* () {
+    const iterator = stream[Symbol.asyncIterator]();
+    try {
+      for (;;) {
+        const result = await withResolvedSecretSink(sink, () => iterator.next());
+        if (result.done) return;
+        yield result.value;
+      }
+    } finally {
+      const close = iterator.return;
+      if (close !== undefined) {
+        await withResolvedSecretSink(sink, () => close.call(iterator));
+      }
+    }
+  })();
+}
+
 function retainStream(
   stream: AsyncIterable<ModelStreamEvent>,
   turns: ReplayEvent[][],
@@ -249,7 +272,7 @@ export function modelPortForSession(
             const messages = retainReplayMetadata(request.messages, replayTurns);
             const prepared = await configureRequest(model, request, options, messages);
             request.signal?.throwIfAborted();
-            yield* provider.stream(prepared);
+            yield* streamWithSecretSink(provider.stream(prepared), options.onResolvedSecrets);
           })(),
           request.signal,
         ),
@@ -278,7 +301,10 @@ export function modelPortForRegistry(
             const messages = retainReplayMetadata(request.messages, replayTurns);
             const configured = await configureRequest(model, request, options, messages);
             request.signal?.throwIfAborted();
-            yield* registry.stream(options.providerId, configured);
+            yield* streamWithSecretSink(
+              registry.stream(options.providerId, configured),
+              options.onResolvedSecrets,
+            );
           })(),
           request.signal,
         ),

@@ -5,19 +5,145 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { FileCredentialStore } from "@axl/ai";
+import { FileCredentialStore, getStaticModelCatalog } from "@axl/ai";
 import { AxlDaemon } from "@axl/daemon";
 import { type ModelPort, ToolRegistry } from "@axl/kernel";
 import type { ModelStreamEvent } from "@axl/protocol";
 import { AxlClientError } from "@axl/sdk";
 import { connectUnixClient } from "@axl/sdk/unix";
 
-import { listLocalSessions, localSandboxStateKey, startLocalDaemon } from "../src/index.ts";
+import {
+  listLocalSessions,
+  localSandboxStateKey,
+  loginProviderFromTrustedHost,
+  startLocalDaemon,
+} from "../src/index.ts";
+
+test("provider output cannot persist rotating request credentials", async (context) => {
+  const root = await mkdtemp(join(tmpdir(), "axl-runtime-redaction-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  const axlHome = join(root, ".axl");
+  const workspace = join(root, "workspace");
+  const stateDirectory = join(axlHome, "unsafe");
+  await mkdir(workspace, { recursive: true });
+  let secret = "first-provider-secret";
+  let requests = 0;
+  const server = createServer((_request, response) => {
+    requests += 1;
+    response.writeHead(200, { "content-type": "text/event-stream" });
+    const events =
+      requests % 2 === 1
+        ? [
+            {
+              type: "response.output_item.added",
+              output_index: 0,
+              item: { type: "message", id: `m-${requests}` },
+            },
+            { type: "response.output_text.delta", output_index: 0, delta: secret },
+            {
+              type: "response.output_item.done",
+              output_index: 0,
+              item: { type: "message", id: `m-${requests}`, content: [] },
+            },
+            {
+              type: "response.output_item.added",
+              output_index: 1,
+              item: {
+                type: "function_call",
+                id: `f-${requests}`,
+                call_id: `call-${requests}`,
+                name: "read",
+              },
+            },
+            {
+              type: "response.function_call_arguments.delta",
+              output_index: 1,
+              delta: JSON.stringify({ path: secret }),
+            },
+            {
+              type: "response.output_item.done",
+              output_index: 1,
+              item: {
+                type: "function_call",
+                id: `f-${requests}`,
+                call_id: `call-${requests}`,
+                name: "read",
+                arguments: JSON.stringify({ path: secret }),
+              },
+            },
+            {
+              type: "response.completed",
+              response: { id: `r-${requests}`, status: "completed", usage: {} },
+            },
+          ]
+        : [
+            {
+              type: "response.completed",
+              response: { id: `r-${requests}`, status: "completed", usage: {} },
+            },
+          ];
+    response.end(
+      `${events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("")}data: [DONE]\n\n`,
+    );
+  });
+  await new Promise<void>((resolvePromise) => server.listen(0, "127.0.0.1", resolvePromise));
+  context.after(() => new Promise<void>((resolvePromise) => server.close(() => resolvePromise())));
+  const address = server.address();
+  if (address === null || typeof address === "string") throw new Error("test server has no port");
+  const source = getStaticModelCatalog("openai").find(
+    (model) => model.apiDialect === "openai-responses",
+  );
+  if (source === undefined) throw new Error("OpenAI Responses catalog is empty");
+  await mkdir(axlHome, { recursive: true });
+  await writeFile(
+    join(axlHome, "custom-provider.json"),
+    JSON.stringify({
+      baseUrl: `http://127.0.0.1:${address.port}/v1`,
+      apiKeyEnvironmentVariables: ["AXL_TEST_CUSTOM_KEY"],
+      models: [{ ...source, providerId: "custom", modelId: "echo-model" }],
+    }),
+  );
+  process.env.AXL_TEST_CUSTOM_KEY = secret;
+  context.after(() => delete process.env.AXL_TEST_CUSTOM_KEY);
+  const socketPath = join(stateDirectory, "axl.sock");
+  const daemon = await startLocalDaemon({
+    axlHome,
+    stateDirectory,
+    socketPath,
+    defaults: { providerId: "custom", modelId: "echo-model", thinkingLevel: "off" },
+    store: new FileCredentialStore(join(axlHome, "credentials.json")),
+    unsafe: true,
+  });
+  context.after(() => daemon.stop());
+  const client = await connectUnixClient(socketPath);
+  context.after(() => client.close());
+  const created = await client.request("session.create", { cwd: workspace });
+  await client.request("session.send", {
+    sessionId: created.sessionId,
+    delivery: "prompt",
+    content: [{ type: "text", text: "first" }],
+  });
+  secret = "rotated-provider-secret";
+  process.env.AXL_TEST_CUSTOM_KEY = secret;
+  await client.request("session.send", {
+    sessionId: created.sessionId,
+    delivery: "prompt",
+    content: [{ type: "text", text: "second" }],
+  });
+  const raw = await readFile(
+    join(stateDirectory, "sessions", `${created.sessionId}.jsonl`),
+    "utf8",
+  );
+  assert.equal(raw.includes("first-provider-secret"), false);
+  assert.equal(raw.includes("rotated-provider-secret"), false);
+  assert.equal(raw.includes("[REDACTED]"), true);
+});
 
 test("OCI state keys require a digest and cannot traverse directories", () => {
   assert.equal(
@@ -93,6 +219,16 @@ test("assembles an authoritative local runtime without a presentation client", a
   await mkdir(workspace, { recursive: true });
 
   const store = new FileCredentialStore(join(axlHome, "credentials.json"));
+  const customSource = getStaticModelCatalog("deepseek")[0];
+  if (customSource === undefined) throw new Error("DeepSeek catalog is empty");
+  await mkdir(axlHome, { recursive: true });
+  await writeFile(
+    join(axlHome, "custom-provider.json"),
+    JSON.stringify({
+      baseUrl: "http://127.0.0.1:11434/v1",
+      models: [{ ...customSource, providerId: "custom", modelId: "local-model" }],
+    }),
+  );
   await store.modify("azure-openai", () =>
     Promise.resolve({
       type: "api_key",
@@ -108,12 +244,6 @@ test("assembles an authoritative local runtime without a presentation client", a
     defaults: { modelId: "gpt-5", thinkingLevel: "medium" },
     store,
     unsafe: true,
-    providerLogin: {
-      createInteraction: () => ({
-        prompt: async () => "runtime-login-secret",
-        notify: () => {},
-      }),
-    },
   });
   context.after(() => daemon.stop());
   const client = await connectUnixClient(socketPath);
@@ -125,6 +255,12 @@ test("assembles an authoritative local runtime without a presentation client", a
   });
   const allProviders = await client.listProviders();
   assert.equal(allProviders.providers.length, 41);
+  assert.deepEqual(
+    allProviders.providers
+      .find((provider) => provider.providerId === "custom")
+      ?.models.map((model) => model.modelId),
+    ["local-model"],
+  );
   const inventory = await client.listProviders({ providerId: "azure-openai-responses" });
   assert.equal(inventory.providers.length, 1);
   assert.deepEqual(inventory.providers[0]?.loginMethods, ["api_key"]);
@@ -157,8 +293,37 @@ test("assembles an authoritative local runtime without a presentation client", a
       error.code === "provider_not_found" &&
       error.details?.action === "configure_provider",
   );
-  const login = await client.loginProvider({ providerId: "deepseek", method: "api_key" });
+  await assert.rejects(
+    client.loginProvider({ providerId: "deepseek", method: "api_key" }),
+    (error) => error instanceof AxlClientError && error.code === "authentication_unavailable",
+  );
+  const prompts = { requesting: 0, other: 0 };
+  const login = await loginProviderFromTrustedHost({
+    store,
+    providerId: "deepseek",
+    method: "api_key",
+    adapter: {
+      createInteraction: () => ({
+        prompt: async () => {
+          prompts.requesting += 1;
+          return "runtime-login-secret";
+        },
+        notify: () => {},
+      }),
+    },
+  });
+  const unrelatedAdapter = {
+    createInteraction: () => ({
+      prompt: async () => {
+        prompts.other += 1;
+        return "wrong-client-secret";
+      },
+      notify: () => {},
+    }),
+  };
+  void unrelatedAdapter;
   assert.equal(login.phase, "authenticated");
+  assert.deepEqual(prompts, { requesting: 1, other: 0 });
   assert.equal(JSON.stringify(login).includes("runtime-login-secret"), false);
   assert.deepEqual(await client.logoutProvider({ providerId: "deepseek" }), {
     providerId: "deepseek",

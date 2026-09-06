@@ -83,11 +83,16 @@ test("provider CLI commands render grouped safe status and model data", async ()
   await runProviderCommand({ client: sdk, command: "providers", write });
   await runProviderCommand({ client: sdk, command: "models", write });
   await runProviderCommand({ client: sdk, command: "refresh", write });
+  let hostLogins = 0;
   await runProviderCommand({
     client: sdk,
     command: "login",
     providerId: "test-provider",
     loginMethod: "api_key",
+    login: (providerId, method) => {
+      hostLogins += 1;
+      return Promise.resolve({ providerId, phase: "authenticated", method });
+    },
     write,
   });
   await runProviderCommand({ client: sdk, command: "logout", providerId: "test-provider", write });
@@ -97,6 +102,7 @@ test("provider CLI commands render grouped safe status and model data", async ()
   assert.match(rendered, /authenticated · api_key · TEST_API_KEY/);
   assert.match(rendered, /unavailable: configure a region/);
   assert.match(rendered, /test-provider: refreshed · 1 models/);
+  assert.equal(hostLogins, 1);
 });
 
 test("trusted terminal adapter masks and cancels prompt answers without retaining raw mode", async () => {

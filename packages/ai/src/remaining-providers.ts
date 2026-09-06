@@ -73,6 +73,7 @@ import {
   raceWithSignal,
   readBoundedJson,
   safeEndpoint,
+  safeFetch,
   stripTrailingSlashes,
 } from "./transport-safety.ts";
 
@@ -773,21 +774,29 @@ function dynamicProvider(input: {
     },
     ...(input.options.fetch === undefined ? {} : { fetch: input.options.fetch }),
   });
-  const fetchImpl = input.options.fetch ?? fetch;
+  const fetchImpl = input.options.fetch;
   return Object.assign(provider, {
     refreshModelCatalog: async (context: ModelCatalogRefreshContext) => {
       const resolved = await authentication.resolve({ signal: context.signal });
       const base = approvedBase(resolved);
       const response = await raceWithSignal(
-        fetchImpl(`${base}/models`, {
-          headers: {
-            accept: "application/json",
-            authorization: bearer(resolved, input.id),
-            ...input.headers?.(resolved),
-            ...(context.previous?.etag ? { "if-none-match": context.previous.etag } : {}),
+        safeFetch(
+          `${base}/models`,
+          {
+            headers: {
+              accept: "application/json",
+              authorization: bearer(resolved, input.id),
+              ...input.headers?.(resolved),
+              ...(context.previous?.etag ? { "if-none-match": context.previous.etag } : {}),
+            },
+            signal: context.signal,
           },
-          signal: context.signal,
-        }),
+          {
+            label: `${input.displayName} catalog endpoint`,
+            expectedOrigin: new URL(base).origin,
+            ...(fetchImpl === undefined ? {} : { fetch: fetchImpl }),
+          },
+        ),
         context.signal,
       );
       if (response.status === 304)
@@ -897,7 +906,7 @@ export function createOpenRouterProvider(options: ProviderFactoryOptions): Model
       return imageModels;
     },
   });
-  const fetchImpl = options.fetch ?? fetch;
+  const fetchImpl = options.fetch;
   return Object.assign(provider, {
     listImageModels: () => Promise.resolve(imageModels),
     generateImages: async (request: ImageGenerationRequest) => {
@@ -924,15 +933,23 @@ export function createOpenRouterProvider(options: ProviderFactoryOptions): Model
       let response: Response | undefined;
       for (let attempt = 0; attempt <= maximumRetries; attempt += 1) {
         response = await raceWithSignal(
-          fetchImpl("https://openrouter.ai/api/v1/images", {
-            method: "POST",
-            headers: {
-              authorization: bearer(resolved, "openrouter"),
-              "content-type": "application/json",
+          safeFetch(
+            "https://openrouter.ai/api/v1/images",
+            {
+              method: "POST",
+              headers: {
+                authorization: bearer(resolved, "openrouter"),
+                "content-type": "application/json",
+              },
+              body: JSON.stringify(encoded.body),
+              signal,
             },
-            body: JSON.stringify(encoded.body),
-            signal,
-          }),
+            {
+              label: "OpenRouter image endpoint",
+              expectedOrigin: "https://openrouter.ai",
+              ...(fetchImpl === undefined ? {} : { fetch: fetchImpl }),
+            },
+          ),
           signal,
         );
         if (
@@ -1004,7 +1021,7 @@ export function createCloudflareAiGatewayProvider(options: ProviderFactoryOption
     store: options.store,
     context: options.context,
   });
-  const fetchImpl = options.fetch ?? fetch;
+  const fetchImpl = options.fetch;
   const base = (resolved: ResolvedAuth) =>
     `https://gateway.ai.cloudflare.com/v1/${encodeURIComponent(resolved.env?.CLOUDFLARE_ACCOUNT_ID ?? "")}/${encodeURIComponent(resolved.env?.CLOUDFLARE_GATEWAY_ID ?? "")}/compat`;
   const provider = new HttpSseProvider({
@@ -1026,10 +1043,18 @@ export function createCloudflareAiGatewayProvider(options: ProviderFactoryOption
       const resolved = await authentication.resolve({ signal: context.signal });
       const endpoint = base(resolved);
       const response = await raceWithSignal(
-        fetchImpl(`${endpoint}/models`, {
-          headers: { authorization: bearer(resolved, id), accept: "application/json" },
-          signal: context.signal,
-        }),
+        safeFetch(
+          `${endpoint}/models`,
+          {
+            headers: { authorization: bearer(resolved, id), accept: "application/json" },
+            signal: context.signal,
+          },
+          {
+            label: "Cloudflare AI Gateway catalog endpoint",
+            expectedOrigin: new URL(endpoint).origin,
+            ...(fetchImpl === undefined ? {} : { fetch: fetchImpl }),
+          },
+        ),
         context.signal,
       );
       if (!response.ok)
@@ -1071,7 +1096,7 @@ export function createRadiusProvider(
     store: options.store,
     context: options.context,
   });
-  const fetchImpl = options.fetch ?? fetch;
+  const fetchImpl = options.fetch;
   const provider = new HttpSseProvider({
     id,
     displayName: "Radius",
@@ -1090,10 +1115,19 @@ export function createRadiusProvider(
     refreshModelCatalog: async (context: ModelCatalogRefreshContext) => {
       const resolved = await authentication.resolve({ signal: context.signal });
       const response = await raceWithSignal(
-        fetchImpl(`${gateway}/v1/config`, {
-          headers: { accept: "application/json", authorization: bearer(resolved, id) },
-          signal: context.signal,
-        }),
+        safeFetch(
+          `${gateway}/v1/config`,
+          {
+            headers: { accept: "application/json", authorization: bearer(resolved, id) },
+            signal: context.signal,
+          },
+          {
+            label: "Radius catalog endpoint",
+            allowLoopbackHttp: options.baseUrl !== undefined,
+            expectedOrigin: new URL(gateway).origin,
+            ...(fetchImpl === undefined ? {} : { fetch: fetchImpl }),
+          },
+        ),
         context.signal,
       );
       if (!response.ok) throw new Error(`Radius catalog returned ${response.status}`);
@@ -1148,11 +1182,69 @@ export function createRadiusProvider(
   });
 }
 
-export interface CustomProviderOptions extends ProviderFactoryOptions {
-  readonly baseUrl?: string;
-  readonly models?: readonly ModelInfo[];
+export interface CustomProviderConfiguration {
+  readonly baseUrl: string;
+  readonly models: readonly ModelInfo[];
   readonly headers?: Readonly<Record<string, string>>;
   readonly apiKeyEnvironmentVariables?: readonly string[];
+}
+
+export interface CustomProviderOptions
+  extends ProviderFactoryOptions,
+    Partial<CustomProviderConfiguration> {}
+
+export function parseCustomProviderConfiguration(value: unknown): CustomProviderConfiguration {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new TypeError("Custom provider configuration must be an object");
+  }
+  const input = value as Record<string, unknown>;
+  const allowed = new Set(["baseUrl", "models", "headers", "apiKeyEnvironmentVariables"]);
+  if (Object.keys(input).some((key) => !allowed.has(key))) {
+    throw new TypeError("Custom provider configuration contains an unknown field");
+  }
+  if (
+    typeof input.baseUrl !== "string" ||
+    !Array.isArray(input.models) ||
+    input.models.length === 0
+  ) {
+    throw new TypeError("Custom provider configuration requires baseUrl and at least one model");
+  }
+  if (
+    input.headers !== undefined &&
+    (typeof input.headers !== "object" ||
+      input.headers === null ||
+      Array.isArray(input.headers) ||
+      Object.values(input.headers).some((header) => typeof header !== "string"))
+  ) {
+    throw new TypeError("Custom provider headers must contain only string values");
+  }
+  if (
+    input.apiKeyEnvironmentVariables !== undefined &&
+    (!Array.isArray(input.apiKeyEnvironmentVariables) ||
+      input.apiKeyEnvironmentVariables.some(
+        (name) => typeof name !== "string" || !/^[A-Z_][A-Z0-9_]*$/.test(name),
+      ) ||
+      new Set(input.apiKeyEnvironmentVariables).size !== input.apiKeyEnvironmentVariables.length)
+  ) {
+    throw new TypeError("Custom provider credential environment variables are invalid");
+  }
+  const models = input.models.map((model) => ({
+    ...(model as ModelInfo),
+    providerId: "custom",
+  }));
+  return {
+    baseUrl: safeEndpoint(input.baseUrl, {
+      label: "User configured endpoint",
+      allowLoopbackHttp: true,
+    }),
+    models,
+    ...(input.headers === undefined
+      ? {}
+      : { headers: { ...(input.headers as Readonly<Record<string, string>>) } }),
+    ...(input.apiKeyEnvironmentVariables === undefined
+      ? {}
+      : { apiKeyEnvironmentVariables: [...(input.apiKeyEnvironmentVariables as string[])] }),
+  };
 }
 
 export function createCustomProvider(options: CustomProviderOptions): ModelProvider {

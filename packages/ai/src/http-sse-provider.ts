@@ -17,8 +17,9 @@ import {
   type PreparedModelRequest,
   prepareModelRequest,
 } from "./request-preparation.ts";
+import { registerResolvedSecrets } from "./secret-context.ts";
 import { decodeSseStream, type SseFrame } from "./sse.ts";
-import { raceWithSignal, safeEndpoint } from "./transport-safety.ts";
+import { raceWithSignal, safeEndpoint, safeFetch } from "./transport-safety.ts";
 
 const DEFAULT_TIMEOUT_MS = 120_000;
 const DEFAULT_MAX_RETRIES = 2;
@@ -117,7 +118,7 @@ export class HttpSseProvider implements ModelProvider {
   private readonly validateEndpoint:
     | ((url: URL, model: ModelInfo, resolved: ResolvedAuth) => void)
     | undefined;
-  private readonly fetchImpl: typeof fetch;
+  private readonly fetchImpl: typeof fetch | undefined;
   private readonly now: () => number;
 
   constructor(options: HttpSseProviderOptions) {
@@ -129,7 +130,7 @@ export class HttpSseProvider implements ModelProvider {
     this.resolveAuth = options.resolveAuth;
     this.codecFor = options.codecFor;
     this.validateEndpoint = options.validateEndpoint;
-    this.fetchImpl = options.fetch ?? fetch;
+    this.fetchImpl = options.fetch;
     this.now = options.now ?? Date.now;
   }
 
@@ -172,6 +173,7 @@ export class HttpSseProvider implements ModelProvider {
         : await prepareModelRequest(model, request);
       resolved = await raceWithSignal(this.resolveAuth(signal), signal);
       secrets = resolved.secretValues;
+      registerResolvedSecrets(secrets);
       codec = this.codecFor(model);
       encoded = codec.encode(model, prepared, resolved);
       const requestUrl = new URL(
@@ -217,12 +219,21 @@ export class HttpSseProvider implements ModelProvider {
               );
         signal.throwIfAborted();
         response = await raceWithSignal(
-          this.fetchImpl(encoded.url, {
-            method: "POST",
-            headers,
-            body,
-            signal,
-          }),
+          safeFetch(
+            encoded.url,
+            {
+              method: "POST",
+              headers,
+              body,
+              signal,
+            },
+            {
+              label: `Provider ${this.id} request endpoint`,
+              allowLoopbackHttp: this.id === "custom" || this.id === "radius",
+              expectedOrigin: new URL(encoded.url).origin,
+              ...(this.fetchImpl === undefined ? {} : { fetch: this.fetchImpl }),
+            },
+          ),
           signal,
         );
       } catch (error) {

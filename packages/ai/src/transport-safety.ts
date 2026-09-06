@@ -1,7 +1,10 @@
 // SPDX-FileCopyrightText: 2026 Kaushik Kumar
 // SPDX-License-Identifier: Apache-2.0
 
+import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
+
+import { Agent, fetch as undiciFetch } from "undici";
 
 export const MAX_ENDPOINT_LENGTH = 4_096;
 export const MAX_JSON_RESPONSE_BYTES = 4 * 1024 * 1024;
@@ -12,17 +15,24 @@ export function stripTrailingSlashes(value: string): string {
   return value.slice(0, end);
 }
 
-function isLoopback(hostname: string): boolean {
-  const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+function normalizedHostname(hostname: string): string {
+  return hostname
+    .replace(/^\[|\]$/g, "")
+    .replace(/\.$/, "")
+    .toLowerCase();
+}
+
+export function isLoopback(hostname: string): boolean {
+  const host = normalizedHostname(hostname);
   if (host === "localhost" || host.endsWith(".localhost") || host === "::1") return true;
   if (isIP(host) !== 4) return false;
   return Number(host.split(".")[0]) === 127;
 }
 
-function isDisallowedIpv4(hostname: string): boolean {
+export function isDisallowedIpv4(hostname: string): boolean {
   if (isIP(hostname) !== 4) return false;
   const octets = hostname.split(".").map(Number);
-  const [a = 0, b = 0] = octets;
+  const [a = 0, b = 0, c = 0] = octets;
   return (
     a === 0 ||
     a === 10 ||
@@ -30,21 +40,26 @@ function isDisallowedIpv4(hostname: string): boolean {
     (a === 100 && b >= 64 && b <= 127) ||
     (a === 169 && b === 254) ||
     (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 0 && (c === 0 || c === 2)) ||
+    (a === 192 && b === 88 && c === 99) ||
     (a === 192 && b === 168) ||
-    (a === 198 && (b === 18 || b === 19)) ||
+    (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100))) ||
+    (a === 203 && b === 0 && c === 113) ||
     a >= 224
   );
 }
 
-function isDisallowedIpv6(hostname: string): boolean {
-  const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+export function isDisallowedIpv6(hostname: string): boolean {
+  const host = normalizedHostname(hostname);
   if (isIP(host) !== 6) return false;
   if (host === "::" || host === "::1" || host.startsWith("ff")) return true;
   if (host.startsWith("::ffff:")) return true;
   if (host.startsWith("fc") || host.startsWith("fd")) return true;
   if (/^fe[89ab]/.test(host)) return true;
-  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(host)?.[1];
-  return mapped !== undefined && isDisallowedIpv4(mapped);
+  if (host.startsWith("2001:db8:")) return true;
+  const hextets = host.split(":");
+  if (hextets[0] === "2001" && Number.parseInt(hextets[1] ?? "0", 16) < 0x200) return true;
+  return !/^[23][0-9a-f]{3}:/.test(host);
 }
 
 export interface EndpointPolicyOptions {
@@ -72,7 +87,7 @@ export function safeEndpoint(value: string, options: EndpointPolicyOptions): str
   if (url.protocol !== "https:" && !(options.allowLoopbackHttp === true && loopback)) {
     throw new TypeError(`${options.label} must use HTTPS, except for explicit loopback HTTP`);
   }
-  const hostname = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  const hostname = normalizedHostname(url.hostname);
   if (
     (loopback && options.allowLoopbackHttp !== true) ||
     (!loopback && (isDisallowedIpv4(hostname) || isDisallowedIpv6(hostname))) ||
@@ -92,6 +107,148 @@ export function safeEndpoint(value: string, options: EndpointPolicyOptions): str
     }
   }
   return stripTrailingSlashes(url.toString());
+}
+
+export interface SafeFetchOptions extends EndpointPolicyOptions {
+  readonly fetch?: typeof fetch;
+  readonly maximumRedirects?: number;
+  readonly idleTimeoutMs?: number;
+  readonly resolve?: (hostname: string) => Promise<readonly { address: string; family: 4 | 6 }[]>;
+}
+
+function allowedAddress(address: string, allowLoopbackHttp: boolean): boolean {
+  if (isLoopback(address)) return allowLoopbackHttp;
+  return !isDisallowedIpv4(address) && !isDisallowedIpv6(address);
+}
+
+async function validatedAddresses(
+  url: URL,
+  options: SafeFetchOptions,
+): Promise<readonly { address: string; family: 4 | 6 }[]> {
+  const literalFamily = isIP(url.hostname.replace(/^\[|\]$/g, ""));
+  const addresses =
+    literalFamily === 0
+      ? options.fetch !== undefined && options.resolve === undefined
+        ? [{ address: "8.8.8.8", family: 4 as const }]
+        : await (
+            options.resolve ??
+            (async (hostname) =>
+              (await lookup(hostname, { all: true, verbatim: true })).map((entry) => ({
+                address: entry.address,
+                family: entry.family as 4 | 6,
+              })))
+          )(url.hostname)
+      : [{ address: url.hostname.replace(/^\[|\]$/g, ""), family: literalFamily as 4 | 6 }];
+  if (
+    addresses.length === 0 ||
+    addresses.some(({ address }) => !allowedAddress(address, options.allowLoopbackHttp === true))
+  ) {
+    throw new TypeError(`${options.label} resolves to a disallowed destination`);
+  }
+  return addresses;
+}
+
+function responseWithAgent(response: Response, agent: Agent): Response {
+  if (response.body === null) {
+    void agent.close();
+    return response;
+  }
+  const reader = response.body.getReader();
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const result = await reader.read();
+        if (result.done) {
+          controller.close();
+          await agent.close();
+        } else controller.enqueue(result.value);
+      } catch (error) {
+        controller.error(error);
+        await agent.close();
+      }
+    },
+    async cancel(reason) {
+      try {
+        await reader.cancel(reason);
+      } finally {
+        await agent.close();
+      }
+    },
+  });
+  return new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+}
+
+/** Resolves and pins each destination, and validates every bounded redirect before dispatch. */
+export async function safeFetch(
+  input: string | URL,
+  init: RequestInit = {},
+  options: SafeFetchOptions,
+): Promise<Response> {
+  const maximumRedirects = options.maximumRedirects ?? 3;
+  let url = new URL(
+    safeEndpoint(String(input), {
+      label: options.label,
+      ...(options.allowLoopbackHttp === undefined
+        ? {}
+        : { allowLoopbackHttp: options.allowLoopbackHttp }),
+      allowQuery: true,
+      ...(options.expectedOrigin === undefined ? {} : { expectedOrigin: options.expectedOrigin }),
+    }),
+  );
+  const approvedOrigin = options.expectedOrigin ?? url.origin;
+  for (let redirects = 0; ; redirects += 1) {
+    if (redirects > maximumRedirects)
+      throw new TypeError(`${options.label} redirected too many times`);
+    const addresses = await validatedAddresses(url, options);
+    const pinned = addresses[0];
+    if (pinned === undefined) throw new TypeError(`${options.label} has no approved destination`);
+    const requestInit = { ...init, redirect: "manual" as const };
+    let response: Response;
+    if (options.fetch !== undefined) {
+      response = await options.fetch(url, requestInit);
+    } else {
+      const agent = new Agent({
+        ...(options.idleTimeoutMs === undefined
+          ? {}
+          : { headersTimeout: options.idleTimeoutMs, bodyTimeout: options.idleTimeoutMs }),
+        connect: {
+          lookup: (_hostname, _lookupOptions, callback) =>
+            callback(null, pinned.address, pinned.family),
+        },
+      });
+      try {
+        response = responseWithAgent(
+          (await undiciFetch(url, {
+            ...requestInit,
+            dispatcher: agent,
+          } as unknown as Parameters<typeof undiciFetch>[1])) as unknown as Response,
+          agent,
+        );
+      } catch (error) {
+        await agent.close();
+        throw error;
+      }
+    }
+    if (![301, 302, 303, 307, 308].includes(response.status)) return response;
+    const location = response.headers.get("location");
+    await response.body?.cancel();
+    if (location === null)
+      throw new TypeError(`${options.label} returned a redirect without a location`);
+    url = new URL(
+      safeEndpoint(new URL(location, url).toString(), {
+        label: `${options.label} redirect`,
+        ...(options.allowLoopbackHttp === undefined
+          ? {}
+          : { allowLoopbackHttp: options.allowLoopbackHttp }),
+        allowQuery: true,
+        expectedOrigin: approvedOrigin,
+      }),
+    );
+  }
 }
 
 export function delayWithSignal(milliseconds: number, signal: AbortSignal): Promise<void> {

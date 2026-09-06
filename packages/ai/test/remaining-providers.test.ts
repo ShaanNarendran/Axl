@@ -28,6 +28,7 @@ import {
   InMemoryCredentialStore,
   login,
   type ModelProvider,
+  parseCustomProviderConfiguration,
   ProviderRegistry,
 } from "../src/index.ts";
 
@@ -359,6 +360,30 @@ test("dispatches Codex, Gateway, and image dialects through deterministic transp
     "https://openrouter.ai/api/v1/models",
     "https://openrouter.ai/api/v1/images",
   ]);
+});
+
+test("validates first-party custom provider configuration", () => {
+  const source = getStaticModelCatalog("deepseek")[0];
+  if (source === undefined) throw new Error("DeepSeek catalog is empty");
+  const parsed = parseCustomProviderConfiguration({
+    baseUrl: "http://127.0.0.1:11434/v1",
+    models: [{ ...source, providerId: "foreign" }],
+    apiKeyEnvironmentVariables: ["CUSTOM_API_KEY"],
+  });
+  assert.equal(parsed.models[0]?.providerId, "custom");
+  assert.throws(() =>
+    parseCustomProviderConfiguration({
+      baseUrl: "https://169.254.169.254/v1",
+      models: [source],
+    }),
+  );
+  assert.throws(() =>
+    parseCustomProviderConfiguration({
+      baseUrl: "https://example.com/v1",
+      models: [source],
+      apiKeyEnvironmentVariables: ["not-valid"],
+    }),
+  );
 });
 
 test("dispatches a keyless configured endpoint with only validated custom headers", async () => {

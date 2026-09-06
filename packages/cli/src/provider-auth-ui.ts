@@ -104,7 +104,7 @@ function presentEvent(output: SetupOutput, event: AuthEvent): void {
   }
 }
 
-/** Keeps provider prompts and answers inside the trusted daemon process host. */
+/** Keeps provider prompts and answers inside the invoking trusted process host. */
 export function createTerminalProviderLoginAdapter(
   input: SetupInput,
   output: SetupOutput,
@@ -113,7 +113,7 @@ export function createTerminalProviderLoginAdapter(
     createInteraction: ({ signal }) => {
       if (input.isTTY !== true || output.isTTY !== true) {
         throw new Error(
-          "Interactive provider login requires a terminal attached to the daemon host",
+          "Interactive provider login requires a terminal attached to the invoking host",
         );
       }
       return {

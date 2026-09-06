@@ -132,6 +132,31 @@ test("serializes appends and redacts structured secret fields before writing", a
   }
 });
 
+test("reads rotating redaction values at every append", async (context) => {
+  const secrets = new Set(["first-provider-secret"]);
+  const { path, log } = await openTemporaryLog(context, {
+    secretValues: () => [...secrets],
+  });
+  await log.append(
+    makeEvent(1, "assistant.message", {
+      content: [{ type: "text", text: "echo first-provider-secret" }],
+      stopReason: "stop",
+    }),
+  );
+  secrets.add("rotated-provider-secret");
+  await log.append(
+    makeEvent(2, "tool.call", {
+      callId: "call-1",
+      name: "echo",
+      input: { value: "rotated-provider-secret" },
+    }),
+  );
+  const raw = await readFile(path, "utf8");
+  assert.equal(raw.includes("first-provider-secret"), false);
+  assert.equal(raw.includes("rotated-provider-secret"), false);
+  assert.equal(raw.includes(REDACTED_VALUE), true);
+});
+
 test("discards only a torn final line before accepting another append", async (context) => {
   const { path, log } = await openTemporaryLog(context);
   await log.append(makeEvent(1, "session.created", { cwd: "/workspace" }));
