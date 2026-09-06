@@ -361,7 +361,7 @@ export const PROVIDER_CATALOG_OVERLAYS: readonly ProviderCatalogOverlay[] = [
     catalogKind: "static",
     source: { manifest: "models-dev", providerId: "togetherai" },
     dialect: "openai-chat",
-    endpoint: fixed("https://api.together.xyz/v1"),
+    endpoint: fixed("https://api.together.ai/v1"),
     cache: shortCache,
     compatibilityByDialect: {
       "openai-chat": { ...openAiChatCompatibility, thinkingFormat: "together" },

@@ -40405,7 +40405,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "deprecated",
@@ -40457,7 +40457,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "deprecated",
@@ -40511,7 +40511,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "available"
@@ -40564,7 +40564,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "available"
@@ -40617,7 +40617,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "available"
@@ -40661,7 +40661,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "deprecated",
@@ -40706,7 +40706,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "available"
@@ -40750,7 +40750,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "available"
@@ -40795,7 +40795,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "deprecated",
@@ -40841,7 +40841,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "available"
@@ -40886,7 +40886,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "available"
@@ -40937,7 +40937,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "deprecated",
@@ -40990,7 +40990,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "available"
@@ -41035,7 +41035,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "available"
@@ -41088,7 +41088,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "available"
@@ -41140,7 +41140,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "available"
@@ -41192,7 +41192,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "available"
@@ -41244,7 +41244,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "available"
@@ -41288,7 +41288,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "available"
@@ -41332,7 +41332,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "deprecated",
@@ -41377,7 +41377,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "deprecated",
@@ -41422,7 +41422,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "deprecated",
@@ -41475,7 +41475,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "deprecated",
@@ -41527,7 +41527,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "available"
@@ -41578,7 +41578,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "available"
@@ -41623,7 +41623,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "available"
@@ -41677,7 +41677,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "available"
@@ -41728,7 +41728,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "deprecated",
@@ -41781,7 +41781,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "deprecated",
@@ -41835,7 +41835,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "available"
@@ -41888,7 +41888,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "available"
@@ -41941,7 +41941,7 @@ export const STATIC_MODEL_CATALOG: Readonly<Record<string, readonly ModelInfo[]>
       },
       "endpoint": {
         "type": "fixed",
-        "baseUrl": "https://api.together.xyz/v1"
+        "baseUrl": "https://api.together.ai/v1"
       },
       "availability": {
         "status": "available"
