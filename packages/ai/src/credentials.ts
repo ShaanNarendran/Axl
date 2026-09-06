@@ -20,6 +20,8 @@ export interface OAuthCredential {
   readonly refresh: string;
   /** Access-token expiry as epoch milliseconds. */
   readonly expiresAt: number;
+  /** Provider-scoped non-secret routing data kept only in the credential store. */
+  readonly metadata?: ProviderEnv;
 }
 
 export type Credential = ApiKeyCredential | OAuthCredential;
@@ -78,7 +80,7 @@ export function validateCredential(value: unknown, providerId: string): Credenti
     credential.type === "api_key"
       ? new Set(["type", "key", "env"])
       : credential.type === "oauth"
-        ? new Set(["type", "access", "refresh", "expiresAt"])
+        ? new Set(["type", "access", "refresh", "expiresAt", "metadata"])
         : undefined;
   if (allowed === undefined) return fail("has an unknown type");
   for (const key of Object.keys(credential)) {
@@ -117,6 +119,19 @@ export function validateCredential(value: unknown, providerId: string): Credenti
   }
   if (!Number.isSafeInteger(credential.expiresAt) || (credential.expiresAt as number) < 0) {
     fail("has an invalid expiresAt");
+  }
+  if (credential.metadata !== undefined) {
+    if (
+      typeof credential.metadata !== "object" ||
+      credential.metadata === null ||
+      Array.isArray(credential.metadata) ||
+      Object.getPrototypeOf(credential.metadata) !== Object.prototype ||
+      Object.values(credential.metadata as Record<string, unknown>).some(
+        (item) => typeof item !== "string",
+      )
+    ) {
+      fail("has invalid oauth metadata");
+    }
   }
   return credential as unknown as OAuthCredential;
 }

@@ -328,7 +328,10 @@ test("constructs and lists static Chat providers without credential or network w
     const models = await provider.listModels();
     assert.equal(provider.id, providerCase.id);
     assert.equal(provider.displayName, providerCase.displayName);
-    assert.deepEqual(provider.authMethods, ["environment", "file"]);
+    assert.deepEqual(
+      provider.authMethods,
+      providerCase.id === "xai" ? ["environment", "file", "oauth"] : ["environment", "file"],
+    );
     const catalogProvider = listBuiltinCatalogProviders().find(
       (candidate) => candidate.id === providerCase.id,
     );

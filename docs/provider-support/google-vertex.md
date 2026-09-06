@@ -41,7 +41,7 @@ The shared conversion covers verified images, thought signatures, visible thinki
 
 The codec represents three explicit credential policies: API key, ADC access token, and service-account access token. API keys and access tokens are added only to transport headers. Service-account credential file paths are validated as acquisition inputs and never enter the URL, request body, output events, catalog, or diagnostics. Placeholder API keys fail explicitly rather than silently selecting another authentication path.
 
-Actual ADC discovery, service-account file loading, token exchange and refresh, interactive login, credential persistence, and provider-owned precedence remain step 10 work. The required OAuth scope is exposed as `https://www.googleapis.com/auth/cloud-platform` for that integration.
+Step 10 added ADC discovery, service-account file validation, access-token acquisition, SDK-managed refresh, explicit interactive method selection, and provider-owned precedence. The required OAuth scope is `https://www.googleapis.com/auth/cloud-platform`.
 
 ## Deterministic verification
 
@@ -49,4 +49,4 @@ Local fixtures cover generated Vertex compatibility metadata, strict Gemini 3 to
 
 ## Registration status and deferred work
 
-Built in Express Mode API-key registration, HTTP transport, timeout enforcement, and bounded retries were completed in `118fd89`. ADC and service-account acquisition and refresh, runtime selection, daemon and SDK changes, CLI and TUI integration, and live provider smoke tests remain in their planned slices.
+Built in Express Mode API-key registration, HTTP transport, timeout enforcement, and bounded retries were completed in `118fd89`. Step 10 added explicit service-account file handling, ambient ADC, project discovery, and access-token refresh through the official Google Auth Library. Runtime selection, daemon and SDK changes, CLI and TUI integration, and live provider smoke tests remain in their planned slices.

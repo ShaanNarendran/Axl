@@ -61,4 +61,4 @@ Local fixtures cover text-only and image-conditioned requests, verified referenc
 
 ## Registration status and deferred work
 
-OpenRouter API-key registration, authorization, endpoint composition, HTTP transport, bounded retries, explicit text and image discovery, persisted text and image catalogs, and native image generation were completed in `118fd89`. OAuth, model-specific image option capability refinement, runtime and daemon ownership, SDK methods, CLI and TUI integration, and opt-in live smoke tests remain in their planned slices.
+OpenRouter API-key registration, authorization, endpoint composition, HTTP transport, bounded retries, explicit text and image discovery, persisted text and image catalogs, and native image generation were completed in `118fd89`. Step 10 added browser PKCE OAuth and stores the exchanged permanent key as an API-key credential. Model-specific image option capability refinement, runtime and daemon ownership, SDK methods, CLI and TUI integration, and opt-in live smoke tests remain in their planned slices.

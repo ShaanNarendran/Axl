@@ -63,4 +63,4 @@ No live provider call was performed. This slice adds no protocol event, persiste
 
 ## Deferred work
 
-Other static OpenAI Chat providers remain in step 9. Subscription and cloud authentication remain in step 10, and product integration remains in step 11. Opt in live provider smoke tests remain outside routine deterministic verification.
+All built in provider registration and Step 10 subscription and cloud authentication are complete. Product integration remains in Step 11. Opt in live provider smoke tests remain outside routine deterministic verification.

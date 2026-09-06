@@ -104,7 +104,7 @@ test("preserves catalog selected dialects and exact endpoint policies", async ()
   }
 });
 
-test("keeps dynamic refresh explicit and deferred authentication unavailable", async () => {
+test("keeps dynamic refresh explicit and enables Codex only with OAuth", async () => {
   let fetches = 0;
   const providers = createBuiltinProviders({
     store: new InMemoryCredentialStore(),
@@ -126,13 +126,11 @@ test("keeps dynamic refresh explicit and deferred authentication unavailable", a
   const codexModels = await codex.listModels();
   assert.ok(codexModels.length > 0);
   assert.equal(
-    codexModels.every((model) => model.availability?.status === "unavailable"),
+    codexModels.every((model) => model.availability?.status !== "unavailable"),
     true,
   );
-  assert.equal(
-    codexModels.every((model) => model.availability?.reason?.includes("Step 10")),
-    true,
-  );
+  assert.deepEqual(codex.authMethods, ["oauth"]);
+  assert.ok(codex.authentication);
 
   const bedrock = providers.find((candidate) => candidate.id === "amazon-bedrock");
   assert.ok(bedrock);

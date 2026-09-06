@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { createEnvironmentApiKeyAuth } from "./api-key-auth.ts";
+import {
+  type AwsAuthFactories,
+  createBedrockSources,
+  createBedrockStoredAuth,
+} from "./aws-auth.ts";
 import { decodeAwsEventStream } from "./aws-event-stream.ts";
 import {
   decodeBedrockConverseStream,
@@ -20,6 +25,13 @@ import {
   encodeAnthropicMessagesRequest,
 } from "./anthropic-messages.ts";
 import { getStaticModelCatalog } from "./catalog.ts";
+import {
+  type CloudAuthFactories,
+  createAzureEntraSource,
+  createGoogleVertexSources,
+  createGoogleVertexStoredAuth,
+  vertexRequestPolicy,
+} from "./cloud-auth.ts";
 import type { CredentialStore } from "./credentials.ts";
 import { decodeGatewayMessagesStream, encodeGatewayMessagesRequest } from "./gateway-messages.ts";
 import {
@@ -34,7 +46,20 @@ import {
 } from "./mistral-conversations.ts";
 import type { ApiDialect, ImageGenerationRequest, ImageModelInfo, ModelInfo } from "./model.ts";
 import { decodeOpenAiChatStream, encodeOpenAiChatRequest } from "./openai-chat.ts";
+import {
+  decodeOpenAiCodexResponsesStream,
+  encodeOpenAiCodexResponsesRequest,
+} from "./openai-codex-responses.ts";
 import { decodeResponsesStream, encodeResponsesRequest } from "./openai-responses.ts";
+import {
+  createAnthropicOAuth,
+  createGitHubCopilotOAuth,
+  createGitHubCopilotTokenAuth,
+  createKimiCodingOAuth,
+  createOpenAiCodexOAuth,
+  createOpenRouterOAuth,
+  createRadiusOAuth,
+} from "./oauth-auth.ts";
 import {
   decodeOpenRouterImageResponse,
   encodeOpenRouterImageRequest,
@@ -47,6 +72,8 @@ export interface ProviderFactoryOptions {
   readonly context: AuthContext;
   readonly fetch?: typeof fetch;
   readonly now?: () => number;
+  readonly cloudAuth?: CloudAuthFactories;
+  readonly awsAuth?: AwsAuthFactories;
 }
 
 const fixedBase = (model: ModelInfo): string => {
@@ -74,11 +101,13 @@ function codecs(
     options.keyless === true && !resolved.auth.apiKey
       ? { ...resolved.auth.headers }
       : { ...resolved.auth.headers, authorization: bearer(resolved, providerId) };
+  const base = (model: ModelInfo, resolved: ResolvedAuth): string =>
+    resolved.auth.baseUrl?.replace(/\/+$/, "") ?? fixedBase(model);
   return (model) => {
     if (model.apiDialect === "openai-chat") {
       return {
         encode: (selected, request, resolved) => ({
-          url: `${fixedBase(selected)}/chat/completions`,
+          url: `${base(selected, resolved)}/chat/completions`,
           headers: { ...selected.headers, ...authorization(resolved) },
           body: encodeOpenAiChatRequest(selected, request).body,
         }),
@@ -88,7 +117,7 @@ function codecs(
     if (model.apiDialect === "openai-responses") {
       return {
         encode: (selected, request, resolved) => ({
-          url: `${fixedBase(selected)}/responses`,
+          url: `${base(selected, resolved)}/responses`,
           headers: { ...selected.headers, ...authorization(resolved) },
           body: encodeResponsesRequest(selected, request).body,
         }),
@@ -99,15 +128,24 @@ function codecs(
       return {
         encode: (selected, request, resolved) => {
           const encoded = encodeAnthropicMessagesRequest(selected, request);
-          const authorization = bearer(resolved, providerId);
+          const authorization =
+            resolved.auth.headers?.authorization ?? bearer(resolved, providerId);
+          const endpoint = base(selected, resolved);
           return {
-            url: `${fixedBase(selected)}${fixedBase(selected).endsWith("/v1") ? "" : "/v1"}/messages`,
+            url: `${endpoint}${endpoint.endsWith("/v1") ? "" : "/v1"}/messages`,
             headers: {
               ...selected.headers,
               ...encoded.headers,
-              ...(options.anthropicBearer
+              ...resolved.auth.headers,
+              ...(options.anthropicBearer || resolved.auth.headers?.authorization !== undefined
                 ? { authorization }
                 : { "x-api-key": resolved.auth.apiKey ?? "" }),
+              ...(encoded.headers["anthropic-beta"] !== undefined &&
+              resolved.auth.headers?.["anthropic-beta"] !== undefined
+                ? {
+                    "anthropic-beta": `${encoded.headers["anthropic-beta"]},${resolved.auth.headers["anthropic-beta"]}`,
+                  }
+                : {}),
             },
             body: encoded.body,
           };
@@ -120,7 +158,7 @@ function codecs(
         encode: (selected, request, resolved) => {
           const encoded = encodeGoogleGenerativeAiRequest(selected, request);
           return {
-            url: `${fixedBase(selected)}/models/${encodeURIComponent(selected.modelId)}:streamGenerateContent?alt=sse`,
+            url: `${base(selected, resolved)}/models/${encodeURIComponent(selected.modelId)}:streamGenerateContent?alt=sse`,
             headers: {
               ...selected.headers,
               ...encoded.headers,
@@ -137,7 +175,7 @@ function codecs(
         encode: (selected, request, resolved) => {
           const encoded = encodeMistralConversationsRequest(selected, request);
           return {
-            url: `${fixedBase(selected)}/conversations`,
+            url: `${base(selected, resolved)}/conversations`,
             headers: { ...selected.headers, ...encoded.headers, ...authorization(resolved) },
             body: encoded.body,
           };
@@ -148,7 +186,7 @@ function codecs(
     if (model.apiDialect === "gateway-messages") {
       return {
         encode: (selected, request, resolved) => ({
-          url: `${fixedBase(selected)}/messages`,
+          url: `${base(selected, resolved)}/messages`,
           headers: { ...selected.headers, ...authorization(resolved) },
           body: encodeGatewayMessagesRequest(selected, request).body,
         }),
@@ -166,6 +204,7 @@ function apiKeyProvider(input: {
   options: ProviderFactoryOptions;
   models?: readonly ModelInfo[];
   codecFor?: (model: ModelInfo) => HttpSseCodec;
+  oauth?: ReturnType<typeof createAnthropicOAuth>;
 }): HttpSseProvider {
   const method = createEnvironmentApiKeyAuth({
     providerId: input.id,
@@ -174,8 +213,9 @@ function apiKeyProvider(input: {
   });
   const authentication = createProviderAuthentication({
     providerId: input.id,
-    declaredMethods: ["environment", "file"],
-    methods: { apiKey: method },
+    declaredMethods:
+      input.oauth === undefined ? ["environment", "file"] : ["environment", "file", "oauth"],
+    methods: { apiKey: method, ...(input.oauth === undefined ? {} : { oauth: input.oauth }) },
     store: input.options.store,
     context: input.options.context,
   });
@@ -200,16 +240,14 @@ export const createOpenAiProvider = (options: ProviderFactoryOptions): ModelProv
     options,
   });
 
-export const createAnthropicProvider = (options: ProviderFactoryOptions): ModelProvider => {
-  const provider = apiKeyProvider({
+export const createAnthropicProvider = (options: ProviderFactoryOptions): ModelProvider =>
+  apiKeyProvider({
     id: "anthropic",
     displayName: "Anthropic",
     environmentVariables: ["ANTHROPIC_API_KEY", "ANTHROPIC_OAUTH_TOKEN"],
     options,
+    oauth: createAnthropicOAuth(options),
   });
-  Object.defineProperty(provider, "authMethods", { value: ["environment", "file", "oauth"] });
-  return provider;
-};
 
 export const createGoogleProvider = (options: ProviderFactoryOptions): ModelProvider =>
   apiKeyProvider({
@@ -235,6 +273,7 @@ export const createKimiCodingProvider = (options: ProviderFactoryOptions): Model
       apiKeyDisplayName: "Kimi API key",
       environmentVariables: ["KIMI_API_KEY"],
       baseUrl: "https://api.kimi.com/coding/v1",
+      oauth: createKimiCodingOAuth(options),
     },
     options,
   );
@@ -288,13 +327,32 @@ function deferredProvider(input: {
   };
 }
 
-export const createOpenAiCodexProvider = (): ModelProvider =>
-  deferredProvider({
-    id: "openai-codex",
-    displayName: "OpenAI Codex",
-    methods: ["oauth"],
-    reason: "OpenAI Codex OAuth acquisition is deferred to Step 10",
+export function createOpenAiCodexProvider(options: ProviderFactoryOptions): ModelProvider {
+  const id = "openai-codex";
+  const oauth = createOpenAiCodexOAuth(options);
+  const authentication = createProviderAuthentication({
+    providerId: id,
+    declaredMethods: ["oauth"],
+    methods: { oauth },
+    store: options.store,
+    context: options.context,
   });
+  return new HttpSseProvider({
+    id,
+    displayName: "OpenAI Codex",
+    authMethods: authentication.methods,
+    authentication,
+    models: getStaticModelCatalog(id),
+    resolveAuth: (signal) => authentication.resolve({ signal }),
+    codecFor: () => ({
+      encode: (model, request, resolved) =>
+        encodeOpenAiCodexResponsesRequest(model, request, resolved),
+      decode: (frames, decodeOptions) => decodeOpenAiCodexResponsesStream(frames, decodeOptions),
+    }),
+    ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
+    ...(options.now === undefined ? {} : { now: options.now }),
+  });
+}
 
 export function createAmazonBedrockProvider(options?: ProviderFactoryOptions): ModelProvider {
   if (options === undefined) {
@@ -306,34 +364,11 @@ export function createAmazonBedrockProvider(options?: ProviderFactoryOptions): M
     });
   }
   const id = "amazon-bedrock";
-  const method: ApiKeyAuthMethod = {
-    displayName: "Amazon Bedrock bearer token",
-    resolve: async ({ context, credential, signal }) => {
-      signal.throwIfAborted();
-      const token = credential?.key ?? context.env("AWS_BEARER_TOKEN_BEDROCK");
-      if (!token) return undefined;
-      const region =
-        credential?.env?.AWS_REGION ??
-        context.env("AWS_REGION") ??
-        context.env("AWS_DEFAULT_REGION");
-      if (!region)
-        throw new AuthError(
-          "not_configured",
-          id,
-          "Amazon Bedrock bearer authentication requires AWS_REGION",
-        );
-      return {
-        auth: { apiKey: token },
-        env: { AWS_REGION: region },
-        source: credential?.key ? "stored credential" : "AWS_BEARER_TOKEN_BEDROCK",
-        secretValues: [token],
-      };
-    },
-  };
+  const method = createBedrockStoredAuth(options.awsAuth);
   const authentication = createProviderAuthentication({
     providerId: id,
     declaredMethods: ["environment", "file", "ambient"],
-    methods: { apiKey: method },
+    methods: { apiKey: method, sources: createBedrockSources(options.awsAuth) },
     store: options.store,
     context: options.context,
   });
@@ -351,7 +386,10 @@ export function createAmazonBedrockProvider(options?: ProviderFactoryOptions): M
           throw new AuthError("not_configured", id, "Amazon Bedrock region is missing");
         return encodeBedrockConverseStreamRequest(model, request, {
           region,
-          authentication: { type: "bearer", token: resolved.auth.apiKey ?? "" },
+          authentication:
+            resolved.auth.signRequest === undefined
+              ? { type: "bearer", token: resolved.auth.apiKey ?? "" }
+              : { type: "sigv4" },
         });
       },
       decode: () => {
@@ -403,10 +441,14 @@ const azureAuth = (providerId: string): ApiKeyAuthMethod => ({
 
 export function createAzureOpenAiResponsesProvider(options: ProviderFactoryOptions): ModelProvider {
   const id = "azure-openai-responses";
+  const apiKey = azureAuth(id);
   const authentication = createProviderAuthentication({
     providerId: id,
     declaredMethods: ["environment", "file", "ambient"],
-    methods: { apiKey: azureAuth(id) },
+    methods: {
+      apiKey,
+      sources: [{ ...apiKey, type: "environment" }, createAzureEntraSource(options.cloudAuth)],
+    },
     store: options.store,
     context: options.context,
   });
@@ -429,24 +471,28 @@ export function createAzureOpenAiResponsesProvider(options: ProviderFactoryOptio
 
 export function createGoogleVertexProvider(options: ProviderFactoryOptions): ModelProvider {
   const id = "google-vertex";
-  return apiKeyProvider({
+  const apiKey = createGoogleVertexStoredAuth(options.cloudAuth);
+  const authentication = createProviderAuthentication({
+    providerId: id,
+    declaredMethods: ["environment", "file", "ambient"],
+    methods: { apiKey, sources: createGoogleVertexSources(options.cloudAuth) },
+    store: options.store,
+    context: options.context,
+  });
+  return new HttpSseProvider({
     id,
     displayName: "Google Vertex AI",
-    environmentVariables: ["GOOGLE_CLOUD_API_KEY"],
-    options,
+    authMethods: authentication.methods,
+    authentication,
+    models: getStaticModelCatalog(id),
+    resolveAuth: (signal) => authentication.resolve({ signal }),
     codecFor: () => ({
       encode: (model, request, resolved) =>
-        encodeGoogleVertexRequest(model, request, {
-          credential: { type: "api_key", apiKey: resolved.auth.apiKey ?? "" },
-          ...(resolved.env?.GOOGLE_CLOUD_PROJECT
-            ? { project: resolved.env.GOOGLE_CLOUD_PROJECT }
-            : {}),
-          ...(resolved.env?.GOOGLE_CLOUD_LOCATION
-            ? { location: resolved.env.GOOGLE_CLOUD_LOCATION }
-            : {}),
-        }),
+        encodeGoogleVertexRequest(model, request, vertexRequestPolicy(resolved)),
       decode: (frames, decodeOptions) => decodeGoogleVertexStream(frames, decodeOptions),
     }),
+    ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
+    ...(options.now === undefined ? {} : { now: options.now }),
   });
 }
 
@@ -611,16 +657,20 @@ function dynamicProvider(input: {
   rowFilter?: (row: unknown) => boolean;
   onRows?: (rows: readonly unknown[], endpoint: string) => readonly ImageModelInfo[] | undefined;
   modelHeaders?: Readonly<Record<string, string>>;
+  oauth?: ReturnType<typeof createOpenRouterOAuth>;
+  apiKey?: ApiKeyAuthMethod;
 }): ModelProvider {
-  const method = createEnvironmentApiKeyAuth({
-    providerId: input.id,
-    displayName: `${input.displayName} token`,
-    environmentVariables: input.environmentVariables,
-  });
+  const method =
+    input.apiKey ??
+    createEnvironmentApiKeyAuth({
+      providerId: input.id,
+      displayName: `${input.displayName} token`,
+      environmentVariables: input.environmentVariables,
+    });
   const authentication = createProviderAuthentication({
     providerId: input.id,
     declaredMethods: ["environment", "file", "oauth"],
-    methods: { apiKey: method },
+    methods: { apiKey: method, ...(input.oauth === undefined ? {} : { oauth: input.oauth }) },
     store: input.options.store,
     context: input.options.context,
   });
@@ -701,6 +751,7 @@ export function createOpenRouterProvider(options: ProviderFactoryOptions): Model
     baseUrl: "https://openrouter.ai/api/v1",
     sourceKind: "provider_api",
     options,
+    oauth: createOpenRouterOAuth(options),
     rowFilter: (row) => hasOutput(row, "text"),
     onRows: (rows, endpoint) => {
       imageModels = rows
@@ -777,6 +828,9 @@ export const createGitHubCopilotProvider = (options: ProviderFactoryOptions): Mo
     baseUrl: "https://api.individual.githubcopilot.com",
     sourceKind: "entitlement",
     options,
+    oauth: createGitHubCopilotOAuth(options),
+    apiKey: createGitHubCopilotTokenAuth(options),
+    endpoint: (resolved) => resolved.auth.baseUrl ?? "https://api.individual.githubcopilot.com",
     headers: () => requiredHeaders,
     modelHeaders: requiredHeaders,
   });
@@ -851,7 +905,7 @@ export function createRadiusProvider(
   const authentication = createProviderAuthentication({
     providerId: id,
     declaredMethods: ["environment", "file", "oauth"],
-    methods: { apiKey: method },
+    methods: { apiKey: method, oauth: createRadiusOAuth(gateway, options) },
     store: options.store,
     context: options.context,
   });

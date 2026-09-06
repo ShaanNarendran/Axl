@@ -96,7 +96,7 @@ export function createBuiltinProviders(options: ProviderFactoryOptions): readonl
   return [
     createOpenAiProvider(options),
     createAzureOpenAiResponsesProvider(options),
-    createOpenAiCodexProvider(),
+    createOpenAiCodexProvider(options),
     createAnthropicProvider(options),
     createGoogleProvider(options),
     createGoogleVertexProvider(options),

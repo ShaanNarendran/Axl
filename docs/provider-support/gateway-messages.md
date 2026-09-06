@@ -45,4 +45,4 @@ Local fixtures cover prepared context and option conversion, verified images, sa
 
 ## Registration status and deferred work
 
-Radius API-key registration, explicit persisted discovery, endpoint and header composition, HTTP and SSE transport, timeout enforcement, and bounded retries were completed in `118fd89`. Radius OAuth, runtime selection, daemon and SDK changes, CLI and TUI integration, and live provider smoke tests remain in their planned slices.
+Radius API-key registration, explicit persisted discovery, endpoint and header composition, HTTP and SSE transport, timeout enforcement, and bounded retries were completed in `118fd89`. Step 10 added gateway-owned browser PKCE and device OAuth plus serialized refresh. Runtime selection, daemon and SDK changes, CLI and TUI integration, and live provider smoke tests remain in their planned slices.

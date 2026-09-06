@@ -32,10 +32,22 @@ export class AuthError extends Error {
 }
 
 /** Request auth for one model call. Anything else is provider configuration. */
+export interface AuthenticatedHttpRequest {
+  readonly method: string;
+  readonly url: string;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly body: string;
+}
+
 export interface ModelAuth {
   readonly apiKey?: string;
   readonly headers?: Readonly<Record<string, string>>;
   readonly baseUrl?: string;
+  /** Provider-owned signer that retains cloud credentials inside its closure. */
+  readonly signRequest?: (
+    request: AuthenticatedHttpRequest,
+    signal: AbortSignal,
+  ) => Promise<Readonly<Record<string, string>>>;
 }
 
 export interface ResolvedAuth {
@@ -136,7 +148,8 @@ export interface AmbientAuthSource extends ApiKeyAuthMethod {
 
 export interface OAuthAuthMethod {
   readonly displayName: string;
-  login?(interaction: ProviderAuthInteraction): Promise<OAuthCredential>;
+  /** OAuth may yield refreshable tokens or a provider-issued permanent API key. */
+  login?(interaction: ProviderAuthInteraction): Promise<Credential>;
   refresh(credential: OAuthCredential, signal: AbortSignal): Promise<OAuthCredential>;
   toAuth(credential: OAuthCredential): ModelAuth | Promise<ModelAuth>;
 }
@@ -516,7 +529,7 @@ function validateResolvedAuth(value: ResolvedAuth, providerId: string): Resolved
     );
   }
   const allowedResult = new Set(["auth", "source", "env", "secretValues"]);
-  const allowedAuth = new Set(["apiKey", "headers", "baseUrl"]);
+  const allowedAuth = new Set(["apiKey", "headers", "baseUrl", "signRequest"]);
   if (
     Object.keys(value).some((key) => !allowedResult.has(key)) ||
     Object.keys(value.auth).some((key) => !allowedAuth.has(key)) ||
@@ -527,6 +540,7 @@ function validateResolvedAuth(value: ResolvedAuth, providerId: string): Resolved
     value.secretValues.some((secret) => value.source.includes(secret)) ||
     (value.auth.apiKey !== undefined && typeof value.auth.apiKey !== "string") ||
     (value.auth.baseUrl !== undefined && typeof value.auth.baseUrl !== "string") ||
+    (value.auth.signRequest !== undefined && typeof value.auth.signRequest !== "function") ||
     !isStringRecord(value.auth.headers) ||
     !isStringRecord(value.env)
   ) {

@@ -6,6 +6,7 @@ import {
   type AuthContext,
   AuthError,
   createProviderAuthentication,
+  type OAuthAuthMethod,
   type ResolvedAuth,
 } from "./auth.ts";
 import { getStaticModelCatalog } from "./catalog.ts";
@@ -20,6 +21,7 @@ export interface StaticOpenAiChatProviderDefinition {
   readonly apiKeyDisplayName: string;
   readonly environmentVariables: readonly string[];
   readonly baseUrl: string;
+  readonly oauth?: OAuthAuthMethod;
 }
 
 export interface StaticOpenAiChatProviderOptions {
@@ -94,8 +96,9 @@ export function createStaticOpenAiChatProvider(
   });
   const authentication = createProviderAuthentication({
     providerId: definition.id,
-    declaredMethods: ["environment", "file"],
-    methods: { apiKey },
+    declaredMethods:
+      definition.oauth === undefined ? ["environment", "file"] : ["environment", "file", "oauth"],
+    methods: { apiKey, ...(definition.oauth === undefined ? {} : { oauth: definition.oauth }) },
     store: options.store,
     context: options.context,
   });

@@ -18,7 +18,7 @@ Each selected identity has the same active registration boundaries:
 - One checked in, nonempty static catalog using only the `openai-chat` dialect
 - No required remote catalog discovery, custom account header, cloud credential chain, or OAuth flow
 
-Vercel AI Gateway also supports Vercel OIDC authentication, but a gateway API key is sufficient for its documented OpenAI Chat endpoint. This slice does not add OIDC. xAI also offers subscription OAuth in the planned provider matrix, but API key authentication independently supports the registered Chat endpoint. xAI OAuth remains in step 10.
+Vercel AI Gateway also supports Vercel OIDC authentication, but a gateway API key is sufficient for its documented OpenAI Chat endpoint. This slice does not add OIDC. xAI API-key authentication independently supports the registered Chat endpoint, and Step 10 added its subscription device OAuth flow.
 
 Fireworks publishes separate OpenAI and Anthropic compatibility surfaces. Axl selects its documented OpenAI compatible `/inference/v1` surface for the generated Chat catalog and does not silently switch dialects. The selected catalog therefore needs no mixed dialect dispatch.
 
@@ -101,4 +101,4 @@ No live provider call was performed. This batch adds no protocol event, persiste
 
 ## Deferred work
 
-Other built in providers remain in step 9. Vercel OIDC, xAI OAuth, other subscription authentication, and cloud authentication remain in step 10. OpenCode requires catalog selected mixed dialect dispatch. Cloudflare Workers AI requires account settings and provider specific streaming. Product integration remains in step 11, and opt in live provider smoke tests remain outside routine deterministic verification.
+Step 9 completed all built in registrations. Step 10 added xAI subscription device OAuth and refresh while retaining independent API-key authentication. Vercel OIDC remains outside the requested authentication scope. Product integration remains in Step 11, and opt in live provider smoke tests remain outside routine deterministic verification.

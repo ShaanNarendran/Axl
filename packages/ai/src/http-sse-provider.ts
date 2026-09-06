@@ -157,13 +157,14 @@ export class HttpSseProvider implements ModelProvider {
       request.signal === undefined ? timeout : AbortSignal.any([request.signal, timeout]);
     let prepared: PreparedModelRequest;
     let encoded: EncodedHttpSseRequest;
+    let resolved: ResolvedAuth;
     let secrets: readonly string[] = [];
     let codec: HttpSseCodec;
     try {
       prepared = isPreparedModelRequest(request)
         ? request
         : await prepareModelRequest(model, request);
-      const resolved = await this.resolveAuth(signal);
+      resolved = await this.resolveAuth(signal);
       secrets = resolved.secretValues;
       codec = this.codecFor(model);
       encoded = codec.encode(model, prepared, resolved);
@@ -191,16 +192,26 @@ export class HttpSseProvider implements ModelProvider {
     const maximumRetries = Math.min(request.maxRetries ?? DEFAULT_MAX_RETRIES, MAX_RETRIES);
     const maximumDelay = request.maxRetryDelayMs ?? 30_000;
     let response: Response | undefined;
+    const body = JSON.stringify(encoded.body);
     for (let attempt = 0; attempt <= maximumRetries; attempt += 1) {
       try {
+        const unsignedHeaders = {
+          accept: "text/event-stream",
+          "content-type": "application/json",
+          ...encoded.headers,
+        };
+        const headers =
+          resolved.auth.signRequest === undefined
+            ? unsignedHeaders
+            : await resolved.auth.signRequest(
+                { method: "POST", url: encoded.url, headers: unsignedHeaders, body },
+                signal,
+              );
+        signal.throwIfAborted();
         response = await this.fetchImpl(encoded.url, {
           method: "POST",
-          headers: {
-            accept: "text/event-stream",
-            "content-type": "application/json",
-            ...encoded.headers,
-          },
-          body: JSON.stringify(encoded.body),
+          headers,
+          body,
           signal,
         });
       } catch (error) {

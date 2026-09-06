@@ -49,4 +49,4 @@ Local fixtures cover Azure host normalization, proxy query preservation, default
 
 ## Registration status and deferred work
 
-Canonical `azure-openai-responses` registration, API-key dispatch, timeout enforcement, bounded HTTP retries, and retry guidance were completed in `118fd89`. Microsoft Entra credential acquisition and refresh and broader product integration remain in their owning slices. No persisted replay format changed.
+Canonical `azure-openai-responses` registration, API-key dispatch, timeout enforcement, bounded HTTP retries, and retry guidance were completed in `118fd89`. Step 10 added lazy Microsoft Entra acquisition and refresh through `DefaultAzureCredential` with the Cognitive Services scope. Broader product integration remains in Step 11. No persisted replay format changed.

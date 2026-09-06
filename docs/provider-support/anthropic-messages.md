@@ -50,4 +50,4 @@ Local fixtures cover request composition, verified images, signed and redacted r
 
 ## Registration status and deferred work
 
-Built in API-key registration, native HTTP transport, timeout enforcement, bounded retries, and compatible-provider dispatch were completed in `118fd89`. OAuth acquisition and refresh, runtime selection, daemon and SDK changes, CLI and TUI integration remain in their planned slices.
+Built in API-key registration, native HTTP transport, timeout enforcement, bounded retries, and compatible-provider dispatch were completed in `118fd89`. Step 10 added subscription browser OAuth, refresh, bearer authentication, and required OAuth beta headers. Runtime selection, daemon and SDK changes, CLI and TUI integration remain in their planned slices.

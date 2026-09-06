@@ -42,7 +42,7 @@ const ENVIRONMENT: Readonly<Record<string, string>> = {
   CLOUDFLARE_ACCOUNT_ID: "account-one",
   CLOUDFLARE_GATEWAY_ID: "gateway-one",
   OPENROUTER_API_KEY: "openrouter-secret",
-  COPILOT_GITHUB_TOKEN: "copilot-secret",
+  COPILOT_GITHUB_TOKEN: "tid=test;proxy-ep=proxy.individual.githubcopilot.com;token=copilot-secret",
   RADIUS_API_KEY: "radius-secret",
   AWS_BEARER_TOKEN_BEDROCK: "bedrock-secret",
   AWS_REGION: "us-east-1",

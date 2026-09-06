@@ -35,7 +35,7 @@ Generated Bedrock catalog compatibility now marks native strict-tool support, Cl
 - SigV4 mode returns the `bedrock` signing service and resolved region without acquiring or exposing credentials.
 - Bearer mode emits only the validated authorization header and does not request signing.
 
-Concrete AWS profile, environment, container, web-identity, and instance-role credential discovery, credential refresh, and SigV4 calculation remain step 10 work.
+Step 10 added concrete AWS profile and default-chain discovery, including environment, SSO, process, container, web-identity, and instance-role sources, SDK-managed credential refresh, and SigV4 calculation for every request attempt.
 
 ## Stream conversion
 
@@ -49,4 +49,4 @@ Local fixtures cover generated compatibility metadata, prepared content and imag
 
 ## Registration status and deferred work
 
-Built in registration, bearer-token transport, checked HTTP event-stream framing, timeout enforcement, and bounded transport retries were completed in `118fd89`. AWS credential-chain acquisition and refresh, SigV4 implementation, runtime selection, daemon and SDK changes, CLI and TUI integration, and live provider smoke tests remain in their planned slices.
+Built in registration, bearer-token transport, checked HTTP event-stream framing, timeout enforcement, and bounded transport retries were completed in `118fd89`. Step 10 added stored profile and default-chain selection through the official AWS credential provider, refreshable temporary credentials, and SigV4 signing of every dispatch attempt. Runtime selection, daemon and SDK changes, CLI and TUI integration, and live provider smoke tests remain in their planned slices.
