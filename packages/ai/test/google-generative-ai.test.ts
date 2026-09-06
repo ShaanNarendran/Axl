@@ -657,6 +657,8 @@ test("ignores unknown events and normalization supplies one terminal for malform
     code: "provider_stream_truncated",
     message: "provider ended the stream without a terminal event",
     retryable: false,
+    category: "stream_interrupted",
+    requestPhase: "streaming",
     partial: true,
   });
 

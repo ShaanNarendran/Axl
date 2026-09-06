@@ -106,7 +106,7 @@ The built-in `custom` registration is intentionally an unconfigured placeholder.
 
 ## Catalog lifecycle and updates
 
-Static models come from reviewed local manifests and overlays and are generated into `packages/ai/src/catalog.generated.ts`. Follow [`packages/ai/catalog/README.md`](../../packages/ai/catalog/README.md) for the exact update procedure. Generation is offline and deterministic.
+Static models come from reviewed local provider-scoped source shards and overlays and are generated into the compact index and provider shards at `packages/ai/src/catalog.generated.ts` and `packages/ai/src/catalog.generated/`. Follow [`packages/ai/catalog/README.md`](../../packages/ai/catalog/README.md) for the exact update procedure. Generation is offline and deterministic.
 
 GitHub Copilot, OpenRouter, Cloudflare AI Gateway, and Radius have dynamic catalogs. `axl refresh [provider-id]` is the only first-party refresh trigger. A refresh authenticates, fetches, validates the complete candidate, writes a provider-scoped snapshot atomically, and publishes only the current generation. Cancellation, malformed responses, failed fetches, corrupt snapshots, and superseded refreshes cannot replace the last-known-good catalog. Startup may restore a validated cached snapshot without credentials or network work. Listing never refreshes.
 

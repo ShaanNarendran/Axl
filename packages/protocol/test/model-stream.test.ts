@@ -143,6 +143,9 @@ test("validates safe response attribution and retry guidance", () => {
     message: "Try later",
     retryable: true,
     partial: false,
+    category: "rate_limit",
+    requestPhase: "awaiting_response",
+    retryAfterMs: 500,
     retry: { retryAfterMs: 500, resetAtEpochMs: 2_000 },
   });
   assert.equal(isTerminalModelStreamEvent(failed), true);
@@ -181,6 +184,28 @@ test("rejects malformed stream data and unbounded diagnostic fields", () => {
         retry: {},
       }),
     /must contain retryAfterMs or resetAtEpochMs/,
+  );
+  assert.throws(
+    () =>
+      parseModelStreamEvent({
+        type: "error",
+        code: "failed",
+        message: "failed",
+        retryable: false,
+        category: "unsafe",
+      }),
+    /category is not recognized/,
+  );
+  assert.throws(
+    () =>
+      parseModelStreamEvent({
+        type: "error",
+        code: "failed",
+        message: "failed",
+        retryable: false,
+        requestPhase: "after_completion",
+      }),
+    /requestPhase is not recognized/,
   );
   assert.throws(
     () =>

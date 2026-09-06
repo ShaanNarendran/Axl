@@ -100,6 +100,8 @@ test("normalization rejects malformed provider events through a safe terminal", 
     code: "provider_stream_failure",
     message: "modelStreamEvent.contentIndex must be a non-negative safe integer",
     retryable: false,
+    category: "stream_interrupted",
+    requestPhase: "streaming",
   });
 });
 

@@ -1,0 +1,4 @@
+{"id":"Ling-2.6-1T","name":"Ling 2.6 1T","toolCall":true,"structuredOutput":false,"imageInput":false,"reasoning":false,"contextWindow":262144,"maxOutputTokens":32000}
+{"id":"Ling-2.6-flash","name":"Ling 2.6 Flash","toolCall":true,"structuredOutput":false,"imageInput":false,"reasoning":false,"contextWindow":262144,"maxOutputTokens":32000}
+{"id":"Ling-3.0-flash","name":"Ling 3.0 Flash","toolCall":true,"structuredOutput":false,"imageInput":false,"reasoning":true,"reasoningOptions":[{"type":"toggle"}],"contextWindow":262144,"maxOutputTokens":32000}
+{"id":"Ring-2.6-1T","name":"Ring 2.6 1T","toolCall":true,"structuredOutput":false,"imageInput":false,"reasoning":true,"reasoningOptions":[{"type":"effort","values":["high","xhigh"]}],"contextWindow":262144,"maxOutputTokens":32000}

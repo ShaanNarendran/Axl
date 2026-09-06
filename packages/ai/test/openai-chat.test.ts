@@ -641,6 +641,8 @@ test("unknown and truncated frames normalize to one error terminal", async () =>
       code: "provider_stream_truncated",
       message: "provider ended the stream without a terminal event",
       retryable: false,
+      category: "stream_interrupted",
+      requestPhase: "streaming",
     },
   ]);
 
@@ -658,6 +660,8 @@ test("unknown and truncated frames normalize to one error terminal", async () =>
     code: "provider_stream_failure",
     message: "Provider sent an undecodable Chat stream frame",
     retryable: false,
+    category: "stream_interrupted",
+    requestPhase: "streaming",
     partial: true,
   });
 });

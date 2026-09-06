@@ -1,0 +1,2 @@
+{"id":"gemma-4-31b","name":"Gemma 4 31B IT","toolCall":true,"structuredOutput":true,"imageInput":true,"reasoning":true,"reasoningOptions":[{"type":"effort","values":["none","low","medium","high"]}],"contextWindow":131072,"maxOutputTokens":40960,"cost":{"input":0.99,"output":1.49},"status":"beta"}
+{"id":"gpt-oss-120b","name":"GPT OSS 120B","toolCall":true,"structuredOutput":true,"imageInput":false,"reasoning":true,"reasoningOptions":[{"type":"effort","values":["low","medium","high"]}],"contextWindow":131072,"maxOutputTokens":40960,"cost":{"input":0.35,"output":0.75}}

@@ -1,0 +1,24 @@
+{
+  "SPDX-FileCopyrightText": "2026 Kaushik Kumar",
+  "SPDX-License-Identifier": "Apache-2.0",
+  "schemaVersion": 1,
+  "_provenance": {
+    "retrievedAt": "2026-09-05T13:49:08Z",
+    "sources": [
+      "https://developer.ant-ling.com/en/docs/api-reference/",
+      "https://developer.ant-ling.com/en/docs/api-reference/openai/",
+      "https://developer.ant-ling.com/en/docs/tutorials/effort/"
+    ],
+    "sourceSha256": "3c715bab4b49c6b76d5f65ba7d3545ff20e9ed1fb793e9183cbf488ce47dd1ae"
+  },
+  "providers": [
+    {
+      "id": "ant-ling",
+      "name": "Ant Ling",
+      "documentation": "https://developer.ant-ling.com/en/docs/api-reference/",
+      "file": "providers/ant-ling.jsonl",
+      "modelCount": 4,
+      "sha256": "3bc11bf1537f73a210d21cebd26ad14b8ede68e0b7923d6f6b8f39c57b10c727"
+    }
+  ]
+}

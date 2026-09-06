@@ -5,7 +5,8 @@
       "**/*.{ts,json}",
       "!**/{dist,node_modules}",
       "!.release",
-      "!packages/ai/src/catalog.generated.ts"
+      "!packages/ai/src/catalog.generated.ts",
+      "!packages/ai/src/catalog.generated"
     ]
   },
   "formatter": {

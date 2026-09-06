@@ -369,8 +369,8 @@ test("HTTP failures terminate through the stream contract without leaking the ke
   if (terminal.type === "error") {
     assert.equal(terminal.code, "http_404");
     assert.equal(terminal.retryable, false);
+    assert.equal(terminal.message, "Provider azure-openai returned 404");
     assert.equal(terminal.message.includes("azure-secret-key"), false);
-    assert.equal(terminal.message.includes("[REDACTED]"), true);
   }
 });
 

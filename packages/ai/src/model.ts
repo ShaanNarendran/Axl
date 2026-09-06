@@ -18,7 +18,9 @@ import type {
 // kernel can consume them without depending on this package. Re-exported here
 // so provider code keeps one import surface.
 export type {
+  ModelErrorCategory,
   ModelMessage,
+  ModelRequestPhase,
   ModelStreamError,
   ModelStreamEvent,
   ProviderResponseMetadata,

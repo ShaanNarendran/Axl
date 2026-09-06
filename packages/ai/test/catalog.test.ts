@@ -2,19 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+import { generateCatalog } from "../scripts/generate-catalog.ts";
 import {
   GENERATED_CATALOG_PROVENANCE,
   getStaticModelCatalog,
   listBuiltinCatalogProviders,
-  type ModelInfo,
   ModelCatalogValidationError,
+  type ModelInfo,
   STATIC_MODEL_CATALOG,
   validateModelCatalog,
 } from "../src/index.ts";
-import { generateCatalog } from "../scripts/generate-catalog.ts";
 
 const validModel: ModelInfo = {
   providerId: "test-provider",
@@ -93,6 +94,30 @@ test("static catalog access performs no network or credential work", () => {
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("generated catalog matches the pre-refactor semantic baseline", () => {
+  const baseline = JSON.parse(
+    readFileSync(new URL("../catalog/semantic-baseline.json", import.meta.url), "utf8"),
+  ) as {
+    readonly providerCount: number;
+    readonly staticProviderCount: number;
+    readonly modelCount: number;
+    readonly stableSerializationSha256: string;
+  };
+  const stableSerialization = JSON.stringify({
+    provenance: GENERATED_CATALOG_PROVENANCE,
+    providers: listBuiltinCatalogProviders(),
+    catalog: STATIC_MODEL_CATALOG,
+  });
+
+  assert.equal(listBuiltinCatalogProviders().length, baseline.providerCount);
+  assert.equal(Object.keys(STATIC_MODEL_CATALOG).length, baseline.staticProviderCount);
+  assert.equal(Object.values(STATIC_MODEL_CATALOG).flat().length, baseline.modelCount);
+  assert.equal(
+    createHash("sha256").update(stableSerialization).digest("hex"),
+    baseline.stableSerializationSha256,
+  );
 });
 
 test("generated catalog retains independent source provenance", () => {
@@ -181,7 +206,10 @@ test("catalog validation rejects unsafe and inconsistent metadata", () => {
   );
 });
 
-test("catalog artifact deterministically matches local manifests and overlays", () => {
-  const generated = readFileSync(new URL("../src/catalog.generated.ts", import.meta.url), "utf8");
-  assert.equal(generateCatalog(), generated);
+test("catalog artifacts deterministically match provider shards and overlays", () => {
+  const generated = generateCatalog();
+  assert.equal(generated.files.size, 37);
+  for (const [path, expected] of generated.files) {
+    assert.equal(readFileSync(path, "utf8"), expected, path);
+  }
 });

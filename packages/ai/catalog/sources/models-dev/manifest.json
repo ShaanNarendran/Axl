@@ -1,0 +1,286 @@
+{
+  "SPDX-FileCopyrightText": "2025 models.dev contributors",
+  "SPDX-License-Identifier": "MIT",
+  "schemaVersion": 1,
+  "_provenance": {
+    "source": "https://models.dev/api.json",
+    "retrievedAt": "2026-09-05T13:49:08Z",
+    "sourceSha256": "0b09a4d8dedab6a804ca15046729bb2ec03c5f5b689b89a983ea488bb71eaeef",
+    "repository": "https://github.com/anomalyco/models.dev",
+    "repositoryCommit": "5c600a037417cf778ee6eb3ea2ce0f17abc12130"
+  },
+  "providers": [
+    {
+      "id": "alibaba-token-plan",
+      "name": "Alibaba Token Plan",
+      "documentation": "https://www.alibabacloud.com/help/en/model-studio/token-plan-overview",
+      "file": "providers/alibaba-token-plan.jsonl",
+      "modelCount": 19,
+      "sha256": "fbfbfa4988064dec2d933f5dd3bd1e1cfd39a6d84a92115633cfd6f5f574cd2f"
+    },
+    {
+      "id": "alibaba-token-plan-cn",
+      "name": "Alibaba Token Plan (China)",
+      "documentation": "https://www.alibabacloud.com/help/zh/model-studio/token-plan-overview",
+      "file": "providers/alibaba-token-plan-cn.jsonl",
+      "modelCount": 19,
+      "sha256": "654b603f4fcf0b25c0f4f1545d379aa8dedf4ec9d4b8f49698845434dd1e7ba5"
+    },
+    {
+      "id": "amazon-bedrock",
+      "name": "Amazon Bedrock",
+      "documentation": "https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html",
+      "file": "providers/amazon-bedrock.jsonl",
+      "modelCount": 123,
+      "sha256": "f51e93b9cb6c0e405da2923cf7236c2962dd32260b4b809339030bdda54dc892"
+    },
+    {
+      "id": "anthropic",
+      "name": "Anthropic",
+      "documentation": "https://docs.anthropic.com/en/docs/about-claude/models",
+      "file": "providers/anthropic.jsonl",
+      "modelCount": 14,
+      "sha256": "8a13f34f7b8cf7b7bfe7acaefc74635384343aae2e9375f3888c653e75740a2d"
+    },
+    {
+      "id": "azure",
+      "name": "Azure",
+      "documentation": "https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models",
+      "file": "providers/azure.jsonl",
+      "modelCount": 83,
+      "sha256": "611e208dd3c117e6405a362f7d46822c047c4d54f252234b14dfc788b967d59f"
+    },
+    {
+      "id": "baseten",
+      "name": "Baseten",
+      "documentation": "https://docs.baseten.co/inference/model-apis/overview",
+      "file": "providers/baseten.jsonl",
+      "modelCount": 22,
+      "sha256": "b201ea65669891ec98b79649bef40f301e2e65923bec40c84ca7389b9a71958a"
+    },
+    {
+      "id": "cerebras",
+      "name": "Cerebras",
+      "documentation": "https://inference-docs.cerebras.ai/models/overview",
+      "file": "providers/cerebras.jsonl",
+      "modelCount": 2,
+      "sha256": "6331dd409c16f4b6110fbc24fb7b4627a7dcd62d8959fd49c852dbff9233e0f0"
+    },
+    {
+      "id": "cloudflare-workers-ai",
+      "name": "Cloudflare Workers AI",
+      "documentation": "https://developers.cloudflare.com/workers-ai/models/",
+      "file": "providers/cloudflare-workers-ai.jsonl",
+      "modelCount": 27,
+      "sha256": "a07784492b5ef323984d397b6cb9d0957d4f36118ac273e9c230212e38586df1"
+    },
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "documentation": "https://api-docs.deepseek.com/quick_start/pricing",
+      "file": "providers/deepseek.jsonl",
+      "modelCount": 3,
+      "sha256": "7cb60e7ebe34bb503c99356663af7e933379814d395be5750732eccef684571a"
+    },
+    {
+      "id": "fireworks-ai",
+      "name": "Fireworks AI",
+      "documentation": "https://fireworks.ai/docs/",
+      "file": "providers/fireworks-ai.jsonl",
+      "modelCount": 20,
+      "sha256": "8ac57532d87250a7965fa7c8c414122cb361ed2f3382c8fd4a657304cfcc0484"
+    },
+    {
+      "id": "github-copilot",
+      "name": "GitHub Copilot",
+      "documentation": "https://docs.github.com/en/copilot",
+      "file": "providers/github-copilot.jsonl",
+      "modelCount": 28,
+      "sha256": "1c2c534cee6bbd1fe3bce25b5c1a723a2458106c85cb67726e77a667265a75e2"
+    },
+    {
+      "id": "google",
+      "name": "Google",
+      "documentation": "https://ai.google.dev/gemini-api/docs/models",
+      "file": "providers/google.jsonl",
+      "modelCount": 32,
+      "sha256": "1f33fd212a7ce3d111ab1214b378599a890ca116a0d2f3d73c42bea146061929"
+    },
+    {
+      "id": "google-vertex",
+      "name": "Vertex",
+      "documentation": "https://cloud.google.com/vertex-ai/generative-ai/docs/models",
+      "file": "providers/google-vertex.jsonl",
+      "modelCount": 43,
+      "sha256": "d09ebb398f824b0897b5950b8c128d6ee14e0767c7b6517d771c23e3d6e60d83"
+    },
+    {
+      "id": "groq",
+      "name": "Groq",
+      "documentation": "https://console.groq.com/docs/models",
+      "file": "providers/groq.jsonl",
+      "modelCount": 12,
+      "sha256": "6f9ac6adf953fe3a4562750664f26bc079eb2648f57563638a3bd40179a9cda4"
+    },
+    {
+      "id": "huggingface",
+      "name": "Hugging Face",
+      "documentation": "https://huggingface.co/docs/inference-providers",
+      "file": "providers/huggingface.jsonl",
+      "modelCount": 73,
+      "sha256": "6ea93329f6a7474443b036cf2e1f676b09284bfa620270bf7fb4a5b9945c1c59"
+    },
+    {
+      "id": "kimi-for-coding",
+      "name": "Kimi For Coding",
+      "documentation": "https://www.kimi.com/code/docs/en/kimi-code/models.html",
+      "file": "providers/kimi-for-coding.jsonl",
+      "modelCount": 4,
+      "sha256": "f4829b1febf8d25675a93e76b5df88afdce3778f92695847bcf297727901af33"
+    },
+    {
+      "id": "minimax",
+      "name": "MiniMax (minimax.io)",
+      "documentation": "https://platform.minimax.io/docs/guides/quickstart",
+      "file": "providers/minimax.jsonl",
+      "modelCount": 7,
+      "sha256": "dfbdd0e73d7fe4b374428958aaec80d7cf934c62b397c3133c662680a6b46c99"
+    },
+    {
+      "id": "minimax-cn",
+      "name": "MiniMax (minimaxi.com)",
+      "documentation": "https://platform.minimaxi.com/docs/guides/quickstart",
+      "file": "providers/minimax-cn.jsonl",
+      "modelCount": 7,
+      "sha256": "dfbdd0e73d7fe4b374428958aaec80d7cf934c62b397c3133c662680a6b46c99"
+    },
+    {
+      "id": "mistral",
+      "name": "Mistral",
+      "documentation": "https://docs.mistral.ai/getting-started/models/",
+      "file": "providers/mistral.jsonl",
+      "modelCount": 32,
+      "sha256": "15e93c1a804fe908fe33d8bca9140bf1da162addefe677e2656d8de91c3aba52"
+    },
+    {
+      "id": "moonshotai",
+      "name": "Moonshot AI",
+      "documentation": "https://platform.moonshot.ai/docs/api/chat",
+      "file": "providers/moonshotai.jsonl",
+      "modelCount": 10,
+      "sha256": "a46467d56782c1b50ef0aa59ca38c9fbe3eeab245fa14617da125be3320cf1fb"
+    },
+    {
+      "id": "moonshotai-cn",
+      "name": "Moonshot AI (China)",
+      "documentation": "https://platform.moonshot.cn/docs/api/chat",
+      "file": "providers/moonshotai-cn.jsonl",
+      "modelCount": 10,
+      "sha256": "a46467d56782c1b50ef0aa59ca38c9fbe3eeab245fa14617da125be3320cf1fb"
+    },
+    {
+      "id": "nvidia",
+      "name": "Nvidia",
+      "documentation": "https://docs.api.nvidia.com/nim/",
+      "file": "providers/nvidia.jsonl",
+      "modelCount": 89,
+      "sha256": "f387d72533faa3b72e7bf223c7033ce06a2ab9259cbb916ff754c77aa42174a3"
+    },
+    {
+      "id": "openai",
+      "name": "OpenAI",
+      "documentation": "https://platform.openai.com/docs/models",
+      "file": "providers/openai.jsonl",
+      "modelCount": 43,
+      "sha256": "dcc269308c30e644088d0cc72e29a87e5af6059d3c87b10f6824260d3e5da10f"
+    },
+    {
+      "id": "opencode",
+      "name": "OpenCode Zen",
+      "documentation": "https://opencode.ai/docs/zen",
+      "file": "providers/opencode.jsonl",
+      "modelCount": 102,
+      "sha256": "628ec66ca5598c049cc50b0a26b74f5effe3a2366fbd9dce0d2dfb83b508976c"
+    },
+    {
+      "id": "opencode-go",
+      "name": "OpenCode Go",
+      "documentation": "https://opencode.ai/docs/zen",
+      "file": "providers/opencode-go.jsonl",
+      "modelCount": 35,
+      "sha256": "138472ba8465f6db3b0a2acc86f503fd1d1469428b4421bf5d93c49cc240bce8"
+    },
+    {
+      "id": "togetherai",
+      "name": "Together AI",
+      "documentation": "https://docs.together.ai/docs/serverless-models",
+      "file": "providers/togetherai.jsonl",
+      "modelCount": 38,
+      "sha256": "8ed382d1404146c8c07f52e82899e39025f6f96507b5d854e2edda32d1f25891"
+    },
+    {
+      "id": "vercel",
+      "name": "Vercel AI Gateway",
+      "documentation": "https://github.com/vercel/ai/tree/5eb85cc45a259553501f535b8ac79a77d0e79223/packages/gateway",
+      "file": "providers/vercel.jsonl",
+      "modelCount": 277,
+      "sha256": "e0f51933d269f3404522608c37c800ca06fa21a246ff54cac45b0dfb6d4c56bf"
+    },
+    {
+      "id": "xai",
+      "name": "xAI",
+      "documentation": "https://docs.x.ai/docs/models",
+      "file": "providers/xai.jsonl",
+      "modelCount": 7,
+      "sha256": "5e697f0657c546dbc72a1e5c71da97a2ee2d3592f1db9cc5db33d053e0655862"
+    },
+    {
+      "id": "xiaomi",
+      "name": "Xiaomi",
+      "documentation": "https://platform.xiaomimimo.com/#/docs",
+      "file": "providers/xiaomi.jsonl",
+      "modelCount": 6,
+      "sha256": "7b86957b18eade691ead0cfca98a37bac25ceb69a155ff736406d5d163039eca"
+    },
+    {
+      "id": "xiaomi-token-plan-ams",
+      "name": "Xiaomi Token Plan (Europe)",
+      "documentation": "https://platform.xiaomimimo.com/#/docs",
+      "file": "providers/xiaomi-token-plan-ams.jsonl",
+      "modelCount": 3,
+      "sha256": "f7d81e895628b08631a5ea3ffb0221fcc1e9db377fe50f5dba599c9eec90ebc7"
+    },
+    {
+      "id": "xiaomi-token-plan-cn",
+      "name": "Xiaomi Token Plan (China)",
+      "documentation": "https://platform.xiaomimimo.com/#/docs",
+      "file": "providers/xiaomi-token-plan-cn.jsonl",
+      "modelCount": 3,
+      "sha256": "f7d81e895628b08631a5ea3ffb0221fcc1e9db377fe50f5dba599c9eec90ebc7"
+    },
+    {
+      "id": "xiaomi-token-plan-sgp",
+      "name": "Xiaomi Token Plan (Singapore)",
+      "documentation": "https://platform.xiaomimimo.com/#/docs",
+      "file": "providers/xiaomi-token-plan-sgp.jsonl",
+      "modelCount": 3,
+      "sha256": "f7d81e895628b08631a5ea3ffb0221fcc1e9db377fe50f5dba599c9eec90ebc7"
+    },
+    {
+      "id": "zai",
+      "name": "Z.AI",
+      "documentation": "https://docs.z.ai/guides/overview/pricing",
+      "file": "providers/zai.jsonl",
+      "modelCount": 16,
+      "sha256": "48d7eb4fee9f4b2127a2c08d4e1c6ecc7743503b7115f35d29100bb15e21ea65"
+    },
+    {
+      "id": "zhipuai-coding-plan",
+      "name": "Zhipu AI Coding Plan",
+      "documentation": "https://docs.bigmodel.cn/cn/coding-plan/overview",
+      "file": "providers/zhipuai-coding-plan.jsonl",
+      "modelCount": 10,
+      "sha256": "217966fa6e83bc3275ba950978a824d69421697f45017f59c29c7144eeafde33"
+    }
+  ]
+}
