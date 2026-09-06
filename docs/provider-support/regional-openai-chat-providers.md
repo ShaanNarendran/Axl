@@ -96,6 +96,6 @@ Local fixtures cover:
 
 No live provider call was performed. This batch adds no protocol event, persisted format, daemon wire, kernel, runtime, SDK, CLI, or TUI change.
 
-## Deferred work
+## Completion status
 
-All built in provider registration and Step 10 subscription and cloud authentication are complete. Product integration remains in Step 11. Opt in live provider smoke tests remain outside routine deterministic verification.
+Built-in registration, provider authentication, daemon-owned text-model selection, SDK, CLI, TUI, and deterministic verification are complete. Live provider smoke testing remains explicit and opt in as documented in [`provider-reference.md`](provider-reference.md).

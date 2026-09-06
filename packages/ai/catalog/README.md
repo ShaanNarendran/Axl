@@ -20,6 +20,9 @@ Pi at commit `92d8e2d17d4f357788381c49ce2cdb3f4ed1f21c` was consulted only as an
 3. Reduce it to the existing source-manifest fields for the provider IDs declared in `scripts/catalog-overlays.ts`.
 4. Review endpoint, region, dialect, reasoning, cache, and compatibility overlays against official provider documentation.
 5. Run `node packages/ai/scripts/generate-catalog.ts`.
-6. Run `pnpm check:generated` and the focused AI tests.
+6. Review the generated diff for unexpected provider, endpoint, region, pricing, capability, and availability changes.
+7. Run `pnpm check:generated` and the complete AI package tests.
 
-Generation is deliberately local and deterministic. It never fetches remote data and fails before writing when source records or overlays are invalid. Dynamic provider discovery and persisted refresh behavior belong to plan step 6 and are not implemented here.
+Generation is deliberately local and deterministic. It never fetches remote data and fails before writing when source records or overlays are invalid. Do not copy model data from the pinned Pi behavioral reference.
+
+GitHub Copilot, OpenRouter, Cloudflare AI Gateway, and Radius use dynamic provider discovery instead of this generator. Their catalogs change only through explicit `axl refresh`, are validated before publication, and are persisted as provider-scoped last-known-good snapshots. A dynamic catalog source change requires focused refresh, cancellation, malformed-response, race, persistence, and offline-restoration tests.

@@ -25,7 +25,7 @@ Unsupported grammar tools, assistant images, provider replay signatures, continu
 
 ## Authentication and transport boundary
 
-The pure codec emits no authorization material and does not resolve `MISTRAL_API_KEY`. A later provider registration slice owns stored and environment API-key resolution. A later transport owns the Mistral endpoint, HTTP headers, SSE byte decoding, cancellation propagation, timeout enforcement, bounded retries, and retry guidance derived from HTTP responses.
+The pure codec emits no authorization material and does not resolve `MISTRAL_API_KEY`. The registered provider owns stored and environment API-key resolution, endpoint and header composition, SSE byte decoding, cancellation propagation, timeout enforcement, bounded retries, and retry guidance derived from HTTP responses.
 
 Prompt caching emits the prepared session identity as `prompt_cache_key` and the non-secret `x-affinity` header. No credential or arbitrary provider object enters the encoded body, diagnostics, or response metadata.
 
@@ -39,6 +39,6 @@ The decoder consumes already framed SSE data. It handles native text and thinkin
 
 Local fixtures cover generated compatibility metadata, prepared history and image encoding, strict tools, reasoning effort and prompt mode, prompt caching and affinity, sampling, interleaved thinking and text, fragmented tools, usage and cost, routed identity, native stop reasons, redacted provider failures, cancellation, malformed input, unsupported replay data, and exact terminal normalization. No live provider request was performed.
 
-## Registration status and deferred work
+## Completion status
 
-Built in API-key registration, endpoint and header composition, HTTP and SSE transport, timeout enforcement, and bounded retries were completed in `118fd89`. Runtime selection, daemon and SDK changes, CLI and TUI integration, and live provider smoke tests remain in their planned slices.
+Built-in API-key registration, endpoint and header composition, HTTP and SSE transport, daemon-owned text-model selection, SDK, CLI, TUI, and deterministic verification are complete. Live provider smoke testing remains explicit and opt in as documented in [`provider-reference.md`](provider-reference.md).

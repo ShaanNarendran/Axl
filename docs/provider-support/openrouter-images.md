@@ -20,7 +20,7 @@ The current wire contract was reviewed from the official OpenRouter documentatio
 - Buffered generation endpoint: `POST /api/v1/images`
 - API reference: `https://openrouter.ai/docs/api/api-reference/images/generate-an-image`
 - Image guide: `https://openrouter.ai/docs/guides/overview/multimodal/image-generation`
-- Catalog source for later provider integration: `GET /api/v1/images/models`, with per-model endpoint capability records
+- Dynamic catalog source: `GET /api/v1/images/models`, with per-model endpoint capability records
 
 The pinned Pi revision uses OpenRouter's legacy Chat Completions image path. Axl targets the documented dedicated Images API because it directly supports the already delivered native image contract, reference images, output count, explicit size, and aspect ratio controls. Axl implements the conversion independently and adds no production dependency.
 
@@ -35,7 +35,7 @@ The encoder produces the buffered Images API body with `model` and a non-empty `
 
 A request model must match the selected OpenRouter image model. The model must accept text and produce images. Reference images additionally require declared image input support. Every input blob reference, media type, byte length, and SHA-256 digest is validated before a body is returned. Explicit pixel size and a non-auto aspect ratio must agree. Unavailable models, unsupported metadata, invalid counts, invalid dimensions, unknown ratios, missing blob readers, and mismatched blobs fail before provider I/O.
 
-Timeout, retry, and cancellation controls are not serialized into the body. A later transport consumes timeout and retry controls. The codec checks cancellation before conversion and around each asynchronous blob operation.
+Timeout, retry, and cancellation controls are not serialized into the body. The registered provider transport consumes timeout and retry controls. The codec checks cancellation before conversion and around each asynchronous blob operation.
 
 ## Response conversion and blob storage
 
@@ -59,6 +59,6 @@ Cancellation rejects with the same typed error carrying `aborted: true` and a fi
 
 Local fixtures cover text-only and image-conditioned requests, verified reference bytes, count, size, aspect ratio, multiple outputs, explicit and inferred media types, revised prompts, usage, authoritative and computed cost, requested and routed identity, response IDs, blob writes, cancellation, provider error classification and redaction, malformed base64, empty output, inconsistent controls, content-address mismatches, and invalid blob-writer results. No live provider call was performed.
 
-## Registration status and deferred work
+## Completion status and limitations
 
-OpenRouter API-key registration, authorization, endpoint composition, HTTP transport, bounded retries, explicit text and image discovery, persisted text and image catalogs, and native image generation were completed in `118fd89`. Step 10 added browser PKCE OAuth and stores the exchanged permanent key as an API-key credential. Model-specific image option capability refinement, runtime and daemon ownership, SDK methods, CLI and TUI integration, and opt-in live smoke tests remain in their planned slices.
+OpenRouter API-key and browser PKCE authentication, transport, explicit text and image discovery, persisted catalogs, native image generation, text-model product integration, and deterministic verification are complete. Model-specific image option refinement and first-party daemon, SDK, CLI, and TUI image-generation commands remain outside the text-model product surface. Live provider smoke testing remains explicit and opt in as documented in [`provider-reference.md`](provider-reference.md).

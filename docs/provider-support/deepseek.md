@@ -59,6 +59,6 @@ Local fixtures cover side effect free construction and listing, static catalog o
 
 No live DeepSeek request was performed. This registration adds no protocol event, persisted format, daemon wire, kernel, runtime, SDK, CLI, or TUI change.
 
-## Deferred work
+## Completion status
 
-Product registration and selection outside `packages/ai` remain in step 11. Additional OpenAI compatible built in providers will reuse this transport in later step 9 slices. Full issue completion verification remains in steps 12 and 13.
+All built-in provider registration, daemon-owned text-model selection, SDK, CLI, TUI, and deterministic verification work is complete. The remaining limitations and opt-in live smoke process are recorded in [`provider-reference.md`](provider-reference.md).

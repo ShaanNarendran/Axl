@@ -53,6 +53,6 @@ Replay metadata remains in process only. Persisted JSONL events and daemon wire 
 
 Local fixtures cover request composition, verified user and tool-result images, text and thinking replay, function tools, strict schemas, tool calls and results, safety settings and failures, implicit and explicit cache behavior, thinking modes, sampling, output limits, usage and cached usage, cost, routed identity, native stop reasons, provider errors, cancellation, malformed input, partial output, truncation, unknown events, and exact terminal behavior. No live provider request is part of this slice.
 
-## Registration status and deferred work
+## Completion status
 
-Built in API-key registration, native HTTP transport, timeout enforcement, and bounded retries were completed in `118fd89`. Runtime selection, daemon and SDK changes, CLI and TUI integration, and live provider smoke tests remain in their planned slices.
+Built-in API-key registration, native HTTP transport, timeout enforcement, bounded retries, daemon-owned text-model selection, SDK, CLI, TUI, and deterministic verification are complete. Live provider smoke testing remains explicit and opt in as documented in [`provider-reference.md`](provider-reference.md).

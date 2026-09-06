@@ -99,6 +99,6 @@ Local fixtures cover:
 
 No live provider call was performed. This batch adds no protocol event, persisted format, daemon wire, kernel, runtime, SDK, CLI, or TUI change.
 
-## Deferred work
+## Completion status and limitation
 
-Step 9 completed all built in registrations. Step 10 added xAI subscription device OAuth and refresh while retaining independent API-key authentication. Vercel OIDC remains outside the requested authentication scope. Product integration remains in Step 11, and opt in live provider smoke tests remain outside routine deterministic verification.
+Built-in registration, xAI subscription OAuth, daemon-owned text-model selection, SDK, CLI, TUI, and deterministic verification are complete. Vercel OIDC remains unsupported; Vercel AI Gateway API-key authentication is supported. Live provider smoke testing remains explicit and opt in as documented in [`provider-reference.md`](provider-reference.md).

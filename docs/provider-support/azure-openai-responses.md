@@ -7,7 +7,7 @@
 
 This record covers Azure-specific composition around the shared Responses codec in `packages/ai/src/azure-openai.ts`. It includes deployment selection, endpoint normalization, API version queries, request headers, prepared request encoding, canonical stream decoding, and deterministic fixtures.
 
-The delivered runtime provider identity remains `azure-openai`. Its models now identify their wire dialect as `azure-openai-responses`, which keeps replay metadata bound to Azure while preserving existing runtime configuration and selection behavior.
+The canonical provider identity is `azure-openai-responses`, and its wire dialect is also `azure-openai-responses`. Legacy `azure-openai` stored credentials migrate once when no canonical credential exists. Replay metadata remains bound to the canonical provider, dialect, and model.
 
 ## Reviewed sources
 
@@ -47,6 +47,6 @@ Streaming reuses the shared Responses decoder for text, reasoning, tools, usage,
 
 Local fixtures cover Azure host normalization, proxy query preservation, default and dated API versions, deployment maps, API key and resolved custom headers, prepared body composition, stream shape, Azure replay provenance, HTTP failures with credential redaction, cancellation, missing configuration, and preservation of the complete legacy model catalog.
 
-## Registration status and deferred work
+## Completion status
 
-Canonical `azure-openai-responses` registration, API-key dispatch, timeout enforcement, bounded HTTP retries, and retry guidance were completed in `118fd89`. Step 10 added lazy Microsoft Entra acquisition and refresh through `DefaultAzureCredential` with the Cognitive Services scope. Broader product integration remains in Step 11. No persisted replay format changed.
+Canonical registration, API-key and Microsoft Entra authentication, transport, daemon-owned text-model selection, SDK, CLI, TUI, legacy credential migration, and deterministic verification are complete. No persisted replay format changed.

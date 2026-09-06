@@ -37,12 +37,12 @@ Gateway `stop`, `length`, `toolUse`, and `tool_use` reasons map to canonical com
 
 ## Authentication, discovery, and transport boundary
 
-The pure codec emits no headers and does not resolve `RADIUS_API_KEY`, OAuth credentials, gateway URLs, or dynamic catalogs. Later provider slices own stored and environment credential resolution, Radius OAuth, endpoint policy, `/v1/config` discovery, last-known-good catalog persistence, and provider registration. A later transport owns the `/messages` request, SSE byte framing, cancellation propagation, timeout enforcement, bounded retries, response headers, and retry guidance.
+The pure codec emits no headers and does not resolve `RADIUS_API_KEY`, OAuth credentials, gateway URLs, or dynamic catalogs. The registered Radius provider owns stored and environment credential resolution, OAuth, endpoint policy, `/v1/config` discovery, last-known-good catalog persistence, `/messages` transport, SSE byte framing, cancellation propagation, timeout enforcement, bounded retries, response headers, and retry guidance.
 
 ## Deterministic verification
 
 Local fixtures cover prepared context and option conversion, verified images, same-gateway replay, strict tools, reasoning, caching, safe routing metadata, positioned text and thinking, fragmented tools, replay signatures, usage and cost, requested and routed identity, native stop reasons, redacted failures, cancellation, malformed input, unsupported history, and exact terminal normalization. No live provider request was performed.
 
-## Registration status and deferred work
+## Completion status
 
-Radius API-key registration, explicit persisted discovery, endpoint and header composition, HTTP and SSE transport, timeout enforcement, and bounded retries were completed in `118fd89`. Step 10 added gateway-owned browser PKCE and device OAuth plus serialized refresh. Runtime selection, daemon and SDK changes, CLI and TUI integration, and live provider smoke tests remain in their planned slices.
+Radius API-key and OAuth authentication, explicit persisted discovery, HTTP and SSE transport, daemon-owned text-model selection, SDK, CLI, TUI, and deterministic verification are complete. Live provider smoke testing remains explicit and opt in as documented in [`provider-reference.md`](provider-reference.md).

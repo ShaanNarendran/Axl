@@ -65,8 +65,6 @@ The Radius gateway protocol and GitHub Copilot entitlement behavior do not have 
 
 Pi was used only to identify behavioral boundaries and compatibility cases. No Pi implementation or generated catalog data was copied into Axl.
 
-## Deferred work
+## Completion status
 
-Step 10 completed OpenAI Codex, Anthropic, GitHub Copilot, OpenRouter, Kimi, Radius, and xAI OAuth; Azure Microsoft Entra; Vertex ADC and service accounts; and the Bedrock default credential chain plus SigV4 signing. See [`subscription-and-cloud-authentication.md`](subscription-and-cloud-authentication.md).
-
-Step 11 still owns runtime, daemon, SDK, CLI, and TUI integration. No product selection or login path changed in this registration step.
+Subscription and cloud authentication is documented in [`subscription-and-cloud-authentication.md`](subscription-and-cloud-authentication.md). Daemon-owned text-model selection, SDK, CLI, TUI, and deterministic verification are complete. The consolidated setup matrix, custom-provider boundary, current limitations, and opt-in live smoke process are documented in [`provider-reference.md`](provider-reference.md).

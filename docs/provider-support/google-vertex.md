@@ -47,6 +47,6 @@ Step 10 added ADC discovery, service-account file validation, access-token acqui
 
 Local fixtures cover generated Vertex compatibility metadata, strict Gemini 3 tools, shared request conversion, dialect isolation, Express Mode API-key headers, regional ADC routing, service-account routing, global and multi-region hosts, custom collection endpoints, API versions, publisher model paths, malformed configuration, secret isolation, replay provenance, usage, routed identity, and exact terminal behavior. No live provider request was performed.
 
-## Registration status and deferred work
+## Completion status
 
-Built in Express Mode API-key registration, HTTP transport, timeout enforcement, and bounded retries were completed in `118fd89`. Step 10 added explicit service-account file handling, ambient ADC, project discovery, and access-token refresh through the official Google Auth Library. Runtime selection, daemon and SDK changes, CLI and TUI integration, and live provider smoke tests remain in their planned slices.
+Built-in Express Mode API-key registration, HTTP transport, timeout enforcement, bounded retries, service-account and ADC handling, daemon-owned text-model selection, SDK, CLI, TUI, and deterministic verification are complete. Live provider smoke testing remains explicit and opt in as documented in [`provider-reference.md`](provider-reference.md).

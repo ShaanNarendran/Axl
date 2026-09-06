@@ -7,7 +7,7 @@
 
 This record covers the pure `openai-codex-responses` request composition and stream mapping in `packages/ai/src/openai-codex-responses.ts`. It includes subscription request headers, Codex request defaults, prepared reasoning, stateless replay, Codex terminal aliases, and canonical Responses decoding.
 
-Built in provider and catalog registration was completed in `118fd89`. Step 10 added browser PKCE and device OAuth, refresh, ChatGPT account-claim validation, and the HTTP transport, so Codex models are now available. No API-key fallback exists. WebSocket connection ownership, runtime selection, and product integration remain deferred to their owning slices.
+Built-in provider and catalog registration, browser PKCE and device OAuth, refresh, ChatGPT account-claim validation, HTTP transport, daemon-owned text-model selection, SDK, CLI, TUI, and deterministic verification are complete. No API-key fallback exists. WebSocket connection ownership remains unsupported; the transport uses the explicit stateless SSE policy described below.
 
 ## Reviewed protocol revision
 

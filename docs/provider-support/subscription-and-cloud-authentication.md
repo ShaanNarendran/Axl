@@ -7,7 +7,7 @@
 
 This record covers Step 10 authentication in `packages/ai`: subscription OAuth for OpenAI Codex, Anthropic, GitHub Copilot, OpenRouter, Kimi For Coding, Radius, and xAI; Microsoft Entra credentials for Azure OpenAI; Application Default Credentials and service accounts for Google Vertex AI; and the AWS default credential chain plus SigV4 signing for Amazon Bedrock.
 
-Provider construction and model listing remain free of credential reads and network work. Runtime, daemon, SDK, CLI, and TUI provider selection and login presentation remain Step 11.
+Provider construction and model listing remain free of credential reads and network work. Runtime, daemon, SDK, CLI, and TUI provider selection and trusted login presentation are complete.
 
 ## Subscription OAuth
 
@@ -76,6 +76,6 @@ The incomplete public wire contracts for Anthropic subscription OAuth, GitHub Co
 
 Local tests cover all seven subscription flows, PKCE and device behavior, token rotation, cancellation, credential persistence shape, Codex account validation, Copilot enterprise routing, stored credential precedence, refresh serialization, Azure token acquisition, Vertex ADC and service-account selection, missing files, AWS profile isolation, temporary session credentials, SigV4 headers, request-body integrity, and explicit acquisition failures. No live provider credential or request was used.
 
-## Deferred work
+## Completion status
 
-Step 11 owns product-facing provider selection, authentication commands and presentation, daemon and SDK boundaries, and CLI and TUI integration. No product configuration format or wire protocol changed in Step 10.
+Product-facing provider selection, authentication commands and presentation, daemon and SDK boundaries, CLI and TUI integration, and deterministic verification are complete. The complete setup matrix and current limitations are documented in [`provider-reference.md`](provider-reference.md).
