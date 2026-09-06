@@ -29,6 +29,7 @@ export interface AxlSettings {
 export interface TuiSettings {
   readonly requestSettings?: ModelRequestSettings;
   readonly version: 1;
+  readonly providerId?: string;
   readonly modelId?: string;
   readonly thinkingLevel?: ThinkingLevel;
   readonly theme?: string;
@@ -91,6 +92,7 @@ function parseSettings(value: unknown, path: string): TuiSettings {
   }
   const allowed = new Set([
     "version",
+    "providerId",
     "modelId",
     "thinkingLevel",
     "requestSettings",
@@ -118,8 +120,10 @@ function parseSettings(value: unknown, path: string): TuiSettings {
   if (input.requestSettings !== undefined)
     parseModelRequestSettings(input.requestSettings, `${path}.requestSettings`);
   if (input.version !== 1) throw new Error(`${path}: version must be 1`);
-  if (input.modelId !== undefined && (typeof input.modelId !== "string" || !input.modelId)) {
-    throw new Error(`${path}: modelId must be a non-empty string`);
+  for (const field of ["providerId", "modelId"] as const) {
+    if (input[field] !== undefined && (typeof input[field] !== "string" || !input[field])) {
+      throw new Error(`${path}: ${field} must be a non-empty string`);
+    }
   }
   if (
     input.thinkingLevel !== undefined &&

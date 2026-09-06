@@ -184,7 +184,10 @@ export interface AuthenticationState {
 
 export interface ProviderAuthentication {
   readonly methods: readonly AuthMethod[];
+  readonly loginMethods: readonly ("api_key" | "oauth")[];
   state(): AuthenticationState;
+  /** Checks configured authentication without refreshing stored OAuth credentials. */
+  check(options?: { readonly signal?: AbortSignal }): Promise<AuthenticationState>;
   resolve(options?: ResolveAuthOptions): Promise<ResolvedAuth>;
   login(method: "api_key" | "oauth", interaction: AuthInteraction): Promise<AuthenticationState>;
   logout(options?: { readonly signal?: AbortSignal }): Promise<AuthenticationState>;
@@ -238,7 +241,60 @@ export function createProviderAuthentication(input: {
 
   return {
     methods: [...input.declaredMethods],
+    loginMethods: [
+      ...(input.methods.apiKey?.login === undefined ? [] : (["api_key"] as const)),
+      ...(input.methods.oauth?.login === undefined ? [] : (["oauth"] as const)),
+    ],
     state: () => ({ ...current }),
+    check: async (options = {}) => {
+      const signal = options.signal ?? new AbortController().signal;
+      signal.throwIfAborted();
+      let stored: Credential | undefined;
+      try {
+        stored = await input.store.read(input.providerId);
+      } catch (error) {
+        throw new AuthError(
+          "store_failure",
+          input.providerId,
+          `Credential store read failed for ${input.providerId}`,
+          error,
+        );
+      }
+      signal.throwIfAborted();
+      if (stored?.type === "oauth" && input.methods.oauth !== undefined) {
+        return transition({
+          phase: "authenticated",
+          method: "oauth",
+          source: input.methods.oauth.displayName,
+        });
+      }
+      if (stored?.type === "api_key" && input.methods.apiKey !== undefined) {
+        return transition({
+          phase: "authenticated",
+          method: "api_key",
+          source: input.methods.apiKey.displayName,
+        });
+      }
+      if (stored !== undefined) {
+        return transition({ phase: "reauthentication_required", method: stored.type });
+      }
+      try {
+        const resolved = await resolveProviderAuth(
+          input.providerId,
+          input.methods,
+          input.store,
+          input.context,
+          { signal },
+        );
+        signal.throwIfAborted();
+        return transition({ phase: "authenticated", source: resolved.source });
+      } catch (error) {
+        if (error instanceof AuthError && error.code === "not_configured") {
+          return transition({ phase: "logged_out" });
+        }
+        throw error;
+      }
+    },
     resolve: async (options = {}) => {
       const operation = generation;
       try {

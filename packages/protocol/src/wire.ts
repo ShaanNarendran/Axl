@@ -22,6 +22,26 @@ import type {
   UserContent,
 } from "./events.ts";
 import { parseBlobReference, parseEvent, parseUserContent } from "./events.ts";
+import {
+  isProviderRpcErrorCode,
+  parseProviderAuthenticationStatus,
+  parseProviderAuthenticationStatusResult,
+  parseProviderCatalogRefreshResult,
+  parseProviderIdParam,
+  parseProviderListResult,
+  parseProviderLoginMethod,
+  parseProviderRpcErrorDetails,
+  type ProviderAuthenticationStatusParams,
+  type ProviderAuthenticationStatusResult,
+  type ProviderCatalogRefreshParams,
+  type ProviderCatalogRefreshResult,
+  type ProviderListParams,
+  type ProviderListResult,
+  type ProviderLoginParams,
+  type ProviderLoginResult,
+  type ProviderLogoutParams,
+  type ProviderLogoutResult,
+} from "./provider-management.ts";
 
 import { type ModelRequestSettings, parseModelRequestSettings } from "./model-request.ts";
 
@@ -31,7 +51,7 @@ export const MAX_WIRE_MESSAGE_BYTES = 1024 * 1024;
 export type EventCursor = string;
 
 export interface SessionModelSelection {
-  readonly requestSettings?: ModelRequestSettings;
+  readonly providerId?: string;
   readonly modelId?: string;
   readonly thinkingLevel?: ThinkingLevel;
 }
@@ -638,6 +658,11 @@ export const WIRE_CAPABILITIES = [
   "session.workspace.status",
   "session.workspace.diff",
   "session.workspace.checkpoint",
+  "provider.list",
+  "provider.catalog.refresh",
+  "provider.auth.status",
+  "provider.auth.login",
+  "provider.auth.logout",
 ] as const satisfies readonly CapabilityId[];
 
 export interface ClientIdentity {
@@ -691,6 +716,26 @@ export interface RpcMethodMap {
   readonly "request.cancel": {
     readonly params: RequestCancelParams;
     readonly result: RequestCancelResult;
+  };
+  readonly "provider.list": {
+    readonly params: ProviderListParams;
+    readonly result: ProviderListResult;
+  };
+  readonly "provider.catalog.refresh": {
+    readonly params: ProviderCatalogRefreshParams;
+    readonly result: ProviderCatalogRefreshResult;
+  };
+  readonly "provider.auth.status": {
+    readonly params: ProviderAuthenticationStatusParams;
+    readonly result: ProviderAuthenticationStatusResult;
+  };
+  readonly "provider.auth.login": {
+    readonly params: ProviderLoginParams;
+    readonly result: ProviderLoginResult;
+  };
+  readonly "provider.auth.logout": {
+    readonly params: ProviderLogoutParams;
+    readonly result: ProviderLogoutResult;
   };
   readonly "session.create": {
     readonly params: { readonly cwd: string } & SessionConfiguration;
@@ -800,6 +845,7 @@ export interface RpcMethodMap {
   readonly "session.configure": {
     readonly params: { readonly sessionId: SessionId } & SessionConfiguration;
     readonly result: {
+      readonly providerId: string;
       readonly modelId: string;
       readonly requestedThinkingLevel: ThinkingLevel;
       readonly effectiveThinkingLevel: ThinkingLevel;
@@ -1013,6 +1059,20 @@ export const RPC_ERROR_CODES = [
   "blob_corrupt",
   "invalid_blob_range",
   "blob_read_failed",
+  "provider_not_found",
+  "provider_disabled",
+  "model_not_found",
+  "model_unavailable",
+  "authentication_required",
+  "authentication_failed",
+  "authentication_unavailable",
+  "catalog_refresh_unsupported",
+  "catalog_refresh_failed",
+  "entitlement_required",
+  "entitlement_exhausted",
+  "region_required",
+  "region_unsupported",
+  "provider_configuration_required",
 ] as const;
 
 export type RpcErrorCode = (typeof RPC_ERROR_CODES)[number] | (string & {});
@@ -1355,6 +1415,8 @@ function sessionProfile(value: unknown, path: string): SessionProfile | undefine
 }
 
 function selection(params: Record<string, unknown>, path: string): SessionSelection {
+  const providerId =
+    params.providerId === undefined ? undefined : string(params.providerId, `${path}.providerId`);
   const modelId =
     params.modelId === undefined ? undefined : string(params.modelId, `${path}.modelId`);
   const thinkingLevel = params.thinkingLevel;
@@ -1370,14 +1432,7 @@ function selection(params: Record<string, unknown>, path: string): SessionSelect
     }
   }
   return {
-    ...(params.requestSettings === undefined
-      ? {}
-      : {
-          requestSettings: parseModelRequestSettings(
-            params.requestSettings,
-            `${path}.requestSettings`,
-          ),
-        }),
+    ...(providerId === undefined ? {} : { providerId }),
     ...(modelId === undefined ? {} : { modelId }),
     ...(thinkingLevel === undefined ? {} : { thinkingLevel: thinkingLevel as ThinkingLevel }),
     ...(params.webFetch === undefined ? {} : { webFetch: params.webFetch as boolean }),
@@ -1447,9 +1502,44 @@ export function parseWireRequest(value: unknown): WireRequest {
       params: { requestId: nonNegativeInteger(params.requestId, "request.params.requestId") },
     };
   }
+  if (
+    method === "provider.list" ||
+    method === "provider.catalog.refresh" ||
+    method === "provider.auth.status"
+  ) {
+    exact(params, "request.params", ["providerId"]);
+    return {
+      ...base,
+      method,
+      params:
+        params.providerId === undefined
+          ? {}
+          : { providerId: parseProviderIdParam(params.providerId, "request.params.providerId") },
+    } as WireRequest;
+  }
+  if (method === "provider.auth.login") {
+    exact(params, "request.params", ["providerId", "method"]);
+    return {
+      ...base,
+      method,
+      params: {
+        providerId: parseProviderIdParam(params.providerId, "request.params.providerId"),
+        method: parseProviderLoginMethod(params.method, "request.params.method"),
+      },
+    };
+  }
+  if (method === "provider.auth.logout") {
+    exact(params, "request.params", ["providerId"]);
+    return {
+      ...base,
+      method,
+      params: { providerId: parseProviderIdParam(params.providerId, "request.params.providerId") },
+    };
+  }
   if (method === "session.create") {
     exact(params, "request.params", [
       "cwd",
+      "providerId",
       "modelId",
       "thinkingLevel",
       "requestSettings",
@@ -1696,6 +1786,7 @@ export function parseWireRequest(value: unknown): WireRequest {
   if (method === "session.configure") {
     exact(params, "request.params", [
       "sessionId",
+      "providerId",
       "modelId",
       "thinkingLevel",
       "requestSettings",
@@ -1706,7 +1797,7 @@ export function parseWireRequest(value: unknown): WireRequest {
     const configured = selection(params, "request.params");
     const profile = sessionProfile(params.profile, "request.params.profile");
     if (
-      configured.requestSettings === undefined &&
+      configured.providerId === undefined &&
       configured.modelId === undefined &&
       configured.thinkingLevel === undefined &&
       configured.webFetch === undefined &&
@@ -1715,7 +1806,7 @@ export function parseWireRequest(value: unknown): WireRequest {
     ) {
       throw new ProtocolValidationError(
         "request.params",
-        "must include modelId, thinkingLevel, requestSettings, webFetch, webSearch, or profile",
+        "must include providerId, modelId, thinkingLevel, webFetch, webSearch, or profile",
       );
     }
     return {
@@ -2189,6 +2280,14 @@ export function parseRpcResult<Method extends RpcMethod>(
     parsed = {};
   } else if (method === "request.cancel") {
     parsed = parseBooleanResult(value, path, "cancellationRequested");
+  } else if (method === "provider.list") {
+    parsed = parseProviderListResult(value);
+  } else if (method === "provider.catalog.refresh") {
+    parsed = parseProviderCatalogRefreshResult(value);
+  } else if (method === "provider.auth.status") {
+    parsed = parseProviderAuthenticationStatusResult(value);
+  } else if (method === "provider.auth.login" || method === "provider.auth.logout") {
+    parsed = parseProviderAuthenticationStatus(value, path);
   } else if (method === "session.create" || method === "session.resume") {
     parsed = parseSessionOpenResult(value, path);
   } else if (method === "session.list") {
@@ -2318,6 +2417,7 @@ export function parseRpcResult<Method extends RpcMethod>(
   } else if (method === "session.configure") {
     const result = object(value, path);
     exact(result, path, [
+      "providerId",
       "modelId",
       "requestedThinkingLevel",
       "effectiveThinkingLevel",
@@ -2352,6 +2452,7 @@ export function parseRpcResult<Method extends RpcMethod>(
       throw new ProtocolValidationError(`${path}.profile`, "is required");
     }
     parsed = {
+      providerId: boundedString(result.providerId, `${path}.providerId`, 128),
       modelId: boundedString(result.modelId, `${path}.modelId`, 512),
       requestedThinkingLevel: result.requestedThinkingLevel,
       effectiveThinkingLevel: result.effectiveThinkingLevel,
@@ -2497,6 +2598,11 @@ export const RPC_METHODS = [
   "connection.initialize",
   "connection.ping",
   "request.cancel",
+  "provider.list",
+  "provider.catalog.refresh",
+  "provider.auth.status",
+  "provider.auth.login",
+  "provider.auth.logout",
   "session.create",
   "session.resume",
   "session.list",
@@ -2581,8 +2687,70 @@ export const RPC_METHOD_ERROR_CODES = {
   ],
   "connection.ping": [],
   "request.cancel": [],
-  "session.create": ["invalid_cwd", ...MUTATION_ERRORS, "corrupt_session", "content_too_large"],
-  "session.resume": ["unknown_session", "corrupt_session", "event_migration_required"],
+  "provider.list": ["provider_not_found", "provider_disabled", "catalog_refresh_failed"],
+  "provider.catalog.refresh": [
+    "provider_not_found",
+    "provider_disabled",
+    "catalog_refresh_unsupported",
+    "catalog_refresh_failed",
+    "authentication_required",
+    "authentication_failed",
+    "entitlement_required",
+    "entitlement_exhausted",
+    "region_required",
+    "region_unsupported",
+    "provider_configuration_required",
+  ],
+  "provider.auth.status": ["provider_not_found", "provider_disabled", "authentication_failed"],
+  "provider.auth.login": [
+    "provider_not_found",
+    "provider_disabled",
+    "authentication_required",
+    "authentication_unavailable",
+    "authentication_failed",
+    "region_required",
+    "region_unsupported",
+    "provider_configuration_required",
+  ],
+  "provider.auth.logout": [
+    "provider_not_found",
+    "provider_disabled",
+    "authentication_unavailable",
+    "authentication_failed",
+  ],
+  "session.create": [
+    "invalid_cwd",
+    ...MUTATION_ERRORS,
+    "corrupt_session",
+    "content_too_large",
+    "provider_not_found",
+    "provider_disabled",
+    "model_not_found",
+    "model_unavailable",
+    "authentication_required",
+    "authentication_failed",
+    "entitlement_required",
+    "entitlement_exhausted",
+    "region_required",
+    "region_unsupported",
+    "provider_configuration_required",
+  ],
+  "session.resume": [
+    "unknown_session",
+    "corrupt_session",
+    "event_migration_required",
+    "provider_not_found",
+    "provider_disabled",
+    "model_not_found",
+    "model_unavailable",
+    "authentication_required",
+    "authentication_failed",
+    "entitlement_required",
+    "entitlement_exhausted",
+    "region_required",
+    "region_unsupported",
+    "provider_configuration_required",
+  ],
   "session.list": ["invalid_cwd", "unknown_cursor"],
   "session.history": ["unknown_cursor", "snapshot_required", "event_migration_required"],
   "session.ack": ["unknown_subscription", "unknown_cursor", "snapshot_required"],
@@ -2674,6 +2842,17 @@ export const RPC_METHOD_ERROR_CODES = {
     "operation_active",
     ...MUTATION_ERRORS,
     "content_too_large",
+    "provider_not_found",
+    "provider_disabled",
+    "model_not_found",
+    "model_unavailable",
+    "authentication_required",
+    "authentication_failed",
+    "entitlement_required",
+    "entitlement_exhausted",
+    "region_required",
+    "region_unsupported",
+    "provider_configuration_required",
   ],
   "session.configure": [
     ...SESSION_BASE_ERRORS,
@@ -2681,6 +2860,17 @@ export const RPC_METHOD_ERROR_CODES = {
     "operation_active",
     ...MUTATION_ERRORS,
     "content_too_large",
+    "provider_not_found",
+    "provider_disabled",
+    "model_not_found",
+    "model_unavailable",
+    "authentication_required",
+    "authentication_failed",
+    "entitlement_required",
+    "entitlement_exhausted",
+    "region_required",
+    "region_unsupported",
+    "provider_configuration_required",
   ],
   "session.interaction.respond": [
     ...SESSION_BASE_ERRORS,
@@ -2893,9 +3083,13 @@ export function parseServerMessage(value: unknown): ServerMessage {
         code,
         message: boundedText(error.message, "message.error.message", 4096),
         retryable: error.retryable,
-        ...(error.details === undefined
-          ? {}
-          : { details: parseJsonObject(error.details, "message.error.details") }),
+        ...(isProviderRpcErrorCode(code)
+          ? {
+              details: parseProviderRpcErrorDetails(error.details, "message.error.details"),
+            }
+          : error.details === undefined
+            ? {}
+            : { details: parseJsonObject(error.details, "message.error.details") }),
       },
     };
   }

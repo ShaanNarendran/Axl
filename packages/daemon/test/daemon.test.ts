@@ -3488,20 +3488,28 @@ test("configuration changes rebuild and log the selected model and thinking", as
   const directory = await mkdtemp(join(tmpdir(), "axl-daemon-"));
   context.after(() => rm(directory, { recursive: true, force: true }));
   const socketPath = join(directory, "axl.sock");
-  const configured: Array<{ boundary: string; model?: string; thinking?: string }> = [];
+  const configured: Array<{
+    boundary: string;
+    provider?: string;
+    model?: string;
+    thinking?: string;
+  }> = [];
   const daemon = new AxlDaemon({
     socketPath,
     dataDirectory: join(directory, "data"),
     runtime: ({ boundary, selection }) => {
       configured.push({
         boundary,
+        ...(selection.providerId === undefined ? {} : { provider: selection.providerId }),
         ...(selection.modelId === undefined ? {} : { model: selection.modelId }),
         ...(selection.thinkingLevel === undefined ? {} : { thinking: selection.thinkingLevel }),
       });
       return {
         model: replyPort(),
         tools: new ToolRegistry(),
-        configRequest: selection.requestSettings ?? DEFAULT_MODEL_REQUEST_SETTINGS,
+        ...(selection.providerId === undefined
+          ? {}
+          : { configProvider: { providerId: selection.providerId } }),
         ...(selection.modelId === undefined ? {} : { configModel: { modelId: selection.modelId } }),
         ...(selection.thinkingLevel === undefined
           ? {}
@@ -3522,6 +3530,7 @@ test("configuration changes rebuild and log the selected model and thinking", as
   context.after(() => client.close());
   const created = await client.request("session.create", {
     cwd: directory,
+    providerId: "openai",
     modelId: "gpt-5",
     thinkingLevel: "medium",
     requestSettings: { maxOutputTokens: null, httpIdleTimeoutMs: 300_000 },
@@ -3531,6 +3540,7 @@ test("configuration changes rebuild and log the selected model and thinking", as
     "session.configure",
     {
       sessionId: created.sessionId,
+      providerId: "openai",
       modelId: "gpt-4.1",
       thinkingLevel: "high",
       requestSettings: { maxOutputTokens: 2048, httpIdleTimeoutMs: 0 },
@@ -3539,9 +3549,10 @@ test("configuration changes rebuild and log the selected model and thinking", as
   );
 
   assert.deepEqual(configured, [
-    { boundary: "session_start", model: "gpt-5", thinking: "medium" },
-    { boundary: "model_switch", model: "gpt-4.1", thinking: "high" },
+    { boundary: "session_start", provider: "openai", model: "gpt-5", thinking: "medium" },
+    { boundary: "model_switch", provider: "openai", model: "gpt-4.1", thinking: "high" },
   ]);
+  assert.equal(changed.providerId, "openai");
   assert.equal(changed.modelId, "gpt-4.1");
   assert.equal(changed.requestedThinkingLevel, "high");
   assert.equal(changed.effectiveThinkingLevel, "high");
@@ -3560,7 +3571,9 @@ test("configuration changes rebuild and log the selected model and thinking", as
     runtime: ({ selection }) => ({
       model: replyPort(),
       tools: new ToolRegistry(),
-      configRequest: selection.requestSettings ?? DEFAULT_MODEL_REQUEST_SETTINGS,
+      ...(selection.providerId === undefined
+        ? {}
+        : { configProvider: { providerId: selection.providerId } }),
       ...(selection.modelId === undefined ? {} : { configModel: { modelId: selection.modelId } }),
       ...(selection.thinkingLevel === undefined
         ? {}
@@ -3582,6 +3595,7 @@ test("configuration changes rebuild and log the selected model and thinking", as
       "session.configure",
       {
         sessionId: created.sessionId,
+        providerId: "openai",
         modelId: "gpt-4.1",
         thinkingLevel: "high",
         requestSettings: { maxOutputTokens: 2048, httpIdleTimeoutMs: 0 },

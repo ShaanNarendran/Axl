@@ -17,8 +17,14 @@ import {
   type ThinkingLevel,
 } from "@axl/protocol";
 
+import {
+  createProviderManagementService,
+  type TrustedProviderLoginAdapter,
+  validateProviderSelection,
+} from "./provider-management.ts";
+
 export interface LocalRuntimeDefaults {
-  readonly requestSettings?: ModelRequestSettings;
+  readonly providerId?: string;
   readonly modelId: string;
   readonly thinkingLevel: ThinkingLevel;
   readonly webFetch?: boolean;
@@ -148,6 +154,18 @@ export async function diagnoseLocalSandboxes(): Promise<{
   };
 }
 
+async function migrateLegacyAzureCredential(store: CredentialStore): Promise<void> {
+  const legacyProviderId = "azure-openai";
+  const providerId = "azure-openai-responses";
+  const [legacy, current] = await Promise.all([
+    store.read(legacyProviderId),
+    store.read(providerId),
+  ]);
+  if (legacy === undefined || current !== undefined) return;
+  await store.modify(providerId, (stored) => Promise.resolve(stored ?? legacy));
+  await store.delete(legacyProviderId);
+}
+
 async function exists(path: string): Promise<boolean> {
   try {
     await access(path);
@@ -169,6 +187,7 @@ export interface LocalDaemonOptions {
   readonly store: CredentialStore;
   readonly unsafe: boolean;
   readonly sandbox?: LocalSandboxSelection;
+  readonly providerLogin?: TrustedProviderLoginAdapter;
 }
 
 /**
@@ -203,9 +222,15 @@ export async function startLocalDaemon(options: LocalDaemonOptions): Promise<Axl
       if (!sandbox.available) {
         throw new sandboxPackage.SandboxUnavailableError(sandbox.reason ?? "unknown");
       }
-      const providers = new ai.ProviderRegistry();
-      providers.register(ai.createAzureOpenAiProvider({ store, context: ai.nodeAuthContext }));
-      return { ai, kernel, sandbox, providers };
+      await migrateLegacyAzureCredential(store);
+      const providers = new ai.ProviderRegistry({
+        catalogStore: new ai.FileCatalogStore(join(axlHome, "catalogs")),
+      });
+      for (const provider of ai.createBuiltinProviders({ store, context: ai.nodeAuthContext })) {
+        providers.register(provider);
+      }
+      const restored = await providers.restoreCatalogs();
+      return { ai, kernel, sandbox, providers, catalogErrors: restored.errors };
     });
     return assemblyPromise;
   };
@@ -214,6 +239,37 @@ export async function startLocalDaemon(options: LocalDaemonOptions): Promise<Axl
   // first because its lack of isolation is already explicit and logged.
   const initialAssembly = unsafe ? undefined : await loadAssembly();
   const { AxlDaemon } = await import("@axl/daemon");
+  const providerManagement = {
+    list: async (...args: Parameters<import("@axl/daemon").ProviderManagementService["list"]>) =>
+      createProviderManagementService((await loadAssembly()).providers, {
+        ...(options.providerLogin === undefined ? {} : { loginAdapter: options.providerLogin }),
+      }).list(...args),
+    refresh: async (
+      ...args: Parameters<import("@axl/daemon").ProviderManagementService["refresh"]>
+    ) =>
+      createProviderManagementService((await loadAssembly()).providers, {
+        ...(options.providerLogin === undefined ? {} : { loginAdapter: options.providerLogin }),
+      }).refresh(...args),
+    authenticationStatus: async (
+      ...args: Parameters<import("@axl/daemon").ProviderManagementService["authenticationStatus"]>
+    ) =>
+      createProviderManagementService((await loadAssembly()).providers, {
+        ...(options.providerLogin === undefined ? {} : { loginAdapter: options.providerLogin }),
+      }).authenticationStatus(...args),
+    login: async (...args: Parameters<import("@axl/daemon").ProviderManagementService["login"]>) =>
+      createProviderManagementService((await loadAssembly()).providers, {
+        ...(options.providerLogin === undefined ? {} : { loginAdapter: options.providerLogin }),
+      }).login(...args),
+    logout: async (
+      ...args: Parameters<import("@axl/daemon").ProviderManagementService["logout"]>
+    ) =>
+      createProviderManagementService((await loadAssembly()).providers, {
+        ...(options.providerLogin === undefined ? {} : { loginAdapter: options.providerLogin }),
+      }).logout(...args),
+    dispose: async () => {
+      if (assemblyPromise !== undefined) (await assemblyPromise).providers.dispose();
+    },
+  } satisfies import("@axl/daemon").ProviderManagementService;
   const daemon = new AxlDaemon({
     ...(options.buildVersion === undefined ? {} : { buildVersion: options.buildVersion }),
     ...(options.onStopped === undefined ? {} : { onStopped: options.onStopped }),
@@ -223,6 +279,7 @@ export async function startLocalDaemon(options: LocalDaemonOptions): Promise<Axl
     securityMode: unsafe ? "unsafe" : "sandboxed",
     sandboxProvider: unsafe ? "none" : (initialAssembly?.sandbox.provider ?? "unknown"),
     ...(sandboxSelection.type === "oci" ? { sandboxImage: sandboxSelection.image } : {}),
+    providerManagement,
     runtime: async ({ sessionId, cwd, boundary, selection, interact, readBlob }) => {
       const { ai, kernel, sandbox, providers } = await loadAssembly();
       const profile = selection.profile ?? "standard";
@@ -243,13 +300,7 @@ export async function startLocalDaemon(options: LocalDaemonOptions): Promise<Axl
         hasMcpConfig ? import("@axl/extension-mcp") : Promise.resolve(undefined),
         hasSkills ? import("@axl/extension-skills") : Promise.resolve(undefined),
       ]);
-      const [resolved, instructions, skills, mcpServers] = await Promise.all([
-        ai.resolveProviderAuth(
-          ai.AZURE_OPENAI_PROVIDER_ID,
-          { apiKey: ai.azureOpenAiAuthMethod },
-          store,
-          ai.nodeAuthContext,
-        ),
+      const [instructions, skills, mcpServers] = await Promise.all([
         kernel.loadAgentsInstructions({ cwd, globalPath: join(axlHome, "AGENTS.md") }),
         skillsPackage === undefined
           ? Promise.resolve([])
@@ -259,12 +310,17 @@ export async function startLocalDaemon(options: LocalDaemonOptions): Promise<Axl
           : mcpPackage.loadMcpConfig({ cwd, globalDirectory: axlHome }),
       ]);
       const active = {
+        providerId: selection.providerId ?? defaults.providerId ?? "azure-openai-responses",
         modelId: selection.modelId ?? defaults.modelId,
         thinkingLevel: selection.thinkingLevel ?? defaults.thinkingLevel,
         webFetch: profile === "standard" && (selection.webFetch ?? defaults.webFetch ?? true),
         webSearch: profile === "standard" && (selection.webSearch ?? defaults.webSearch ?? true),
       };
-      const modelInfo = await providers.getModel(ai.AZURE_OPENAI_PROVIDER_ID, active.modelId);
+      const modelInfo = await validateProviderSelection(
+        providers,
+        active.providerId,
+        active.modelId,
+      );
       const thinking = ai.clampThinkingLevel(modelInfo, active.thinkingLevel);
       const policy = {
         workspace: cwd,
@@ -272,7 +328,7 @@ export async function startLocalDaemon(options: LocalDaemonOptions): Promise<Axl
         protectedPaths: [axlHome],
       };
       const model = ai.modelPortForRegistry(providers, {
-        providerId: ai.AZURE_OPENAI_PROVIDER_ID,
+        providerId: active.providerId,
         modelId: active.modelId,
         thinkingLevel: thinking.effective,
         readBlob,
@@ -342,13 +398,10 @@ export async function startLocalDaemon(options: LocalDaemonOptions): Promise<Axl
         ...(mcp === undefined ? {} : { extensionHost: mcp }),
         prompt,
         log: {
-          secretValues: [
-            ...resolved.secretValues,
-            ...mcpSecrets,
-            ...(braveSearchKey === undefined ? [] : [braveSearchKey]),
-          ],
+          secretValues: [...mcpSecrets, ...(braveSearchKey === undefined ? [] : [braveSearchKey])],
         },
         sandbox: sandbox.configuredPayload(),
+        configProvider: { providerId: active.providerId },
         configModel: { modelId: active.modelId },
         configRequest: requestSettings,
         configThinking: thinking,
@@ -358,7 +411,7 @@ export async function startLocalDaemon(options: LocalDaemonOptions): Promise<Axl
           ? {}
           : {
               configDialect: ai.dialectBoundaryPayload(
-                new ai.FrozenToolRoster(ai.OPENAI_CHAT_TOOL_DIALECT, tools.declarations()),
+                new ai.FrozenToolRoster({ id: modelInfo.apiDialect }, tools.declarations()),
                 boundary,
               ),
             }),

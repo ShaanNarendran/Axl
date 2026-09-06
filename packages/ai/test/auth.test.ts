@@ -116,6 +116,27 @@ test("valid oauth resolves without refreshing and lists its tokens as secrets", 
   assert.deepEqual(resolved.secretValues, ["current-access", "fresh-refresh"]);
 });
 
+test("authentication status checks do not refresh stored OAuth credentials", async () => {
+  const store = new InMemoryCredentialStore();
+  const method = makeOAuthMethod(validOAuth());
+  await login(store, providerId, expiringOAuth());
+  const authentication = createProviderAuthentication({
+    providerId,
+    declaredMethods: ["oauth"],
+    methods: { oauth: method },
+    store,
+    context: makeContext(),
+  });
+
+  assert.deepEqual(await authentication.check(), {
+    phase: "authenticated",
+    method: "oauth",
+    source: "Azure OAuth",
+  });
+  assert.equal(method.refreshCount, 0);
+  assert.equal((await store.read(providerId))?.type, "oauth");
+});
+
 test("expiring oauth refreshes exactly once across concurrent resolutions", async () => {
   const store = new InMemoryCredentialStore();
   const method = makeOAuthMethod(validOAuth());

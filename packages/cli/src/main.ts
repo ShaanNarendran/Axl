@@ -53,6 +53,7 @@ const HELP = `Usage: axl [session-id] [options]
 
 Options:
   --cwd <path>       Set the workspace directory
+  --provider <id>    Select the initial provider
   --model <id>       Select the initial model
   --thinking <level> Select the initial reasoning effort
   --max-output-tokens <n|model>  Set an output ceiling or use the model maximum
@@ -104,6 +105,7 @@ interface CliArguments {
   raw: boolean;
   confirmPrefix: boolean;
   socket?: string;
+  provider?: string;
   model?: string;
   thinking?: ThinkingLevel;
   maxOutputTokens?: number | null;
@@ -171,10 +173,8 @@ function parseArguments(argv: readonly string[]): CliArguments {
       parsed.prompt.push(...argv.slice(index + 1));
       break;
     }
-    if (argument === "--interrupt") parsed.interrupt = true;
-    else if (argument === "--yes") parsed.yes = true;
-    else if (argument === "--force") parsed.force = true;
-    else if (argument === "--socket") parsed.socket = next();
+    if (argument === "--socket") parsed.socket = next();
+    else if (argument === "--provider") parsed.provider = next();
     else if (argument === "--output") parsed.output = next();
     else if (argument === "--raw") parsed.raw = true;
     else if (argument === "--confirm-prefix") parsed.confirmPrefix = true;
@@ -346,40 +346,8 @@ function samePlacement(left: LocalSessionPlacement, right: LocalSessionPlacement
   return left.engine === right.engine && left.image === right.image;
 }
 
-async function ensureCredentials(
-  store: CredentialStore,
-  allowInteractiveSetup = true,
-): Promise<void> {
-  const {
-    AuthError,
-    AZURE_OPENAI_PROVIDER_ID,
-    azureOpenAiAuthMethod,
-    nodeAuthContext,
-    resolveProviderAuth,
-  } = await import("@axl/ai");
-  try {
-    await resolveProviderAuth(
-      AZURE_OPENAI_PROVIDER_ID,
-      { apiKey: azureOpenAiAuthMethod },
-      store,
-      nodeAuthContext,
-    );
-  } catch (error) {
-    if (
-      error instanceof AuthError &&
-      error.code === "not_configured" &&
-      allowInteractiveSetup &&
-      process.stdin.isTTY
-    ) {
-      await runAzureSetup(process.stdin, process.stdout, store, nodeAuthContext);
-      return;
-    }
-    throw error;
-  }
-}
-
 interface ActiveConfig {
-  readonly requestSettings: ModelRequestSettings;
+  readonly providerId: string;
   readonly modelId: string;
   readonly thinkingLevel: ThinkingLevel;
   readonly webFetch: boolean;
@@ -456,6 +424,7 @@ async function connectExpectedDaemon(
 async function connectOrStartDaemon(input: {
   readonly requestSettings: ModelRequestSettings;
   readonly socketPath: string;
+  readonly provider: string;
   readonly model: string;
   readonly thinking: ThinkingLevel;
   readonly unsafe: boolean;
@@ -485,6 +454,8 @@ async function connectOrStartDaemon(input: {
         "daemon",
         "--socket",
         input.socketPath,
+        "--provider",
+        input.provider,
         "--model",
         input.model,
         "--thinking",
@@ -610,7 +581,7 @@ async function runHeadless(
 ): Promise<AssistantMessageEvent> {
   const opened = await client.request("session.create", {
     cwd: input.cwd,
-    requestSettings: input.active.requestSettings,
+    providerId: input.active.providerId,
     modelId: input.active.modelId,
     thinkingLevel: input.active.thinkingLevel,
     webFetch: input.active.webFetch,
@@ -880,16 +851,7 @@ async function main(): Promise<void> {
   }
 
   const active: ActiveConfig = {
-    requestSettings: parseModelRequestSettings({
-      maxOutputTokens:
-        cli.maxOutputTokens === undefined
-          ? (settings.requestSettings?.maxOutputTokens ?? null)
-          : cli.maxOutputTokens,
-      httpIdleTimeoutMs:
-        cli.httpIdleTimeoutMs ??
-        settings.requestSettings?.httpIdleTimeoutMs ??
-        DEFAULT_MODEL_REQUEST_SETTINGS.httpIdleTimeoutMs,
-    }),
+    providerId: cli.provider ?? settings.providerId ?? "azure-openai-responses",
     modelId: cli.model ?? settings.modelId ?? "gpt-5",
     thinkingLevel: cli.thinking ?? settings.thinkingLevel ?? "medium",
     webFetch: cli.webFetch ?? settings.webFetch ?? true,
@@ -903,7 +865,6 @@ async function main(): Promise<void> {
   }
   if (cli.command === "daemon" && cli.daemonAction === undefined) {
     const { store } = await credentials();
-    await ensureCredentials(store);
     const daemon = await startLocalDaemon({
       buildVersion: AXL_VERSION,
       onStopped: () => process.exit(0),
@@ -946,12 +907,11 @@ async function main(): Promise<void> {
         clientKind,
       );
     } catch (error) {
-      if (!missingDaemon(error)) throw error;
-      const { store } = await credentials();
-      await ensureCredentials(store, cli.command === undefined);
+      if (error instanceof SecurityModeMismatchError) throw error;
       return connectOrStartDaemon({
         requestSettings: active.requestSettings,
         socketPath: target.socketPath,
+        provider: active.providerId,
         model: active.modelId,
         thinking: active.thinkingLevel,
         unsafe: target.unsafe,

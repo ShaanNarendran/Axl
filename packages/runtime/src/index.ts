@@ -3,3 +3,4 @@
 // SPDX-License-Identifier: Apache-2.0
 
 export * from "./local-runtime.ts";
+export * from "./provider-management.ts";

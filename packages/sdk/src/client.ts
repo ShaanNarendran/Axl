@@ -5,6 +5,7 @@
 import {
   encodeWireMessage,
   isKnownRpcErrorCode,
+  isProviderRpcErrorCode,
   isRetryableMutationMethod,
   isRpcErrorAllowed,
   parseServerMessage,
@@ -16,6 +17,8 @@ import {
   type ConnectionInitializeResult,
   type OperationId,
   type PresenceDelivery,
+  type ProviderRpcErrorCode,
+  type ProviderRpcErrorDetails,
   type RpcMethod,
   type RpcParams,
   type RpcResult,
@@ -82,6 +85,25 @@ export class AxlClientError extends Error {
     this.name = "AxlClientError";
     this.code = code;
     this.retryable = options.retryable ?? false;
+    this.details = options.details;
+  }
+}
+
+export class ProviderClientError extends AxlClientError {
+  declare readonly code: ProviderRpcErrorCode;
+  declare readonly details: ProviderRpcErrorDetails;
+
+  constructor(
+    code: ProviderRpcErrorCode,
+    message: string,
+    options: {
+      readonly retryable: boolean;
+      readonly details: ProviderRpcErrorDetails;
+    },
+  ) {
+    super(code, message, options);
+    this.name = "ProviderClientError";
+    this.code = code;
     this.details = options.details;
   }
 }
@@ -227,6 +249,41 @@ export class AxlClient {
       await this.reconnect();
       return attempt();
     });
+  }
+
+  listProviders(
+    params: RpcParams<"provider.list"> = {},
+    options: Omit<RequestOptions, "idempotencyKey"> = {},
+  ): Promise<RpcResult<"provider.list">> {
+    return this.request("provider.list", params, options);
+  }
+
+  refreshProviderCatalogs(
+    params: RpcParams<"provider.catalog.refresh"> = {},
+    options: Omit<RequestOptions, "idempotencyKey"> = {},
+  ): Promise<RpcResult<"provider.catalog.refresh">> {
+    return this.request("provider.catalog.refresh", params, options);
+  }
+
+  providerAuthenticationStatus(
+    params: RpcParams<"provider.auth.status"> = {},
+    options: Omit<RequestOptions, "idempotencyKey"> = {},
+  ): Promise<RpcResult<"provider.auth.status">> {
+    return this.request("provider.auth.status", params, options);
+  }
+
+  loginProvider(
+    params: RpcParams<"provider.auth.login">,
+    options: Omit<RequestOptions, "idempotencyKey"> = {},
+  ): Promise<RpcResult<"provider.auth.login">> {
+    return this.request("provider.auth.login", params, options);
+  }
+
+  logoutProvider(
+    params: RpcParams<"provider.auth.logout">,
+    options: Omit<RequestOptions, "idempotencyKey"> = {},
+  ): Promise<RpcResult<"provider.auth.logout">> {
+    return this.request("provider.auth.logout", params, options);
   }
 
   async shell(
@@ -487,10 +544,15 @@ export class AxlClient {
           return;
         }
       }
-      const error = new AxlClientError(message.error.code, message.error.message, {
-        retryable: message.error.retryable,
-        ...(message.error.details === undefined ? {} : { details: message.error.details }),
-      });
+      const error = isProviderRpcErrorCode(message.error.code)
+        ? new ProviderClientError(message.error.code, message.error.message, {
+            retryable: message.error.retryable,
+            details: message.error.details as ProviderRpcErrorDetails,
+          })
+        : new AxlClientError(message.error.code, message.error.message, {
+            retryable: message.error.retryable,
+            ...(message.error.details === undefined ? {} : { details: message.error.details }),
+          });
       if (message.id === -1) this.fail(error);
       else this.rejectRequest(message.id, error);
     } else if (message.kind === "event") {

@@ -14,6 +14,7 @@ import { FileCredentialStore } from "@axl/ai";
 import { AxlDaemon } from "@axl/daemon";
 import { type ModelPort, ToolRegistry } from "@axl/kernel";
 import type { ModelStreamEvent } from "@axl/protocol";
+import { AxlClientError } from "@axl/sdk";
 import { connectUnixClient } from "@axl/sdk/unix";
 
 import { listLocalSessions, localSandboxStateKey, startLocalDaemon } from "../src/index.ts";
@@ -107,6 +108,12 @@ test("assembles an authoritative local runtime without a presentation client", a
     defaults: { modelId: "gpt-5", thinkingLevel: "medium" },
     store,
     unsafe: true,
+    providerLogin: {
+      createInteraction: () => ({
+        prompt: async () => "runtime-login-secret",
+        notify: () => {},
+      }),
+    },
   });
   context.after(() => daemon.stop());
   const client = await connectUnixClient(socketPath);
@@ -115,6 +122,46 @@ test("assembles an authoritative local runtime without a presentation client", a
   assert.deepEqual(await client.request("daemon.info", {}), {
     securityMode: "unsafe",
     sandboxProvider: "none",
+  });
+  const allProviders = await client.listProviders();
+  assert.equal(allProviders.providers.length, 41);
+  const inventory = await client.listProviders({ providerId: "azure-openai-responses" });
+  assert.equal(inventory.providers.length, 1);
+  assert.equal(
+    inventory.providers[0]?.models.some((model) => model.modelId === "gpt-5"),
+    true,
+  );
+  assert.equal(JSON.stringify(inventory).includes("obviously-fake-runtime-test-key"), false);
+  assert.deepEqual(
+    await client.providerAuthenticationStatus({ providerId: "azure-openai-responses" }),
+    {
+      providers: [
+        {
+          providerId: "azure-openai-responses",
+          phase: "authenticated",
+          method: "api_key",
+          source: "Azure OpenAI API key",
+        },
+      ],
+    },
+  );
+  await assert.rejects(
+    client.request("session.create", {
+      cwd: workspace,
+      providerId: "missing-provider",
+      modelId: "missing-model",
+    }),
+    (error) =>
+      error instanceof AxlClientError &&
+      error.code === "provider_not_found" &&
+      error.details?.action === "configure_provider",
+  );
+  const login = await client.loginProvider({ providerId: "deepseek", method: "api_key" });
+  assert.equal(login.phase, "authenticated");
+  assert.equal(JSON.stringify(login).includes("runtime-login-secret"), false);
+  assert.deepEqual(await client.logoutProvider({ providerId: "deepseek" }), {
+    providerId: "deepseek",
+    phase: "logged_out",
   });
   const opened = await client.request("session.create", { cwd: workspace });
   const subscription = await client.request("session.subscribe", {

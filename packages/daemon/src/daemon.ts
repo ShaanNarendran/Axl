@@ -52,6 +52,7 @@ import {
 
 import { type CommandAcceptance, CommandJournal, CommandJournalError } from "./command-journal.ts";
 import { DataDirectoryLock } from "./data-directory-lock.ts";
+import type { ProviderManagementService } from "./provider-management.ts";
 import { DaemonError, SessionManager, type SessionManagerOptions } from "./session-manager.ts";
 
 export type DaemonSecurityMode = "sandboxed" | "unsafe";
@@ -69,6 +70,7 @@ export interface DaemonOptions extends SessionManagerOptions {
   readonly cursorLifetimeMs?: number;
   readonly heartbeatIntervalMs?: number;
   readonly presenceTimeoutMs?: number;
+  readonly providerManagement?: ProviderManagementService;
 }
 
 const MAX_PENDING_REQUESTS = 64;
@@ -203,16 +205,8 @@ export class AxlDaemon {
   private readonly cursorLifetimeMs: number;
   private readonly heartbeatIntervalMs: number;
   private readonly presenceTimeoutMs: number;
-  private readonly hostOptions: Pick<
-    DaemonOptions,
-    "buildVersion" | "onStopped" | "forceTerminate"
-  >;
-  private lifecycle: DaemonHostStatus["state"] = "running";
-  private shutdownError: string | undefined;
-  private stopping: Promise<void> | undefined;
-  private readonly pending = new Set<Promise<void>>();
-  private readonly admitted = new Map<string, WireRequest>();
-  private readonly controls = new Set<Socket>();
+  private readonly providerManagement: ProviderManagementService | undefined;
+  private readonly capabilities: readonly string[];
   private readonly daemonInstanceId = randomUUID();
   private commandJournal: CommandJournal | undefined;
   private dataLock: DataDirectoryLock | undefined;
@@ -235,6 +229,11 @@ export class AxlDaemon {
     this.cursorLifetimeMs = options.cursorLifetimeMs ?? 300_000;
     this.heartbeatIntervalMs = options.heartbeatIntervalMs ?? HEARTBEAT_INTERVAL_MS;
     this.presenceTimeoutMs = options.presenceTimeoutMs ?? PRESENCE_TIMEOUT_MS;
+    this.providerManagement = options.providerManagement;
+    this.capabilities =
+      this.providerManagement === undefined
+        ? WIRE_CAPABILITIES.filter((capability) => !capability.startsWith("provider."))
+        : WIRE_CAPABILITIES;
     if (
       !Number.isSafeInteger(this.snapshotIdleLifetimeMs) ||
       this.snapshotIdleLifetimeMs <= 0 ||
@@ -428,13 +427,17 @@ export class AxlDaemon {
       );
     };
     try {
-      if (state.initialized || state.control)
-        throw new DaemonError("bad_request", "Host control requires its own connection");
-      state.control = true;
-      this.controls.add(socket);
-      const request = parseHostRequest(value);
-      if (request.method !== "status" && request.instanceId !== this.daemonInstanceId) {
-        throw new DaemonError("state_changed", "Daemon instance changed; inspect status again");
+      await this.sessions.disposeAll();
+    } finally {
+      try {
+        await this.providerManagement?.dispose?.();
+      } finally {
+        try {
+          await this.removeOwnedSocket();
+        } finally {
+          await this.dataLock?.release({ allowMissing: true });
+          this.dataLock = undefined;
+        }
       }
       if (request.method === "shutdown") {
         const status = this.hostStatus(request.context);
@@ -514,7 +517,7 @@ export class AxlDaemon {
       kind: "hello",
       wireVersion: WIRE_PROTOCOL_VERSION,
       daemonInstanceId: this.daemonInstanceId,
-      capabilities: WIRE_CAPABILITIES,
+      capabilities: this.capabilities,
       limits: {
         maxMessageBytes: MAX_WIRE_MESSAGE_BYTES,
         maxPendingRequests: MAX_PENDING_REQUESTS,
@@ -765,7 +768,7 @@ export class AxlDaemon {
         state.lastSeenAt = now;
         state.grantedCapabilities = new Set(
           request.params.requestedCapabilities.filter((capability) =>
-            WIRE_CAPABILITIES.includes(capability as (typeof WIRE_CAPABILITIES)[number]),
+            this.capabilities.includes(capability),
           ),
         );
       } else {
@@ -781,6 +784,11 @@ export class AxlDaemon {
         }
       }
       const cancellable =
+        request.method === "provider.list" ||
+        request.method === "provider.catalog.refresh" ||
+        request.method === "provider.auth.status" ||
+        request.method === "provider.auth.login" ||
+        request.method === "provider.auth.logout" ||
         request.method === "session.history" ||
         request.method === "session.workspace.list" ||
         request.method === "session.workspace.read" ||
@@ -816,7 +824,9 @@ export class AxlDaemon {
           ? error.code
           : error instanceof CanonicalEventSizeError
             ? "content_too_large"
-            : "internal_error";
+            : error instanceof DOMException && error.name === "AbortError"
+              ? "cancelled"
+              : "internal_error";
       const code = normalizeDaemonRpcErrorCode(request.method, reportedCode);
       send({
         kind: "error",
@@ -963,13 +973,24 @@ export class AxlDaemon {
         controller?.abort();
         return { cancellationRequested: controller !== undefined };
       }
+      case "provider.list":
+        return this.providers().list(request.params, signal);
+      case "provider.catalog.refresh":
+        return this.providers().refresh(request.params, signal);
+      case "provider.auth.status":
+        return this.providers().authenticationStatus(request.params, signal);
+      case "provider.auth.login":
+        return this.providers().login(request.params, signal);
+      case "provider.auth.logout":
+        return this.providers().logout(request.params, signal);
       case "session.create": {
-        const { cwd, modelId, thinkingLevel, webFetch, webSearch, profile, requestSettings } =
+        const { cwd, providerId, modelId, thinkingLevel, webFetch, webSearch, profile } =
           request.params;
         const reservation = this.creationReservation(acceptance);
         const created = await this.sessions.create(
           cwd,
           {
+            ...(providerId === undefined ? {} : { providerId }),
             ...(modelId === undefined ? {} : { modelId }),
             ...(requestSettings === undefined ? {} : { requestSettings }),
             ...(thinkingLevel === undefined ? {} : { thinkingLevel }),
@@ -1074,11 +1095,12 @@ export class AxlDaemon {
       case "session.reload":
         return this.sessions.reload(request.params.sessionId, this.mutationOperationId(acceptance));
       case "session.configure": {
-        const { sessionId, modelId, thinkingLevel, webFetch, webSearch, profile, requestSettings } =
+        const { sessionId, providerId, modelId, thinkingLevel, webFetch, webSearch, profile } =
           request.params;
         return this.sessions.configure(
           sessionId,
           {
+            ...(providerId === undefined ? {} : { providerId }),
             ...(modelId === undefined ? {} : { modelId }),
             ...(requestSettings === undefined ? {} : { requestSettings }),
             ...(thinkingLevel === undefined ? {} : { thinkingLevel }),
@@ -1150,6 +1172,16 @@ export class AxlDaemon {
         await this.sessions.dispose(request.params.sessionId, this.mutationOperationId(acceptance));
         return { disposed: true, historyPreserved: true };
     }
+  }
+
+  private providers(): ProviderManagementService {
+    if (this.providerManagement === undefined) {
+      throw new DaemonError(
+        "unsupported_capability",
+        "Provider management is not available in this daemon",
+      );
+    }
+    return this.providerManagement;
   }
 
   private mutationOperationId(

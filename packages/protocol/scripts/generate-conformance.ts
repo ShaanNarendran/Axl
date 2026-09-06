@@ -12,6 +12,7 @@ import {
   EVENT_TYPES,
   type EventPayloadMap,
   type EventType,
+  isProviderRpcErrorCode,
   isRetryableMutationMethod,
   isRpcErrorAllowed,
   isRpcErrorRetryable,
@@ -170,7 +171,17 @@ const params = {
   },
   "connection.ping": {},
   "request.cancel": { requestId: 7 },
-  "session.create": { cwd: "/workspace", profile: "standard" },
+  "provider.list": {},
+  "provider.catalog.refresh": { providerId: "provider-1" },
+  "provider.auth.status": { providerId: "provider-1" },
+  "provider.auth.login": { providerId: "provider-1", method: "oauth" },
+  "provider.auth.logout": { providerId: "provider-1" },
+  "session.create": {
+    cwd: "/workspace",
+    providerId: "provider-1",
+    modelId: "model-1",
+    profile: "standard",
+  },
   "session.resume": { sessionId },
   "session.list": { scope: "all_local", order: "recent", pageSize: 50 },
   "session.history": { snapshotId: "snapshot-1", pageCursor: "page-1" },
@@ -195,9 +206,9 @@ const params = {
   "session.reload": { sessionId },
   "session.configure": {
     sessionId,
+    providerId: "provider-1",
     modelId: "model-1",
     thinkingLevel: "medium",
-    requestSettings: { maxOutputTokens: null, httpIdleTimeoutMs: 300_000 },
   },
   "session.interaction.respond": {
     sessionId,
@@ -252,6 +263,62 @@ const results = {
   },
   "connection.ping": {},
   "request.cancel": { cancellationRequested: true },
+  "provider.list": {
+    providers: [
+      {
+        providerId: "provider-1",
+        displayName: "Provider One",
+        enabled: true,
+        regionFamily: "provider",
+        region: "global",
+        authMethods: ["environment", "oauth"],
+        loginMethods: ["api_key", "oauth"],
+        authentication: {
+          providerId: "provider-1",
+          phase: "authenticated",
+          method: "oauth",
+          source: "OAuth",
+        },
+        catalog: {
+          refreshable: true,
+          generation: 1,
+          checkedAt: 1,
+          updatedAt: 1,
+          source: { id: "provider.catalog", kind: "provider_api", revision: "v1" },
+        },
+        models: [
+          {
+            providerId: "provider-1",
+            modelId: "model-1",
+            displayName: "Model One",
+            apiDialect: "openai-chat",
+            capabilities: { toolUse: true, structuredOutput: true, imageInput: false },
+            reasoning: true,
+            supportedThinkingLevels: ["off", "low", "medium", "high"],
+            contextWindow: 128000,
+            maxOutputTokens: 16384,
+            cost: { inputUsdPerMTok: 1, outputUsdPerMTok: 2 },
+            availability: { status: "available" },
+          },
+        ],
+      },
+    ],
+  },
+  "provider.catalog.refresh": {
+    providers: [{ providerId: "provider-1", status: "refreshed", modelCount: 1 }],
+  },
+  "provider.auth.status": {
+    providers: [
+      { providerId: "provider-1", phase: "authenticated", method: "oauth", source: "OAuth" },
+    ],
+  },
+  "provider.auth.login": {
+    providerId: "provider-1",
+    phase: "authenticated",
+    method: "oauth",
+    source: "OAuth",
+  },
+  "provider.auth.logout": { providerId: "provider-1", phase: "logged_out" },
   "session.create": opened,
   "session.resume": opened,
   "session.list": {
@@ -294,6 +361,7 @@ const results = {
   "session.interrupt": { interrupted: true, operationId },
   "session.reload": { boundaryEventIds: [eventId] },
   "session.configure": {
+    providerId: "provider-1",
     modelId: "model-1",
     requestedThinkingLevel: "medium",
     effectiveThinkingLevel: "medium",
@@ -385,7 +453,14 @@ const errors = RPC_ERROR_CODES.map((code, index) => {
     return {
       kind: "error" as const,
       id: -1,
-      error: { code, message: `Fixture error: ${code}`, retryable: isRpcErrorRetryable(code) },
+      error: {
+        code,
+        message: `Fixture error: ${code}`,
+        retryable: isRpcErrorRetryable(code),
+        ...(isProviderRpcErrorCode(code)
+          ? { details: { category: "provider", action: "configure_provider" } }
+          : {}),
+      },
     };
   }
   const method = RPC_METHODS.find((candidate) => isRpcErrorAllowed(candidate, code));
@@ -394,7 +469,14 @@ const errors = RPC_ERROR_CODES.map((code, index) => {
     kind: "error" as const,
     id: index + 1,
     method,
-    error: { code, message: `Fixture error: ${code}`, retryable: isRpcErrorRetryable(code) },
+    error: {
+      code,
+      message: `Fixture error: ${code}`,
+      retryable: isRpcErrorRetryable(code),
+      ...(isProviderRpcErrorCode(code)
+        ? { details: { category: "provider", action: "configure_provider" } }
+        : {}),
+    },
   };
 });
 const allowedErrors = RPC_METHODS.flatMap((method, methodIndex) =>
@@ -407,6 +489,9 @@ const allowedErrors = RPC_METHODS.flatMap((method, methodIndex) =>
         code,
         message: `Fixture ${method} error: ${code}`,
         retryable: isRpcErrorRetryable(code),
+        ...(isProviderRpcErrorCode(code)
+          ? { details: { category: "provider", action: "configure_provider" } }
+          : {}),
       },
     }),
   ),
@@ -483,10 +568,14 @@ const document = {
   serverMessages,
   events,
 };
-const output = `${JSON.stringify(document, null, 2).replace(
-  /\[\n\s+("(?:[^"\\]|\\.)*")\n\s*\]/g,
-  "[$1]",
-)}\n`;
+const output = `${JSON.stringify(document, null, 2)
+  .replace(/\[\n\s+("(?:[^"\\]|\\.)*")\n\s*\]/g, "[$1]")
+  .replace(/\[\n\s+"environment",\n\s+"oauth"\n\s*\]/g, '["environment", "oauth"]')
+  .replace(/\[\n\s+"api_key",\n\s+"oauth"\n\s*\]/g, '["api_key", "oauth"]')
+  .replace(
+    /\[\n\s+"off",\n\s+"low",\n\s+"medium",\n\s+"high"\n\s*\]/g,
+    '["off", "low", "medium", "high"]',
+  )}\n`;
 const defaultTarget = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "../test/fixtures/conformance.json",

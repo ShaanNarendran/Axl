@@ -9,6 +9,7 @@ import {
   AxlClient,
   AxlClientError,
   type AxlTransport,
+  ProviderClientError,
   type AxlTransportFactory,
 } from "../src/index.ts";
 import {
@@ -143,6 +144,65 @@ test("initializes exactly once and creates keys only for retryable mutations", a
     result: { interrupted: false },
   });
   assert.deepEqual(await pending, { interrupted: false });
+  client.close();
+});
+
+test("exposes typed provider methods through negotiated capabilities", async () => {
+  const { client, transport } = await connect();
+  const pending = client.listProviders({ providerId: "openrouter" });
+  const request = transport.messages.at(-1) as {
+    id: number;
+    method: string;
+    params: Record<string, unknown>;
+  };
+  assert.equal(request.method, "provider.list");
+  assert.deepEqual(request.params, { providerId: "openrouter" });
+  transport.emit({
+    kind: "success",
+    id: request.id,
+    method: "provider.list",
+    result: { providers: [] },
+  });
+  assert.deepEqual(await pending, { providers: [] });
+  client.close();
+});
+
+test("does not replay provider actions after reconnect", async () => {
+  const factory = new Factory();
+  const { client, transport } = await connect(factory);
+  const pending = client.refreshProviderCatalogs({ providerId: "openrouter" });
+  transport.closeListener?.(new Error("lost response"));
+  await assert.rejects(
+    pending,
+    (error) => error instanceof AxlClientError && error.code === "disconnected",
+  );
+  assert.equal(factory.transports.length, 1);
+  client.close();
+});
+
+test("returns provider failures as typed actionable SDK errors", async () => {
+  const { client, transport } = await connect();
+  const pending = client.providerAuthenticationStatus({ providerId: "openrouter" });
+  const request = transport.messages.at(-1) as { id: number };
+  transport.emit({
+    kind: "error",
+    id: request.id,
+    method: "provider.auth.status",
+    error: {
+      code: "authentication_failed",
+      message: "Provider authentication failed",
+      retryable: false,
+      details: { category: "authentication", action: "login", providerId: "openrouter" },
+    },
+  });
+  await assert.rejects(
+    pending,
+    (error) =>
+      error instanceof ProviderClientError &&
+      error.code === "authentication_failed" &&
+      error.details.providerId === "openrouter" &&
+      error.details.action === "login",
+  );
   client.close();
 });
 

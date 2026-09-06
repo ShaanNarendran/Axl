@@ -95,6 +95,7 @@ export interface SessionRuntime {
   readonly compaction?: Partial<CompactionSettings>;
   readonly retry?: ModelRetryOptions | false;
   readonly sandbox?: EventPayloadMap["sandbox.configured"];
+  readonly configProvider?: EventPayloadMap["config.provider"];
   readonly configModel?: EventPayloadMap["config.model"];
   readonly configRequest?: EventPayloadMap["config.request"];
   readonly configThinking?: EventPayloadMap["config.thinking"];
@@ -434,7 +435,7 @@ export class SessionManager {
       ...(runtime.compaction === undefined ? {} : { compaction: runtime.compaction }),
       ...(runtime.retry === undefined ? {} : { retry: runtime.retry }),
       ...(runtime.sandbox === undefined ? {} : { sandbox: runtime.sandbox }),
-      ...(runtime.configRequest === undefined ? {} : { configRequest: runtime.configRequest }),
+      ...(runtime.configProvider === undefined ? {} : { configProvider: runtime.configProvider }),
       ...(runtime.configModel === undefined ? {} : { configModel: runtime.configModel }),
       ...(runtime.configThinking === undefined ? {} : { configThinking: runtime.configThinking }),
       ...(runtime.configProfile === undefined ? {} : { configProfile: runtime.configProfile }),
@@ -484,6 +485,8 @@ export class SessionManager {
     events.length = 0;
     events.push(...stored.events);
     for (const event of events) this.authorizeEventBlobs(sessionId, event);
+    const configuredProvider = events.findLast((event) => event.type === "config.provider");
+    const configuredModel = events.findLast((event) => event.type === "config.model");
     const managed: ManagedSession = {
       session,
       cwd,
@@ -491,7 +494,15 @@ export class SessionManager {
       listeners,
       activityListeners,
       activityState,
-      selection,
+      selection: {
+        ...selection,
+        ...(configuredProvider?.type === "config.provider"
+          ? { providerId: configuredProvider.payload.providerId }
+          : {}),
+        ...(configuredModel?.type === "config.model"
+          ? { modelId: configuredModel.payload.modelId }
+          : {}),
+      },
       queuedInputs: Promise.resolve(),
       interactions: new Map(),
       queue: [],
@@ -1063,6 +1074,7 @@ export class SessionManager {
     if (created?.type !== "session.created") {
       throw new DaemonError("corrupt_session", `Session ${sessionId} has no creation event`);
     }
+    let providerId: string | undefined;
     let modelId: string | undefined;
     let thinkingLevel: SessionConfiguration["thinkingLevel"];
     let requestSettings: ModelRequestSettings | undefined;
@@ -1070,8 +1082,8 @@ export class SessionManager {
     let webSearch: boolean | undefined;
     let profile: SessionConfiguration["profile"];
     for (const event of events) {
-      if (event.type === "config.model") modelId = event.payload.modelId;
-      else if (event.type === "config.request") requestSettings = event.payload;
+      if (event.type === "config.provider") providerId = event.payload.providerId;
+      else if (event.type === "config.model") modelId = event.payload.modelId;
       else if (event.type === "config.thinking") thinkingLevel = event.payload.requested;
       else if (event.type === "config.profile") profile = event.payload.profile;
       else if (event.type === "config.tools") {
@@ -1080,7 +1092,7 @@ export class SessionManager {
       }
     }
     return this.open(sessionId, created.payload.cwd, {
-      ...(requestSettings === undefined ? {} : { requestSettings }),
+      ...(providerId === undefined ? {} : { providerId }),
       ...(modelId === undefined ? {} : { modelId }),
       ...(thinkingLevel === undefined ? {} : { thinkingLevel }),
       ...(webFetch === undefined ? {} : { webFetch }),
@@ -1113,6 +1125,7 @@ export class SessionManager {
     update: SessionConfiguration,
     operationId?: OperationId,
   ): Promise<{
+    providerId: string;
     modelId: string;
     requestedThinkingLevel: NonNullable<SessionConfiguration["thinkingLevel"]>;
     effectiveThinkingLevel: NonNullable<SessionConfiguration["thinkingLevel"]>;
@@ -1158,7 +1171,8 @@ export class SessionManager {
       );
     }
     const boundary: SessionRuntimeBoundary =
-      update.modelId !== undefined && update.modelId !== managed.selection.modelId
+      (update.providerId !== undefined && update.providerId !== managed.selection.providerId) ||
+      (update.modelId !== undefined && update.modelId !== managed.selection.modelId)
         ? "model_switch"
         : (update.webFetch !== undefined && update.webFetch !== managed.selection.webFetch) ||
             (update.webSearch !== undefined && update.webSearch !== managed.selection.webSearch)
@@ -1166,14 +1180,26 @@ export class SessionManager {
           : "config_change";
     const before = managed.events.length;
     await this.rebuild(managed, boundary, selection, operationId);
-    managed.selection = selection;
-    return this.configurationResult(managed, managed.events.slice(before));
+    const boundaryEvents = managed.events.slice(before);
+    const configuredProvider = boundaryEvents.findLast((event) => event.type === "config.provider");
+    const configuredModel = boundaryEvents.findLast((event) => event.type === "config.model");
+    managed.selection = {
+      ...selection,
+      ...(configuredProvider?.type === "config.provider"
+        ? { providerId: configuredProvider.payload.providerId }
+        : {}),
+      ...(configuredModel?.type === "config.model"
+        ? { modelId: configuredModel.payload.modelId }
+        : {}),
+    };
+    return this.configurationResult(managed, boundaryEvents);
   }
 
   private configurationResult(
     managed: ManagedSession,
     boundaryEvents: readonly CanonicalEvent[],
   ): {
+    providerId: string;
     modelId: string;
     requestedThinkingLevel: NonNullable<SessionConfiguration["thinkingLevel"]>;
     effectiveThinkingLevel: NonNullable<SessionConfiguration["thinkingLevel"]>;
@@ -1183,12 +1209,13 @@ export class SessionManager {
     requestSettings: ModelRequestSettings;
     boundaryEventIds: readonly EventId[];
   } {
-    const model = managed.events.findLast((event) => event.type === "config.model");
-    const modelId =
-      managed.selection.modelId ??
-      (model?.type === "config.model" ? model.payload.modelId : undefined);
-    if (modelId === undefined) {
-      throw new DaemonError("corrupt_session", "Configured session has no model identity");
+    const providerId = managed.selection.providerId;
+    const modelId = managed.selection.modelId;
+    if (providerId === undefined || modelId === undefined) {
+      throw new DaemonError(
+        "corrupt_session",
+        "Configured session has no provider and model identity",
+      );
     }
     const thinking = managed.events.findLast((event) => event.type === "config.thinking");
     const tools = managed.events.findLast((event) => event.type === "config.tools");
@@ -1197,6 +1224,7 @@ export class SessionManager {
       (thinking?.type === "config.thinking" ? thinking.payload.requested : "off");
     const request = managed.events.findLast((event) => event.type === "config.request");
     return {
+      providerId,
       modelId,
       requestedThinkingLevel,
       requestSettings:

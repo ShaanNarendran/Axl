@@ -11,6 +11,7 @@ import {
   encodeWireMessage,
   isRetryableMutationMethod,
   ProtocolValidationError,
+  parseProviderListResult,
   parseServerMessage,
   parseSnapshotPage,
   parseWireRequest,
@@ -24,12 +25,58 @@ import {
 
 const sessionId = "123e4567-e89b-42d3-a456-426614174000";
 
+test("rejects secret-bearing provider inventory fields", () => {
+  assert.throws(
+    () =>
+      parseProviderListResult({
+        providers: [
+          {
+            providerId: "openrouter",
+            displayName: "OpenRouter",
+            enabled: true,
+            authMethods: ["environment", "oauth"],
+            loginMethods: ["api_key", "oauth"],
+            authentication: { providerId: "openrouter", phase: "idle" },
+            catalog: { refreshable: true },
+            models: [],
+            apiKey: "must-not-cross-rpc",
+          },
+        ],
+      }),
+    ProtocolValidationError,
+  );
+});
+
+test("rejects secret-bearing provider error details", () => {
+  assert.throws(
+    () =>
+      parseServerMessage({
+        kind: "error",
+        id: 1,
+        method: "provider.auth.login",
+        error: {
+          code: "authentication_failed",
+          message: "Authentication failed",
+          retryable: false,
+          details: {
+            category: "authentication",
+            action: "login",
+            providerId: "openrouter",
+            token: "must-not-cross-rpc",
+          },
+        },
+      }),
+    ProtocolValidationError,
+  );
+});
+
 test("maps feature methods to negotiated capabilities", () => {
   assert.equal(requiredCapability("daemon.info"), undefined);
   assert.equal(requiredCapability("request.cancel"), undefined);
   assert.equal(requiredCapability("session.history"), undefined);
   assert.equal(requiredCapability("session.send"), "session.send.prompt");
   assert.equal(requiredCapability("session.blob.abort"), "session.blob.abort");
+  assert.equal(requiredCapability("provider.catalog.refresh"), "provider.catalog.refresh");
 });
 
 test("validates every request shape", () => {
@@ -46,6 +93,31 @@ test("validates every request shape", () => {
     },
     { kind: "request", id: 23, method: "connection.ping", params: {} },
     { kind: "request", id: 24, method: "request.cancel", params: { requestId: 7 } },
+    { kind: "request", id: 25, method: "provider.list", params: {} },
+    {
+      kind: "request",
+      id: 26,
+      method: "provider.catalog.refresh",
+      params: { providerId: "openrouter" },
+    },
+    {
+      kind: "request",
+      id: 27,
+      method: "provider.auth.status",
+      params: { providerId: "openrouter" },
+    },
+    {
+      kind: "request",
+      id: 28,
+      method: "provider.auth.login",
+      params: { providerId: "openrouter", method: "oauth" },
+    },
+    {
+      kind: "request",
+      id: 29,
+      method: "provider.auth.logout",
+      params: { providerId: "openrouter" },
+    },
     {
       kind: "request",
       id: 1,

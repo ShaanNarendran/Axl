@@ -168,6 +168,8 @@ export interface AgentSessionOptions {
   readonly log?: EventLogOptions;
   /** Sandbox state announced at every open as a `sandbox.configured` event. */
   readonly sandbox?: EventPayloadMap["sandbox.configured"];
+  /** Provider configuration announced at every open as a `config.provider` event. */
+  readonly configProvider?: EventPayloadMap["config.provider"];
   /** Model configuration announced at every open as a `config.model` event. */
   readonly configModel?: EventPayloadMap["config.model"];
   readonly configRequest?: EventPayloadMap["config.request"];
@@ -334,8 +336,9 @@ export class AgentSession {
     if (options.sandbox !== undefined) {
       await session.append(options.boundaryOperationId, "sandbox.configured", options.sandbox);
     }
-    if (options.configRequest !== undefined)
-      await session.append(options.boundaryOperationId, "config.request", options.configRequest);
+    if (options.configProvider !== undefined) {
+      await session.append(options.boundaryOperationId, "config.provider", options.configProvider);
+    }
     if (options.configModel !== undefined) {
       await session.append(options.boundaryOperationId, "config.model", options.configModel);
     }
