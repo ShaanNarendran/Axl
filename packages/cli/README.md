@@ -18,6 +18,26 @@ Interactive sessions load global prompt templates from `~/.axl/prompts/*.md` and
 
 User themes load from `~/.axl/themes/*.json` and project overrides from `.axl/themes/*.json`. Select one with `/theme <id>`. Existing theme directories are watched for live changes, and `/reload` rescans them.
 
+## Model providers
+
+The daemon owns provider operations and canonical `{ providerId, modelId }` session selection. API dialect is model metadata and cannot be selected independently. The `provider` and `model` startup options set defaults for a new session only.
+
+```bash
+axl providers
+axl providers openrouter
+axl models
+axl models openrouter
+axl login openrouter oauth
+axl logout openrouter
+axl refresh openrouter
+```
+
+`providers` checks explicit authentication status and shows safe source labels, login methods, catalog type, model count, and catalog errors. `models` groups text models by provider and includes unavailable reasons and published token prices. Neither command refreshes catalogs, and metadata listing does not read credentials or perform network requests.
+
+`login` supports `api_key` or `oauth` when offered by the provider. Prompt answers, API keys, OAuth codes, and tokens remain in the trusted daemon process-host adapter and never cross daemon RPC. Browser authorization is restricted to HTTPS URLs without embedded credentials. `logout` affects only the named provider. `refresh` is explicit and applies only to dynamic catalogs. Ctrl+C cancels an active provider operation, and externally effective operations are not replayed after reconnect.
+
+Errors include a safe category, provider and model identity when available, a concrete action, and retry guidance. There is no silent provider, model, dialect, authentication, or catalog fallback.
+
 ## Print mode
 
 `axl print <prompt>` or `axl -p <prompt>` creates a durable session, runs one headless turn, writes only the final assistant text to stdout, and exits. Piped UTF-8 stdin is appended to the argument prompt after a blank line. Diagnostics and failures go to stderr, and a request for interactive input makes the command fail instead of waiting indefinitely.

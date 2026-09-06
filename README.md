@@ -33,7 +33,7 @@ Axl is not yet a hosted service, remote collaboration product, browser applicati
 | Durability | Append-only canonical JSONL, operation IDs, crash-safe mutation journal, restart reconciliation, and deterministic replay |
 | Multi-client behavior | Independent attachments, paged snapshots, acknowledged cursors, presence, reconnect recovery, and shared deterministic projection |
 | Automation | One-shot text and canonical JSONL output with `axl print` and `axl json`, plus native daemon RPC with `axl rpc` |
-| Model interaction | Azure OpenAI model catalog, model selection, thinking levels, streaming text and reasoning, tool calls, steering, and follow-ups |
+| Model interaction | Provider-grouped text-model catalog, provider-qualified model selection, authentication management, usage and costs, streaming text and reasoning, tool calls, steering, and follow-ups |
 | Built-in tools | `read`, `write`, `edit`, `bash`, `web_fetch`, and `web_search` |
 | Extensions | Public extension API, prompt templates, Agent Skills, and MCP 2025-11-25 over stdio and Streamable HTTP |
 | Workspace review | Bounded file listing and reads, Git status, structured diffs, and daemon-owned last-turn checkpoints |
@@ -180,12 +180,16 @@ pnpm run install:cli
 
 ## Quick start
 
-Configure Azure OpenAI and start a session:
+Inspect providers, authenticate one, choose its model, and start a session:
 
 ```bash
-axl login
+axl providers
+axl models openai
+axl login openai api_key
 axl
 ```
+
+The `provider` and `model` startup options select a canonical pair for a new session. In the TUI, use `/model` to choose a grouped provider and model pair.
 
 Common entry points:
 
@@ -206,17 +210,22 @@ axl rpc                         # bridge JSONL RPC over stdin and stdout
 
 The CLI connects to the matching local daemon and starts one in the background when necessary. Native, OCI, and unsafe placements use separate state and are labeled in the resume picker.
 
-## Provider authentication
+## Model providers
 
-Provider secrets never pass through the TUI or SDK projection.
+Use `axl providers` for explicit authentication and catalog status, `axl models` for grouped text models, `axl login` and `axl logout` for stored authentication, and `axl refresh` for explicit dynamic-catalog refresh. These commands report actionable authentication, entitlement, region, catalog, model, and configuration failures.
 
-1. The CLI collects login input and writes the credential store with restrictive permissions.
-2. `packages/ai` implements provider-specific credential parsing, verification, model metadata, and request behavior.
-3. `packages/runtime` resolves the selected provider inside the daemon process.
-4. The TUI receives only a provider-neutral login dialog definition from the CLI process host.
-5. Canonical events, SDK cursors, and client projections never contain live credentials.
+Inside the TUI, `/model` selects a provider-qualified model. `/providers`, `/login`, `/logout`, and `/refresh` expose the same daemon-owned operations. Escape cancels an active provider operation. The editor reports last-turn and cumulative token usage and USD cost when available.
 
-Azure OpenAI is the built-in provider today. Provider-specific behavior does not belong in the kernel, protocol, SDK, or presentation clients.
+Provider secrets never pass through daemon RPC or SDK projection.
+
+1. The daemon owns provider and session operations.
+2. `packages/ai` owns provider-specific credentials, authentication, model metadata, API dialects, and request behavior.
+3. The trusted CLI process-host adapter renders provider prompts and collects answers inside the daemon process.
+4. Login RPC carries only the provider ID and login method.
+5. Authorization launch is restricted to HTTPS URLs without embedded credentials.
+6. Canonical events, SDK cursors, catalogs, and client projections never contain credential values, OAuth codes, or prompt answers.
+
+Provider listing is offline and side-effect free. Authentication status and catalog refresh are separate explicit operations. API dialect is model metadata, not user-selectable configuration. See [`docs/provider-support/product-integration.md`](docs/provider-support/product-integration.md) for the complete boundary and workflow record.
 
 ## Session profiles
 

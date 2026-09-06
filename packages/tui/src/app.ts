@@ -23,6 +23,10 @@ import type {
   EventPayloadMap,
   JsonObject,
   JsonValue,
+  ProviderAuthenticationStatus,
+  ProviderInventoryGroup,
+  ProviderLoginMethod,
+  ProviderTextModel,
   SessionId,
   SessionOpenResult,
   SessionProfile,
@@ -40,6 +44,7 @@ import {
   type ClientModelInfo,
   ConversationProjector,
   orderPendingTurnInputs,
+  ProviderClientError,
   type SessionSubscription,
   subscribeSession,
   supportedThinkingLevels,
@@ -62,7 +67,7 @@ import { decodeOneKey, LineEditor } from "./editor.ts";
 import { EditorFrameComponent } from "./editor-frame.ts";
 import { ExtensionWidgetsComponent } from "./extension-ui.ts";
 import { editPromptExternally } from "./external-editor.ts";
-import { fullscreenDockHeight, type FullscreenMouse, FullscreenScreen } from "./fullscreen.ts";
+import { type FullscreenMouse, FullscreenScreen, fullscreenDockHeight } from "./fullscreen.ts";
 import { isMouseReport } from "./fullscreen-input.ts";
 import { LiveAssistantComponent } from "./live-assistant.ts";
 import type { LoginDialogDefinition } from "./login-dialog.ts";
@@ -79,9 +84,9 @@ import { PickerOverlay } from "./picker.ts";
 import {
   AUTOWRAP_OFF,
   AUTOWRAP_ON,
-  clipFrame,
   type Component,
   type CursorPlacement,
+  clipFrame,
   DifferentialScreen,
   SYNC_BEGIN,
   SYNC_END,
@@ -162,6 +167,39 @@ function messageText(event: CanonicalEvent): string | undefined {
 
 function orderSessions<T extends SessionSummary>(sessions: readonly T[]): T[] {
   return [...sessions].sort((left, right) => right.updatedAt - left.updatedAt);
+}
+
+function providerErrorText(error: unknown): string {
+  if (!(error instanceof ProviderClientError)) {
+    return error instanceof Error
+      ? sanitizeTerminalText(error.message)
+      : "provider operation failed";
+  }
+  const subject = [error.details.providerId, error.details.modelId].filter(Boolean).join("/");
+  return [
+    sanitizeTerminalText(error.message),
+    subject ? `${error.details.category}: ${subject}` : error.details.category,
+    `action: ${error.details.action.replaceAll("_", " ")}`,
+    ...(error.retryable ? ["retryable"] : []),
+  ].join(" · ");
+}
+
+function authenticationLabel(status: ProviderAuthenticationStatus): string {
+  return [status.phase.replaceAll("_", " "), status.method, status.source]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function formatProviderModel(model: ProviderTextModel): ClientModelInfo {
+  return {
+    providerId: model.providerId,
+    modelId: model.modelId,
+    displayName: model.displayName,
+    reasoning: model.reasoning,
+    contextWindow: model.contextWindow,
+    maxOutputTokens: model.maxOutputTokens,
+    ...(model.cost === undefined ? {} : { cost: model.cost }),
+  };
 }
 
 function formatPath(cwd: string): string {
@@ -308,14 +346,17 @@ function openExternalUrl(url: string, onError: (error: Error) => void): void {
 }
 
 const COMMANDS: readonly { readonly name: string; readonly summary: string }[] = [
-  { name: "/model", summary: "select a model, or /model <id>" },
+  { name: "/model", summary: "select a model grouped by provider" },
   { name: "/thinking", summary: "select reasoning effort" },
   { name: "/theme", summary: "select a color theme" },
   { name: "/settings", summary: "change persistent terminal preferences" },
   { name: "/details", summary: "set transcript detail: compact, full, or focus" },
   { name: "/fullscreen", summary: "switch to fullscreen transcript mode" },
   { name: "/regular", summary: "return to terminal scrollback mode" },
-  { name: "/login", summary: "configure provider credentials" },
+  { name: "/providers", summary: "show provider authentication and catalog status" },
+  { name: "/login", summary: "authenticate a provider" },
+  { name: "/logout", summary: "remove stored provider authentication" },
+  { name: "/refresh", summary: "refresh a dynamic provider catalog" },
   { name: "/reload", summary: "reload AGENTS.md, prompt, and tools" },
   { name: "/compact", summary: "summarize older context, optionally with instructions" },
   { name: "/status", summary: "show session, display, and queue state" },
@@ -457,6 +498,7 @@ export interface AxlAppOptions {
   readonly globalThemeDirectory?: string;
   readonly models?: readonly string[];
   readonly modelCatalog?: readonly ClientModelInfo[];
+  readonly currentProvider?: string;
   readonly currentModel?: string;
   readonly currentThinking?: ThinkingLevel;
   readonly profile?: SessionProfile;
@@ -479,6 +521,7 @@ export interface AxlAppOptions {
   readonly mediaCapabilities?: TerminalMediaCapabilities;
   readonly extensions?: readonly TerminalExtension[];
   readonly onPreferenceChange?: (update: {
+    providerId?: string;
     modelId?: string;
     thinkingLevel?: ThinkingLevel;
     requestSettings?: ModelRequestSettings;
@@ -503,6 +546,7 @@ export interface AxlAppOptions {
   /** Compatibility hook called after the daemon accepts a model switch. */
   readonly onModelChange?: (modelId: string) => void;
   readonly suspendProcess?: () => void;
+  /** Legacy process-host dialog retained for compatibility attachments. */
   readonly loadLogin?: () => Promise<LoginDialogDefinition>;
   readonly onExit?: () => void;
   readonly clearStartupLine?: boolean;
@@ -589,6 +633,8 @@ export class AxlApp {
   private interrupting = false;
   private activeRequest: "turn" | "shell" | "compaction" | undefined;
   private configuring = false;
+  private providerOperation: AbortController | undefined;
+  private providerInventory: readonly ProviderInventoryGroup[] = [];
   private webFetchEnabled: boolean;
   private webSearchEnabled: boolean;
   private initialResumePending: boolean;
@@ -905,9 +951,9 @@ export class AxlApp {
       : options.sessionId === undefined
         ? await options.client.request("session.create", {
             cwd: options.cwd,
-            ...(options.requestSettings === undefined
+            ...(options.currentProvider === undefined
               ? {}
-              : { requestSettings: options.requestSettings }),
+              : { providerId: options.currentProvider }),
             ...(options.currentModel === undefined ? {} : { modelId: options.currentModel }),
             ...(options.currentThinking === undefined
               ? {}
@@ -1025,6 +1071,8 @@ export class AxlApp {
     this.stopThemeWatcher = undefined;
     for (const controller of this.extensionCommandControllers) controller.abort();
     this.extensionCommandControllers.clear();
+    this.providerOperation?.abort();
+    this.providerOperation = undefined;
 
     const failures: unknown[] = [];
     const extensionCleanup = this.extensionHost.dispose();
@@ -1330,32 +1378,42 @@ export class AxlApp {
       }
     }
     const argument =
-      /^(\/model|\/thinking|\/theme|\/details|\/favorite|\/developer|\/review|\/vim)\s+(\S*)$/.exec(
+      /^(\/model|\/providers|\/login|\/logout|\/refresh|\/thinking|\/theme|\/details|\/favorite|\/developer|\/review|\/vim)\s+(\S*)$/.exec(
         text,
       );
     if (!argument) return [];
     const [, command, query = ""] = argument;
     const values =
       command === "/model"
-        ? (this.options.models ?? [])
-        : command === "/thinking"
-          ? (() => {
-              const model = this.options.modelCatalog?.find(
-                (candidate) => candidate.modelId === this.view.model,
-              );
-              return model === undefined ? THINKING_LEVELS : supportedThinkingLevels(model);
-            })()
-          : command === "/theme"
-            ? themeNames(this.themeDefinitions)
-            : command === "/favorite"
-              ? (this.options.models ?? [])
-              : command === "/developer"
-                ? ["on", "off"]
-                : command === "/review"
-                  ? ["working", "last-turn", "off"]
-                  : command === "/vim"
-                    ? ["on", "off"]
-                    : ["compact", "full", "focus"];
+        ? [
+            ...this.providerInventory.flatMap((provider) =>
+              provider.models.map((model) => `${provider.providerId}/${model.modelId}`),
+            ),
+            ...(this.providerInventory.length === 0 ? (this.options.models ?? []) : []),
+          ]
+        : command === "/providers" ||
+            command === "/login" ||
+            command === "/logout" ||
+            command === "/refresh"
+          ? this.providerInventory.map((provider) => provider.providerId)
+          : command === "/thinking"
+            ? (() => {
+                const model = this.options.modelCatalog?.find(
+                  (candidate) => candidate.modelId === this.view.model,
+                );
+                return model === undefined ? THINKING_LEVELS : supportedThinkingLevels(model);
+              })()
+            : command === "/theme"
+              ? themeNames(this.themeDefinitions)
+              : command === "/favorite"
+                ? (this.options.models ?? [])
+                : command === "/developer"
+                  ? ["on", "off"]
+                  : command === "/review"
+                    ? ["working", "last-turn", "off"]
+                    : command === "/vim"
+                      ? ["on", "off"]
+                      : ["compact", "full", "focus"];
     return values
       .filter((value) => value.toLowerCase().startsWith(query.toLowerCase()))
       .map((value) => `${command} ${value}`);
@@ -1819,7 +1877,10 @@ export class AxlApp {
       } else if (key.kind === "tab") {
         if (!this.acceptCompletion()) this.editor.apply(key);
       } else if (key.kind === "escape") {
-        if (this.view.working) void this.interrupt();
+        if (this.providerOperation !== undefined) {
+          this.providerOperation.abort();
+          this.notice = this.view.palette.dim("· provider operation cancelled");
+        } else if (this.view.working) void this.interrupt();
         else if (this.editorMode === "vim") this.vim.handle(key, this.editor);
         else {
           this.editor.clear();
@@ -2099,6 +2160,20 @@ export class AxlApp {
   }
 
   private handleInterruptKey(): void {
+    if (this.providerOperation !== undefined) {
+      this.providerOperation.abort();
+      this.notice = this.view.palette.dim("· provider operation cancelled");
+      return;
+    }
+    if (this.view.working) {
+      void this.interrupt();
+      return;
+    }
+    if (this.editor.text.length > 0) {
+      this.editor.clear();
+      this.notice = undefined;
+      return;
+    }
     const now = Date.now();
     if (now - this.lastInterrupt < 500) void this.quit();
     else {
@@ -2338,7 +2413,12 @@ export class AxlApp {
       return;
     }
     if (command === "/favorite") {
-      this.toggleModelFavorite(argument || this.view.model || this.options.currentModel || "");
+      const activeModel = this.view.model ?? this.options.currentModel ?? "";
+      const activeProvider = this.view.provider ?? this.options.currentProvider;
+      this.toggleModelFavorite(
+        argument ||
+          (activeProvider === undefined ? activeModel : `${activeProvider}/${activeModel}`),
+      );
       return;
     }
     if (command === "/developer") {
@@ -2414,6 +2494,7 @@ export class AxlApp {
         this.view.palette.accent("Session"),
         `  id        ${this.sessionId}`,
         `  profile   ${this.view.profile ?? "?"}`,
+        `  provider  ${this.view.provider ?? "?"}`,
         `  model     ${this.view.model ?? "?"}`,
         `  thinking  ${this.view.thinking ?? "?"}`,
         ...this.requestConfigurationLines(),
@@ -2481,7 +2562,19 @@ export class AxlApp {
       return;
     }
     if (command === "/model") {
-      this.selectModel(argument);
+      void this.selectModel(argument);
+      return;
+    }
+    if (command === "/providers") {
+      void this.showProviders(argument || undefined);
+      return;
+    }
+    if (command === "/refresh") {
+      void this.refreshProviders(argument || undefined);
+      return;
+    }
+    if (command === "/logout") {
+      void this.logoutProvider(argument || undefined);
       return;
     }
     if (command === "/thinking") {
@@ -2491,7 +2584,7 @@ export class AxlApp {
     if (command === "/login" || command === "/reload" || command === "/compact") {
       if (this.view.working)
         this.notice = this.view.palette.dim("· finish or interrupt the turn first");
-      else if (command === "/login") void this.openLogin();
+      else if (command === "/login") void this.loginProvider(argument || undefined);
       else if (command === "/reload") void this.reload();
       else void this.compact(argument || undefined);
       return;
@@ -2762,7 +2855,7 @@ export class AxlApp {
       this.notice = this.view.palette.dim("· no active model to favorite");
       return;
     }
-    if (this.options.models && !this.options.models.includes(modelId)) {
+    if (this.options.models && !modelId.includes("/") && !this.options.models.includes(modelId)) {
       this.notice = this.view.palette.error(`✖ unknown model ${modelId}`);
       return;
     }
@@ -3344,29 +3437,133 @@ export class AxlApp {
     });
   }
 
-  private selectModel(modelId: string): void {
+  private async loadProviderInventory(
+    providerId?: string,
+    signal?: AbortSignal,
+  ): Promise<readonly ProviderInventoryGroup[]> {
+    const listed = await this.client.listProviders(
+      providerId === undefined ? {} : { providerId },
+      signal === undefined ? {} : { signal },
+    );
+    if (providerId === undefined) this.providerInventory = listed.providers;
+    else {
+      const retained = this.providerInventory.filter(
+        (provider) => provider.providerId !== providerId,
+      );
+      this.providerInventory = [...retained, ...listed.providers];
+    }
+    this.view.setModels(
+      this.providerInventory.flatMap((provider) => provider.models.map(formatProviderModel)),
+    );
+    return listed.providers;
+  }
+
+  private modelSelection(
+    value: string,
+  ): { providerId: string; model: ProviderTextModel } | undefined {
+    const separator = value.indexOf("/");
+    if (separator > 0) {
+      const providerId = value.slice(0, separator);
+      const modelId = value.slice(separator + 1);
+      const provider = this.providerInventory.find(
+        (candidate) => candidate.providerId === providerId,
+      );
+      const model = provider?.models.find((candidate) => candidate.modelId === modelId);
+      return model === undefined ? undefined : { providerId, model };
+    }
+    const candidates = this.providerInventory.flatMap((provider) =>
+      provider.models
+        .filter((model) => model.modelId === value)
+        .map((model) => ({ providerId: provider.providerId, model })),
+    );
+    return (
+      candidates.find((candidate) => candidate.providerId === this.view.provider) ??
+      (candidates.length === 1 ? candidates[0] : undefined)
+    );
+  }
+
+  private async selectModel(modelId: string): Promise<void> {
     if (this.view.working) {
       this.notice = this.view.palette.dim("· finish or interrupt the turn first");
       return;
     }
-    const models = this.options.models;
-    if (!models?.length) {
-      this.notice = this.view.palette.dim("· model selection is unavailable over this attachment");
-      return;
-    }
-    if (modelId) {
-      if (!models.includes(modelId)) {
-        this.notice = this.view.palette.error(`✖ unknown model ${modelId}`);
+    try {
+      await this.loadProviderInventory();
+    } catch (error) {
+      const models = this.options.models;
+      if (!models?.length) {
+        this.notice = this.view.palette.error(`✖ ${providerErrorText(error)}`);
+        this.redraw();
         return;
       }
-      void this.configure({ modelId });
+      if (modelId) {
+        if (!models.includes(modelId))
+          this.notice = this.view.palette.error(`✖ unknown model ${modelId}`);
+        else await this.configure({ modelId });
+        return;
+      }
+      this.openLegacyModelPicker(models);
+      this.redraw();
+      return;
+    }
+    const selections = this.providerInventory.flatMap((provider) =>
+      provider.models.map((model) => ({ provider, model })),
+    );
+    if (modelId) {
+      const selected = this.modelSelection(modelId);
+      if (selected === undefined) {
+        this.notice = this.view.palette.error(`✖ unknown or ambiguous model ${modelId}`);
+        this.redraw();
+        return;
+      }
+      await this.configure({ providerId: selected.providerId, modelId: selected.model.modelId });
       return;
     }
     const favorites = new Set(this.modelFavorites);
-    const ordered = models.toSorted((left, right) => {
-      const favoriteOrder = Number(favorites.has(right)) - Number(favorites.has(left));
-      return favoriteOrder;
+    const ordered = selections.toSorted((left, right) => {
+      const leftKey = `${left.provider.providerId}/${left.model.modelId}`;
+      const rightKey = `${right.provider.providerId}/${right.model.modelId}`;
+      const favoriteOrder =
+        Number(favorites.has(rightKey) || favorites.has(right.model.modelId)) -
+        Number(favorites.has(leftKey) || favorites.has(left.model.modelId));
+      return (
+        favoriteOrder ||
+        left.provider.displayName.localeCompare(right.provider.displayName) ||
+        left.model.displayName.localeCompare(right.model.displayName)
+      );
     });
+    this.openPicker({
+      title: "Select model by provider",
+      items: ordered.map(({ provider, model }) => {
+        const key = `${provider.providerId}/${model.modelId}`;
+        const favorite = favorites.has(key) || favorites.has(model.modelId);
+        const availability =
+          model.availability.status === "available"
+            ? ""
+            : `${model.availability.status}: ${model.availability.reason ?? "not selectable"}`;
+        return {
+          value: key,
+          label: `${favorite ? "◆ " : ""}${provider.displayName} · ${model.displayName}`,
+          description: [model.apiDialect, availability].filter(Boolean).join(" · "),
+        };
+      }),
+      current: `${this.view.provider ?? this.options.currentProvider ?? ""}/${this.view.model ?? this.options.currentModel ?? ""}`,
+      onPick: (value) => {
+        this.overlays.close();
+        const selected = this.modelSelection(value);
+        if (selected !== undefined) {
+          void this.configure({ providerId: selected.providerId, modelId: selected.model.modelId });
+        }
+      },
+    });
+    this.redraw();
+  }
+
+  private openLegacyModelPicker(models: readonly string[]): void {
+    const favorites = new Set(this.modelFavorites);
+    const ordered = models.toSorted(
+      (left, right) => Number(favorites.has(right)) - Number(favorites.has(left)),
+    );
     this.openPicker({
       title: "Select model",
       items: ordered.map((id) => ({
@@ -3402,6 +3599,10 @@ export class AxlApp {
   }
 
   private thinkingLevels(): readonly ThinkingLevel[] {
+    const providerModel = this.providerInventory
+      .find((provider) => provider.providerId === this.view.provider)
+      ?.models.find((model) => model.modelId === this.view.model);
+    if (providerModel !== undefined) return providerModel.supportedThinkingLevels;
     const model = this.options.modelCatalog?.find(
       (candidate) => candidate.modelId === this.view.model,
     );
@@ -4138,6 +4339,205 @@ export class AxlApp {
     }
   }
 
+  private providerById(providerId: string): ProviderInventoryGroup | undefined {
+    return this.providerInventory.find((provider) => provider.providerId === providerId);
+  }
+
+  private chooseProvider(
+    title: string,
+    providers: readonly ProviderInventoryGroup[],
+    onPick: (providerId: string) => void,
+  ): void {
+    this.openPicker({
+      title,
+      items: providers.map((provider) => ({
+        value: provider.providerId,
+        label: provider.displayName,
+        description: `${provider.authentication.phase.replaceAll("_", " ")} · ${provider.models.length} models`,
+      })),
+      current: this.view.provider ?? this.options.currentProvider ?? "",
+      onPick,
+    });
+  }
+
+  private async showProviders(providerId?: string): Promise<void> {
+    const controller = new AbortController();
+    this.providerOperation?.abort();
+    this.providerOperation = controller;
+    this.notice = this.view.palette.dim("· checking provider status · Esc to cancel");
+    this.redraw();
+    try {
+      const [providers, statuses] = await Promise.all([
+        this.loadProviderInventory(providerId, controller.signal),
+        this.client.providerAuthenticationStatus(providerId === undefined ? {} : { providerId }, {
+          signal: controller.signal,
+        }),
+      ]);
+      const statusById = new Map(statuses.providers.map((status) => [status.providerId, status]));
+      this.commitLines(
+        providers.flatMap((provider) => {
+          const status = statusById.get(provider.providerId) ?? provider.authentication;
+          return [
+            this.view.palette.accent(`${provider.displayName} (${provider.providerId})`),
+            `  authentication  ${authenticationLabel(status)}`,
+            `  catalog         ${provider.catalog.refreshable ? "dynamic" : "static"} · ${provider.models.length} text models`,
+            ...(provider.catalogError === undefined
+              ? []
+              : [
+                  `  action          ${provider.catalogError.action.replaceAll("_", " ")} · ${sanitizeTerminalText(provider.catalogError.message)}`,
+                ]),
+          ];
+        }),
+      );
+      this.notice = undefined;
+    } catch (error) {
+      this.notice = this.view.palette.error(`✖ ${providerErrorText(error)}`);
+    } finally {
+      if (this.providerOperation === controller) this.providerOperation = undefined;
+      this.redraw();
+    }
+  }
+
+  private async refreshProviders(providerId?: string): Promise<void> {
+    const controller = new AbortController();
+    this.providerOperation?.abort();
+    this.providerOperation = controller;
+    this.notice = this.view.palette.dim("· refreshing provider catalogs · Esc to cancel");
+    this.redraw();
+    try {
+      const result = await this.client.refreshProviderCatalogs(
+        providerId === undefined ? {} : { providerId },
+        { signal: controller.signal },
+      );
+      await this.loadProviderInventory(providerId, controller.signal);
+      this.commitLines(
+        result.providers.map((provider) =>
+          provider.error === undefined
+            ? this.view.palette.dim(
+                `· ${provider.providerId} catalog ${provider.status} · ${provider.modelCount} models`,
+              )
+            : this.view.palette.error(
+                `✖ ${provider.providerId} · ${sanitizeTerminalText(provider.error.message)} · action: ${provider.error.action.replaceAll("_", " ")}`,
+              ),
+        ),
+      );
+      this.notice = undefined;
+    } catch (error) {
+      this.notice = this.view.palette.error(`✖ ${providerErrorText(error)}`);
+    } finally {
+      if (this.providerOperation === controller) this.providerOperation = undefined;
+      this.redraw();
+    }
+  }
+
+  private async loginProvider(providerId?: string, method?: ProviderLoginMethod): Promise<void> {
+    let providers: readonly ProviderInventoryGroup[];
+    try {
+      providers = await this.loadProviderInventory(providerId);
+    } catch (error) {
+      if (this.options.loadLogin !== undefined) {
+        await this.openLogin();
+        return;
+      }
+      this.notice = this.view.palette.error(`✖ ${providerErrorText(error)}`);
+      this.redraw();
+      return;
+    }
+    const selectedId = providerId ?? this.view.provider ?? this.options.currentProvider;
+    const provider = selectedId === undefined ? undefined : this.providerById(selectedId);
+    if (provider === undefined) {
+      this.chooseProvider("Login to provider", providers, (value) => {
+        this.overlays.close();
+        void this.loginProvider(value);
+      });
+      return;
+    }
+    const selectedMethod =
+      method ?? (provider.loginMethods.length === 1 ? provider.loginMethods[0] : undefined);
+    if (selectedMethod === undefined) {
+      if (provider.loginMethods.length === 0) {
+        this.notice = this.view.palette.error(
+          `✖ ${provider.displayName} has no interactive login method`,
+        );
+        this.redraw();
+        return;
+      }
+      this.openPicker({
+        title: `Login to ${provider.displayName}`,
+        items: provider.loginMethods.map((value) => ({ value, label: value.replaceAll("_", " ") })),
+        current: provider.loginMethods[0] ?? "",
+        onPick: (value) => {
+          this.overlays.close();
+          void this.loginProvider(provider.providerId, value as ProviderLoginMethod);
+        },
+      });
+      return;
+    }
+    const controller = new AbortController();
+    this.providerOperation?.abort();
+    this.providerOperation = controller;
+    this.notice = this.view.palette.dim(`· authenticating ${provider.displayName} · Esc to cancel`);
+    this.redraw();
+    let terminalPaused = false;
+    try {
+      this.terminal.stop();
+      terminalPaused = true;
+      const status = await this.client.loginProvider(
+        { providerId: provider.providerId, method: selectedMethod },
+        { signal: controller.signal },
+      );
+      this.notice = this.view.palette.dim(
+        `· ${provider.displayName} · ${authenticationLabel(status)}`,
+      );
+    } catch (error) {
+      this.notice = this.view.palette.error(`✖ ${providerErrorText(error)}`);
+    } finally {
+      if (terminalPaused && !this.stopped) this.terminal.start();
+      if (this.providerOperation === controller) this.providerOperation = undefined;
+      this.invalidateScreens();
+      this.redraw(true);
+    }
+  }
+
+  private async logoutProvider(providerId?: string): Promise<void> {
+    let providers: readonly ProviderInventoryGroup[];
+    try {
+      providers = await this.loadProviderInventory(providerId);
+    } catch (error) {
+      this.notice = this.view.palette.error(`✖ ${providerErrorText(error)}`);
+      this.redraw();
+      return;
+    }
+    const selectedId = providerId ?? this.view.provider ?? this.options.currentProvider;
+    const provider = selectedId === undefined ? undefined : this.providerById(selectedId);
+    if (provider === undefined) {
+      this.chooseProvider("Logout provider", providers, (value) => {
+        this.overlays.close();
+        void this.logoutProvider(value);
+      });
+      return;
+    }
+    const controller = new AbortController();
+    this.providerOperation?.abort();
+    this.providerOperation = controller;
+    this.notice = this.view.palette.dim(`· logging out ${provider.displayName} · Esc to cancel`);
+    this.redraw();
+    try {
+      const status = await this.client.logoutProvider(
+        { providerId: provider.providerId },
+        { signal: controller.signal },
+      );
+      this.notice = this.view.palette.dim(
+        `· ${provider.displayName} · ${authenticationLabel(status)}`,
+      );
+    } catch (error) {
+      this.notice = this.view.palette.error(`✖ ${providerErrorText(error)}`);
+    } finally {
+      if (this.providerOperation === controller) this.providerOperation = undefined;
+      this.redraw();
+    }
+  }
+
   private async openLogin(): Promise<void> {
     let definition: LoginDialogDefinition | undefined;
     try {
@@ -4172,6 +4572,7 @@ export class AxlApp {
   }
 
   private async persistPreferences(update: {
+    providerId?: string;
     modelId?: string;
     thinkingLevel?: ThinkingLevel;
     requestSettings?: ModelRequestSettings;
@@ -4204,6 +4605,7 @@ export class AxlApp {
   }
 
   private async configure(update: {
+    providerId?: string;
     modelId?: string;
     thinkingLevel?: ThinkingLevel;
     requestSettings?: ModelRequestSettings;
@@ -4226,9 +4628,7 @@ export class AxlApp {
       if (update.requestSettings !== undefined)
         this.notice = this.view.palette.dim("· model request settings updated");
     } catch (error) {
-      this.notice = this.view.palette.error(
-        `✖ ${error instanceof Error ? error.message : "configuration failed"}`,
-      );
+      this.notice = this.view.palette.error(`✖ ${providerErrorText(error)}`);
     } finally {
       this.configuring = false;
     }
@@ -4379,9 +4779,7 @@ export class AxlApp {
               "✖ delivery unknown · prompts restored for review",
             );
           } else {
-            this.notice = this.view.palette.error(
-              `✖ ${error instanceof Error ? error.message : "send failed"}`,
-            );
+            this.notice = this.view.palette.error(`✖ ${providerErrorText(error)}`);
           }
           break;
         }

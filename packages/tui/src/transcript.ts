@@ -107,8 +107,9 @@ export type BlobRenderer = (
 export class SessionView {
   palette: Palette;
   private width: number;
-  private readonly models: readonly ClientModelInfo[];
+  private models: readonly ClientModelInfo[];
   private readonly renderBlob: BlobRenderer | undefined;
+  provider: string | undefined;
   model: string | undefined;
   thinking: string | undefined;
   profile: string | undefined;
@@ -124,6 +125,17 @@ export class SessionView {
   contextTokens: number | undefined = 0;
   cacheHitPercent: number | undefined;
   totalCostUsd = 0;
+  private fallbackCostUsd = 0;
+  private lastUsage:
+    | {
+        readonly inputTokens: number;
+        readonly outputTokens: number;
+        readonly cacheReadTokens: number;
+        readonly cacheWriteTokens: number;
+        readonly reasoningTokens?: number;
+        readonly costUsd?: number;
+      }
+    | undefined;
   tokensPerSecond: number | undefined;
   elapsedSeconds = 0;
   private responseStartedAt: number | undefined;
@@ -145,6 +157,10 @@ export class SessionView {
 
   setWidth(width: number): void {
     this.width = Math.max(1, width);
+  }
+
+  setModels(models: readonly ClientModelInfo[]): void {
+    this.models = models;
   }
 
   cycleThinkingDisplay(): ThinkingDisplay {
@@ -176,18 +192,53 @@ export class SessionView {
   }
 
   usageLabel(): string {
+    const total = this.formatUsage(
+      {
+        inputTokens: this.inputTokens,
+        outputTokens: this.outputTokens,
+        cacheReadTokens: this.cacheReadTokens,
+        cacheWriteTokens: this.cacheWriteTokens,
+        costUsd: this.totalCostUsd,
+      },
+      true,
+    );
+    return this.lastUsage === undefined
+      ? total
+      : `turn ${this.formatUsage(this.lastUsage)} · total ${total}`;
+  }
+
+  private formatUsage(
+    usage: {
+      readonly inputTokens: number;
+      readonly outputTokens: number;
+      readonly cacheReadTokens: number;
+      readonly cacheWriteTokens: number;
+      readonly reasoningTokens?: number;
+      readonly costUsd?: number;
+    },
+    includeContext = false,
+  ): string {
     const parts: string[] = [];
-    if (this.inputTokens) parts.push(`↑${compactNumber(this.inputTokens)}`);
-    if (this.outputTokens) parts.push(`↓${compactNumber(this.outputTokens)}`);
-    if (this.cacheReadTokens) parts.push(`R${compactNumber(this.cacheReadTokens)}`);
-    if (this.cacheWriteTokens) parts.push(`W${compactNumber(this.cacheWriteTokens)}`);
-    if ((this.cacheReadTokens || this.cacheWriteTokens) && this.cacheHitPercent !== undefined) {
+    if (usage.inputTokens) parts.push(`↑${compactNumber(usage.inputTokens)}`);
+    if (usage.outputTokens) parts.push(`↓${compactNumber(usage.outputTokens)}`);
+    if (usage.cacheReadTokens) parts.push(`R${compactNumber(usage.cacheReadTokens)}`);
+    if (usage.cacheWriteTokens) parts.push(`W${compactNumber(usage.cacheWriteTokens)}`);
+    if (usage.reasoningTokens) parts.push(`∴${compactNumber(usage.reasoningTokens)}`);
+    if ((usage.cacheReadTokens || usage.cacheWriteTokens) && this.cacheHitPercent !== undefined) {
       parts.push(`CH${this.cacheHitPercent.toFixed(1)}%`);
     }
-    if (this.totalCostUsd) parts.push(`$${this.totalCostUsd.toFixed(3)}`);
+    if (usage.costUsd) parts.push(`$${usage.costUsd.toFixed(3)}`);
 
-    const model = this.models.find((candidate) => candidate.modelId === this.model);
-    if (model === undefined) {
+    const model = includeContext
+      ? this.models.find(
+          (candidate) =>
+            candidate.modelId === this.model &&
+            (candidate.providerId === undefined || candidate.providerId === this.provider),
+        )
+      : undefined;
+    if (!includeContext) {
+      if (parts.length === 0) parts.push("no usage");
+    } else if (model === undefined) {
       if (parts.length === 0) parts.push("ready");
     } else {
       const percent =
@@ -223,10 +274,12 @@ export class SessionView {
 
   /** Renders an event already reduced by the shared SDK subscription projector. */
   present(event: CanonicalEvent): readonly string[] {
+    const previousProvider = this.provider;
     const previousModel = this.model;
     const previousThinking = this.thinking;
     const previousSandbox = this.sandbox;
     const projected = this.projection.state;
+    this.provider = projected.provider;
     this.model = projected.model;
     this.thinking = projected.thinking;
     this.profile = projected.profile;
@@ -241,7 +294,7 @@ export class SessionView {
     this.cacheReadTokens = projected.usage.cacheReadTokens;
     this.cacheWriteTokens = projected.usage.cacheWriteTokens;
     this.totalTokens = projected.usage.inputTokens + projected.usage.outputTokens;
-    this.totalCostUsd = projected.usage.costUsd;
+    this.totalCostUsd = projected.usage.costUsd + this.fallbackCostUsd;
     const { dim, error } = this.palette;
     switch (event.type) {
       case "session.created":
@@ -279,15 +332,28 @@ export class SessionView {
           this.contextTokens = promptTokens;
           this.cacheHitPercent =
             promptTokens > 0 ? (usage.cacheReadTokens / promptTokens) * 100 : undefined;
-          const cost = this.models.find((candidate) => candidate.modelId === this.model)?.cost;
-          if (usage.costUsd === undefined && cost !== undefined) {
-            this.totalCostUsd +=
-              (cost.inputUsdPerMTok * usage.inputTokens +
-                cost.outputUsdPerMTok * usage.outputTokens +
-                (cost.cacheReadUsdPerMTok ?? 0) * usage.cacheReadTokens +
-                (cost.cacheWriteUsdPerMTok ?? 0) * usage.cacheWriteTokens) /
-              1_000_000;
+          const cost = this.models.find(
+            (candidate) =>
+              candidate.modelId === this.model &&
+              (candidate.providerId === undefined || candidate.providerId === this.provider),
+          )?.cost;
+          const computedCost =
+            usage.costUsd ??
+            (cost === undefined
+              ? undefined
+              : (cost.inputUsdPerMTok * usage.inputTokens +
+                  cost.outputUsdPerMTok * usage.outputTokens +
+                  (cost.cacheReadUsdPerMTok ?? 0) * usage.cacheReadTokens +
+                  (cost.cacheWriteUsdPerMTok ?? 0) * usage.cacheWriteTokens) /
+                1_000_000);
+          if (usage.costUsd === undefined && computedCost !== undefined) {
+            this.fallbackCostUsd += computedCost;
+            this.totalCostUsd += computedCost;
           }
+          this.lastUsage = {
+            ...usage,
+            ...(computedCost === undefined ? {} : { costUsd: computedCost }),
+          };
           if (this.responseStartedAt !== undefined && usage.outputTokens > 0) {
             const elapsedMs = performance.now() - this.responseStartedAt;
             this.tokensPerSecond =
@@ -344,10 +410,17 @@ export class SessionView {
           ),
         );
       case "session.error":
-        return this.errorLines(
-          sanitizeTerminalText(event.payload.message),
-          sanitizeTerminalText(event.payload.code),
-        );
+        return [
+          ...this.errorLines(
+            sanitizeTerminalText(event.payload.message),
+            sanitizeTerminalText(event.payload.code),
+          ),
+          ...(event.payload.retryable ? this.wrap(dim("  Action: retry the request.")) : []),
+        ];
+      case "config.provider":
+        return previousProvider === undefined || previousProvider === this.provider
+          ? []
+          : this.wrap(dim(`· provider ${previousProvider} → ${this.provider}`));
       case "config.model":
         return previousModel === undefined || previousModel === this.model
           ? []
@@ -419,7 +492,7 @@ export class SessionView {
       : queued
         ? `idle +${queued}`
         : "idle";
-    const full = `${activity} · session ${sessionId.slice(0, 8)} · profile ${this.profile ?? "?"} · model ${this.model ?? "?"} · thinking ${this.thinking ?? "?"} · sandbox ${this.sandbox ?? "none"}`;
+    const full = `${activity} · session ${sessionId.slice(0, 8)} · profile ${this.profile ?? "?"} · provider ${this.provider ?? "?"} · model ${this.model ?? "?"} · thinking ${this.thinking ?? "?"} · sandbox ${this.sandbox ?? "none"}`;
     return this.palette.dim(truncateToWidth(full, this.width, ""));
   }
 

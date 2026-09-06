@@ -12,6 +12,7 @@ export interface ClientModelCost {
 
 /** Provider-neutral model metadata used by presentation clients. */
 export interface ClientModelInfo {
+  readonly providerId?: string;
   readonly modelId: string;
   readonly displayName: string;
   readonly reasoning: boolean;

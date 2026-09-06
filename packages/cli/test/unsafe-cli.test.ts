@@ -31,6 +31,11 @@ test("--help and --version do not require credentials", () => {
   assert.match(help.stdout, /axl print/);
   assert.match(help.stdout, /axl json/);
   assert.match(help.stdout, /axl rpc/);
+  assert.match(help.stdout, /axl providers/);
+  assert.match(help.stdout, /axl models/);
+  assert.match(help.stdout, /axl login <provider-id>/);
+  assert.match(help.stdout, /axl logout <provider-id>/);
+  assert.match(help.stdout, /axl refresh/);
 
   const version = spawnSync(process.execPath, [entry, "--version"], { encoding: "utf8" });
   assert.equal(version.status, 0);
@@ -340,7 +345,11 @@ test("print and JSON run one headless turn", async (context) => {
     { ...process.env, HOME: directory },
     "piped input\n",
   );
-  assert.deepEqual(result, { code: 0, stdout: "printed response\n", stderr: "" });
+  assert.deepEqual(result, {
+    code: 0,
+    stdout: "printed response\n",
+    stderr: "usage: input 1 · output 2 · cache read 0 · cache write 0\n",
+  });
   assert.equal(prompt, "Summarize this\n\npiped input\n");
 
   const json = await runCli(

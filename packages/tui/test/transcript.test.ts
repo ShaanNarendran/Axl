@@ -8,9 +8,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-
-import { ConversationProjector } from "@axl/sdk";
-
 import {
   type CanonicalEvent,
   EVENT_FORMAT_VERSION,
@@ -20,6 +17,7 @@ import {
   parseEventId,
   parseSessionId,
 } from "@axl/protocol";
+import { ConversationProjector } from "@axl/sdk";
 
 import { PLAIN_PALETTE, SessionView } from "../src/index.ts";
 
@@ -203,11 +201,15 @@ test("reports cumulative usage, cache hit rate, cost, and local throughput", () 
         outputTokens: 5,
         cacheReadTokens: 20,
         cacheWriteTokens: 2,
+        reasoningTokens: 3,
         costUsd: 0.125,
       },
     }),
   );
-  assert.equal(view.usageLabel(), "↑10 ↓5 R20 W2 CH62.5% $0.125");
+  assert.equal(
+    view.usageLabel(),
+    "turn ↑10 ↓5 R20 W2 ∴3 CH62.5% $0.125 · total ↑10 ↓5 R20 W2 CH62.5% $0.125",
+  );
   assert.match(view.tpsLabel(), /tok\/s$/);
 });
 

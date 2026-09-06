@@ -12,8 +12,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { TextDecoder } from "node:util";
 
-import type { AuthContext, CredentialStore } from "@axl/ai";
-import { AZURE_OPENAI_MODELS } from "@axl/ai/models";
+import type { CredentialStore } from "@axl/ai";
 import {
   type CanonicalEvent,
   DEFAULT_MODEL_REQUEST_SETTINGS,
@@ -21,6 +20,7 @@ import {
   parseModelRequestSettings,
   encodeCanonicalEvent,
   MAX_WIRE_MESSAGE_BYTES,
+  type ProviderLoginMethod,
   type SessionProfile,
   type ThinkingLevel,
 } from "@axl/protocol";
@@ -36,13 +36,17 @@ import {
 import { type AxlClient, AxlClientError, subscribeSession } from "@axl/sdk";
 import { connectUnixClient, createUnixDaemonHost } from "@axl/sdk/unix";
 
-import { azureLoginDialog, runAzureSetup } from "./azure-auth-ui.ts";
+import { providerErrorMessage, runProviderCommand, usageLine } from "./provider-cli.ts";
 import { loadTuiSettings, saveTuiSettings, type TuiSettings } from "./settings.ts";
 
 const AXL_VERSION = process.env.AXL_BUILD_VERSION ?? "0.0.0-dev";
 
 const HELP = `Usage: axl [session-id] [options]
-       axl login
+       axl providers [provider-id]
+       axl models [provider-id]
+       axl login <provider-id> [api_key|oauth]
+       axl logout <provider-id>
+       axl refresh [provider-id]
        axl doctor
        axl daemon [status|stop|restart] [options]
        axl print [prompt] [options]
@@ -87,7 +91,11 @@ type SandboxChoice = "native" | "podman" | "docker";
 
 interface CliArguments {
   command?:
+    | "providers"
+    | "models"
     | "login"
+    | "logout"
+    | "refresh"
     | "daemon"
     | "doctor"
     | "json"
@@ -100,6 +108,8 @@ interface CliArguments {
   yes: boolean;
   force: boolean;
   sessionId?: string;
+  providerTarget?: string;
+  loginMethod?: ProviderLoginMethod;
   prompt: string[];
   output?: string;
   raw: boolean;
@@ -238,33 +248,36 @@ function parseArguments(argv: readonly string[]): CliArguments {
     ) {
       parsed.prompt.push(argument);
     } else if (
+      argument === "providers" ||
+      argument === "models" ||
       argument === "login" ||
+      argument === "logout" ||
+      argument === "refresh" ||
       argument === "daemon" ||
       argument === "doctor" ||
       argument === "rpc"
     ) {
       parsed.command = argument;
+    } else if (
+      !argument.startsWith("-") &&
+      ["providers", "models", "login", "logout", "refresh"].includes(parsed.command ?? "")
+    ) {
+      if (parsed.providerTarget === undefined) parsed.providerTarget = argument;
+      else if (
+        parsed.command === "login" &&
+        parsed.loginMethod === undefined &&
+        (argument === "api_key" || argument === "oauth")
+      ) {
+        parsed.loginMethod = argument;
+      } else throw new Error(`Unexpected ${parsed.command} argument ${argument}`);
     } else if (!argument.startsWith("-") && !parsed.command?.startsWith("session-")) {
       parsed.sessionId = argument;
     } else throw new Error(`Unknown argument ${argument}`);
   }
-  if (
-    (parsed.interrupt || parsed.yes || parsed.force) &&
-    parsed.daemonAction !== "stop" &&
-    parsed.daemonAction !== "restart"
-  )
-    throw new Error("--interrupt, --yes, and --force require daemon stop or restart");
-  if (parsed.force && (parsed.daemonAction !== "stop" || !parsed.yes))
-    throw new Error("--force requires daemon stop --yes after graceful shutdown was requested");
-  if (parsed.command === "daemon" && parsed.sessionId !== undefined)
-    throw new Error("Unexpected daemon argument");
-  if (
-    (parsed.maxOutputTokens !== undefined || parsed.httpIdleTimeoutMs !== undefined) &&
-    (parsed.resume || parsed.sessionId !== undefined)
-  )
-    throw new Error(
-      "Request settings flags select new sessions; use /request to configure a resumed session",
-    );
+  if (parsed.command === "login" || parsed.command === "logout") {
+    if (parsed.providerTarget === undefined)
+      throw new Error(`${parsed.command} requires a provider ID`);
+  }
   if (parsed.resume && parsed.sessionId !== undefined) {
     throw new Error("--resume cannot be combined with a session ID");
   }
@@ -472,7 +485,10 @@ async function connectOrStartDaemon(input: {
         ...(input.webFetch ? [] : ["--no-web-fetch"]),
         ...(input.webSearch ? [] : ["--no-web-search"]),
       ],
-      { detached: true, stdio: "ignore" },
+      {
+        detached: true,
+        stdio: process.stdin.isTTY === true && process.stdout.isTTY === true ? "inherit" : "ignore",
+      },
     );
     let childFailure: Error | undefined;
     child.once("error", (cause) => {
@@ -666,6 +682,9 @@ async function runPrint(client: AxlClient, input: HeadlessInput): Promise<void> 
     .map((content) => content.text)
     .join("");
   process.stdout.write(text.endsWith("\n") ? text : `${text}\n`);
+  if (terminal.payload.usage !== undefined) {
+    process.stderr.write(`${usageLine(terminal.payload.usage)}\n`);
+  }
 }
 
 async function writeJsonEvent(event: CanonicalEvent): Promise<void> {
@@ -739,6 +758,10 @@ async function main(): Promise<void> {
   }
   if (cli.profile !== undefined && cli.resume) {
     throw new Error("--profile cannot be combined with --resume");
+  }
+  if (cli.command === "login") {
+    const { assertInteractiveTerminal } = await import("@axl/tui");
+    assertInteractiveTerminal(process.stdin, process.stdout);
   }
 
   const headlessMode = cli.command === "json" || cli.command === "print" ? cli.command : undefined;
@@ -831,24 +854,13 @@ async function main(): Promise<void> {
   let settings = await loadTuiSettings(settingsPath);
   timing.mark("settings");
 
-  let credentialsPromise: Promise<{ store: CredentialStore; context: AuthContext }> | undefined;
+  let credentialsPromise: Promise<{ store: CredentialStore }> | undefined;
   const credentials = () => {
-    credentialsPromise ??= import("@axl/ai").then(({ FileCredentialStore, nodeAuthContext }) => ({
+    credentialsPromise ??= import("@axl/ai").then(({ FileCredentialStore }) => ({
       store: new FileCredentialStore(join(axlHome, "credentials.json")),
-      context: nodeAuthContext,
     }));
     return credentialsPromise;
   };
-
-  if (cli.command === "login") {
-    const [{ store, context }, { assertInteractiveTerminal }] = await Promise.all([
-      credentials(),
-      import("@axl/tui"),
-    ]);
-    assertInteractiveTerminal(process.stdin, process.stdout);
-    await runAzureSetup(process.stdin, process.stdout, store, context);
-    process.exit(0);
-  }
 
   const active: ActiveConfig = {
     providerId: cli.provider ?? settings.providerId ?? "azure-openai-responses",
@@ -865,6 +877,7 @@ async function main(): Promise<void> {
   }
   if (cli.command === "daemon" && cli.daemonAction === undefined) {
     const { store } = await credentials();
+    const { createTerminalProviderLoginAdapter } = await import("./provider-auth-ui.ts");
     const daemon = await startLocalDaemon({
       buildVersion: AXL_VERSION,
       onStopped: () => process.exit(0),
@@ -876,6 +889,7 @@ async function main(): Promise<void> {
       store,
       unsafe: cli.unsafe,
       sandbox,
+      providerLogin: createTerminalProviderLoginAdapter(process.stdin, process.stdout),
     });
     const stop = (): void => {
       void daemon.stop().catch((error: unknown) => {
@@ -895,7 +909,9 @@ async function main(): Promise<void> {
       ? cli.command
       : cli.command === "rpc"
         ? "rpc_probe"
-        : "tui";
+        : ["providers", "models", "login", "logout", "refresh"].includes(cli.command ?? "")
+          ? "cli"
+          : "tui";
   const connectTarget = async (target: LocalDaemonTarget): Promise<AxlClient> => {
     await mkdir(target.stateDirectory, { recursive: true, mode: 0o700 });
     try {
@@ -945,6 +961,20 @@ async function main(): Promise<void> {
   if (cli.command === "rpc") {
     client.close();
     await bridgeRpc(socketPath);
+    return;
+  }
+  if (["providers", "models", "login", "logout", "refresh"].includes(cli.command ?? "")) {
+    try {
+      await runProviderCommand({
+        client,
+        command: cli.command as "providers" | "models" | "login" | "logout" | "refresh",
+        ...(cli.providerTarget === undefined ? {} : { providerId: cli.providerTarget }),
+        ...(cli.loginMethod === undefined ? {} : { loginMethod: cli.loginMethod }),
+        write: (value) => process.stdout.write(value),
+      });
+    } finally {
+      client.close();
+    }
     return;
   }
   if (cli.command === "json" || cli.command === "print") {
@@ -1050,18 +1080,12 @@ async function main(): Promise<void> {
     clearStartupLine: startupIndicator,
     reconnectClient: () => connectTarget(currentTarget),
     onPreferenceChange: persistSettings,
-    models: AZURE_OPENAI_MODELS.map((model) => model.modelId),
-    modelCatalog: AZURE_OPENAI_MODELS,
-    requestSettings: active.requestSettings,
+    currentProvider: active.providerId,
     currentModel: active.modelId,
     currentThinking: active.thinkingLevel,
     ...(cli.profile === undefined ? {} : { profile: cli.profile }),
     webFetch: active.webFetch,
     webSearch: active.webSearch,
-    loadLogin: async () => {
-      const { store, context } = await credentials();
-      return azureLoginDialog(store, context);
-    },
     ...(cli.sessionId === undefined ? {} : { sessionId: cli.sessionId }),
     onExit: () => {
       void settingsWrite.finally(() => process.exit(0));
@@ -1074,11 +1098,6 @@ async function main(): Promise<void> {
 
 main().catch((error: unknown) => {
   if (process.stdout.isTTY) process.stdout.write("\r\x1b[2K");
-  process.stderr.write(`axl: ${error instanceof Error ? error.message : String(error)}\n`);
-  process.exit(
-    error instanceof AxlClientError &&
-      ["busy", "confirmation_required", "state_changed"].includes(error.code)
-      ? 2
-      : 1,
-  );
+  process.stderr.write(`axl: ${providerErrorMessage(error)}\n`);
+  process.exit(1);
 });

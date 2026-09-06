@@ -12,7 +12,11 @@ import { join } from "node:path";
 import { PassThrough as NodePassThrough } from "node:stream";
 import test, { type TestContext } from "node:test";
 
-import { AxlDaemon, type SessionInteractionRequest } from "@axl/daemon";
+import {
+  AxlDaemon,
+  type ProviderManagementService,
+  type SessionInteractionRequest,
+} from "@axl/daemon";
 import type { TerminalExtension } from "@axl/extension-api";
 import {
   type CompactionSettings,
@@ -70,6 +74,7 @@ async function startStack(
   ) => ToolRegistry = () => new ToolRegistry(),
   sandbox?: EventPayloadMap["sandbox.configured"],
   compaction?: Partial<CompactionSettings>,
+  providerManagement?: ProviderManagementService,
 ) {
   const directory = await mkdtemp(join(tmpdir(), "axl-tui-"));
   context.after(() => rm(directory, { recursive: true, force: true }));
@@ -77,6 +82,7 @@ async function startStack(
   const daemon = new AxlDaemon({
     socketPath,
     dataDirectory: join(directory, "data"),
+    ...(providerManagement === undefined ? {} : { providerManagement }),
     runtime: ({ selection, interact }) => ({
       model,
       configRequest: selection.requestSettings ?? DEFAULT_MODEL_REQUEST_SETTINGS,
@@ -84,6 +90,9 @@ async function startStack(
       system: "You are Axl.",
       ...(sandbox === undefined ? {} : { sandbox }),
       ...(compaction === undefined ? {} : { compaction }),
+      ...(selection.providerId === undefined
+        ? {}
+        : { configProvider: { providerId: selection.providerId } }),
       ...(selection.modelId === undefined ? {} : { configModel: { modelId: selection.modelId } }),
       ...(selection.thinkingLevel === undefined
         ? {}
@@ -154,6 +163,7 @@ test("a full round trip: type, send, render the reply, detach, resume", async (c
 
   input.write("hello axl\r");
   await until(() => text().includes("↑1 ↓1"), "canonical assistant reply");
+  await until(() => text().includes("tok/s"), "throughput repaint");
   assert.match(text(), /│ hello axl/);
   assert.match(text(), /the answer/);
   assert.match(text(), /↑1 ↓1/);
@@ -980,6 +990,7 @@ test("terminal resize coalesces bursts and leaves one live frame", async (contex
   const beforeNextTurn = text().length;
   input.write("after resize\r");
   await until(() => text().includes("↑2 ↓2"), "canonical post-resize reply");
+  await new Promise((resolve) => setTimeout(resolve, 30));
   assert.match(text().slice(beforeNextTurn), /after resize/);
   const terminal = new VirtualTerminal(100, 30);
   terminal.write(`${latestResizeOutput}${text().slice(beforeNextTurn)}`);
@@ -1769,6 +1780,7 @@ test("/model opens a selector and switches the model live", async (context) => {
     cwd: directory,
     color: false,
     models: ["gpt-5", "gpt-4.1", "gpt-4o-mini"],
+    currentProvider: "test-provider",
     currentModel: "gpt-5",
     onModelChange: (modelId) => switched.push(modelId),
     onPreferenceChange: (update) => {
@@ -1788,6 +1800,152 @@ test("/model opens a selector and switches the model live", async (context) => {
   assert.deepEqual(switched, ["gpt-4.1"]);
   assert.deepEqual(preferences, [{ modelId: "gpt-4.1" }]);
   await until(() => text().includes("→ gpt-4.1"), "committed line");
+  app.stop();
+});
+
+test("provider commands group models, show status, mutate auth, and cancel refresh", async (context) => {
+  const calls: string[] = [];
+  let blockRefresh = false;
+  let refreshCancelled = false;
+  const provider = (
+    providerId: string,
+    displayName: string,
+    availability: "available" | "unavailable",
+  ) => ({
+    providerId,
+    displayName,
+    enabled: true,
+    authMethods: ["environment" as const],
+    loginMethods: ["api_key" as const],
+    authentication: { providerId, phase: "idle" as const },
+    catalog: { refreshable: true },
+    models: [
+      {
+        providerId,
+        modelId: "shared-model",
+        displayName: `${displayName} Model`,
+        apiDialect: "openai-chat",
+        capabilities: { toolUse: true, structuredOutput: true, imageInput: false },
+        reasoning: false,
+        supportedThinkingLevels: ["off" as const],
+        contextWindow: 16_000,
+        maxOutputTokens: 2_000,
+        availability: {
+          status: availability,
+          ...(availability === "unavailable" ? { reason: "region is not configured" } : {}),
+        },
+      },
+    ],
+  });
+  const providers = [
+    provider("alpha", "Alpha", "available"),
+    provider("beta", "Beta", "unavailable"),
+  ];
+  const service: ProviderManagementService = {
+    list: (params) =>
+      Promise.resolve({
+        providers:
+          params.providerId === undefined
+            ? providers
+            : providers.filter((entry) => entry.providerId === params.providerId),
+      }),
+    refresh: async (params, signal) => {
+      calls.push(`refresh:${params.providerId ?? "all"}`);
+      if (blockRefresh) {
+        await new Promise<void>((resolvePromise) => {
+          signal?.addEventListener(
+            "abort",
+            () => {
+              refreshCancelled = true;
+              resolvePromise();
+            },
+            { once: true },
+          );
+        });
+        signal?.throwIfAborted();
+      }
+      return {
+        providers: [
+          { providerId: params.providerId ?? "alpha", status: "refreshed", modelCount: 1 },
+        ],
+      };
+    },
+    authenticationStatus: (params) =>
+      Promise.resolve({
+        providers: providers
+          .filter(
+            (entry) => params.providerId === undefined || entry.providerId === params.providerId,
+          )
+          .map((entry) => ({
+            providerId: entry.providerId,
+            phase: "authenticated" as const,
+            source: "test environment",
+          })),
+      }),
+    login: (params) => {
+      calls.push(`login:${params.providerId}:${params.method}`);
+      return Promise.resolve({ providerId: params.providerId, phase: "authenticated" });
+    },
+    logout: (params) => {
+      calls.push(`logout:${params.providerId}`);
+      return Promise.resolve({ providerId: params.providerId, phase: "logged_out" });
+    },
+  };
+  const { socketPath, directory } = await startStack(
+    context,
+    port,
+    () => new ToolRegistry(),
+    undefined,
+    undefined,
+    service,
+  );
+  const input = new PassThrough();
+  const { output, text } = captureOutput();
+  const preferences: Array<Record<string, unknown>> = [];
+  const app = await AxlApp.start({
+    client: await connectUnixClient(socketPath),
+    input,
+    output,
+    cwd: directory,
+    color: false,
+    currentProvider: "alpha",
+    currentModel: "shared-model",
+    onPreferenceChange: (update) => {
+      preferences.push(update);
+    },
+  });
+
+  input.write("/model\r");
+  await until(() => text().includes("Select model by provider"), "grouped model selector");
+  assert.match(text(), /Alpha · Alpha Model/);
+  assert.match(text(), /Beta · Beta Model/);
+  assert.match(text(), /unavailable: region is not configured/);
+  input.write("\x1b");
+  await new Promise((resolve) => setTimeout(resolve, 30));
+
+  input.write("/model beta/shared-model\r");
+  await until(
+    () => preferences.some((value) => value.providerId === "beta"),
+    "provider model switch",
+  );
+  assert.deepEqual(preferences.at(-1), { providerId: "beta", modelId: "shared-model" });
+
+  input.write("/providers beta\r");
+  await until(() => text().includes("test environment"), "provider status");
+  input.write("/logout beta\r");
+  await until(() => calls.includes("logout:beta"), "provider logout");
+  input.write("/login beta\r");
+  await until(() => calls.includes("login:beta:api_key"), "provider login");
+
+  blockRefresh = true;
+  input.write("/refresh beta\r");
+  await until(
+    () => calls.filter((value) => value === "refresh:beta").length === 1,
+    "catalog refresh",
+  );
+  input.write("\x1b");
+  await until(() => refreshCancelled, "catalog refresh cancellation");
+  assert.doesNotMatch(text(), /runtime-login-secret/);
   app.stop();
 });
 
@@ -1880,6 +2038,7 @@ test("/model digit selection and Esc cancel behave", async (context) => {
     cwd: directory,
     color: false,
     models: ["gpt-5", "gpt-4o-mini"],
+    currentProvider: "test-provider",
     onModelChange: (modelId) => switched.push(modelId),
   });
 

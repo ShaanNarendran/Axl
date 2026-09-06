@@ -8,12 +8,15 @@ import { decodeOneKey } from "./editor.ts";
 import { TerminalInputBuffer } from "./input-buffer.ts";
 
 export interface SetupInput {
+  readonly isTTY?: boolean;
+  readonly isRaw?: boolean;
   on(event: "data", listener: (chunk: Buffer | string) => void): unknown;
   off(event: "data", listener: (chunk: Buffer | string) => void): unknown;
   setRawMode?(mode: boolean): unknown;
 }
 
 export interface SetupOutput {
+  readonly isTTY?: boolean;
   write(data: string): unknown;
 }
 
@@ -27,6 +30,7 @@ export class SetupAbortedError extends Error {
 export interface PromptOptions {
   readonly mask?: boolean;
   readonly allowEmpty?: boolean;
+  readonly signal?: AbortSignal;
 }
 
 /**
@@ -42,13 +46,21 @@ export function promptLine(
   options: PromptOptions = {},
 ): Promise<string> {
   output.write(label);
+  const previousRaw = input.isRaw ?? false;
   input.setRawMode?.(true);
   return new Promise<string>((resolve, reject) => {
     let value = "";
     let inputBuffer: TerminalInputBuffer | undefined;
+    const abort = (): void => {
+      output.write("\n");
+      done();
+      reject(new SetupAbortedError());
+    };
     const done = (): void => {
       inputBuffer?.dispose();
       input.off("data", listener);
+      options.signal?.removeEventListener("abort", abort);
+      input.setRawMode?.(previousRaw);
     };
     const finish = (result: string): void => {
       output.write("\n");
@@ -94,6 +106,11 @@ export function promptLine(
         reject(error);
       },
     });
+    if (options.signal?.aborted) {
+      abort();
+      return;
+    }
+    options.signal?.addEventListener("abort", abort, { once: true });
     input.on("data", listener);
   });
 }
