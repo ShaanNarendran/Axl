@@ -8,7 +8,9 @@ import test from "node:test";
 import {
   FakeModelProvider,
   isPreparedModelRequest,
+  type ModelRequest,
   type ModelStreamEvent,
+  makeFakeModelInfo,
   modelPortForRegistry,
   modelPortForSession,
   ProviderRegistry,
@@ -286,6 +288,98 @@ test("retains signature-only replay without inventing continuation state", async
   );
   assert.equal(assistant.toolCalls?.[0]?.signature?.value, "tool-signature");
   assert.equal(assistant.toolCalls?.[0]?.continuation, undefined);
+});
+
+test("strips foreign continuation state when a session changes providers", async () => {
+  const target = new FakeModelProvider({
+    id: "target",
+    models: [
+      makeFakeModelInfo({
+        providerId: "target",
+        modelId: "target-model",
+        apiDialect: "openai-chat",
+      }),
+    ],
+    responses: [[{ type: "completed", stopReason: "stop", usage }]],
+  });
+  const registry = new ProviderRegistry();
+  registry.register(target);
+  const foreign = {
+    providerId: "source",
+    apiDialect: "openai-responses",
+    modelId: "source-model",
+  } as const;
+  const request = {
+    modelId: "target-model",
+    messages: [
+      {
+        role: "assistant",
+        origin: foreign,
+        continuation: { ...foreign, responseId: "response-source" },
+        content: [
+          {
+            type: "thinking",
+            text: "portable summary",
+            signature: { ...foreign, value: "thinking-source" },
+          },
+          {
+            type: "text",
+            text: "calling",
+            signature: { ...foreign, value: "text-source" },
+            continuation: { ...foreign, itemId: "message-source" },
+          },
+        ],
+        toolCalls: [
+          {
+            callId: "call-source",
+            name: "lookup",
+            input: { query: "fixture" },
+            signature: { ...foreign, value: "tool-source" },
+            continuation: { ...foreign, itemId: "tool-source" },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        callId: "call-source",
+        name: "lookup",
+        content: [{ type: "text", text: "result" }],
+        isError: false,
+      },
+    ],
+    tools: [{ name: "lookup", description: "Lookup", inputSchema: { type: "object" } }],
+  } as unknown as ModelRequest;
+
+  await Array.fromAsync(registry.stream("target", request));
+
+  const prepared = target.requests[0];
+  assert.ok(prepared);
+  assert.equal(isPreparedModelRequest(prepared), true);
+  if (!isPreparedModelRequest(prepared)) assert.fail("expected prepared target request");
+  const assistant = prepared.messages[0];
+  if (assistant?.role !== "assistant") assert.fail("expected prepared assistant history");
+  assert.deepEqual(assistant.origin, foreign);
+  assert.equal(assistant.continuation, undefined);
+  for (const content of assistant.content) {
+    if (content.type === "text") {
+      assert.equal(content.signature, undefined);
+      assert.equal(content.continuation, undefined);
+    }
+    if (content.type === "thinking") assert.equal(content.signature, undefined);
+  }
+  assert.equal(assistant.toolCalls?.[0]?.signature, undefined);
+  assert.equal(assistant.toolCalls?.[0]?.continuation, undefined);
+  assert.deepEqual(
+    prepared.preparation.sanitizations.map((entry) => entry.reason),
+    [
+      "foreign-provider-continuation",
+      "foreign-provider-signature",
+      "foreign-provider-signature",
+      "foreign-provider-continuation",
+      "foreign-provider-signature",
+      "foreign-provider-continuation",
+    ],
+  );
 });
 
 test("normalization guarantees a terminal even when the provider misbehaves", async () => {

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import {
@@ -16,6 +17,7 @@ import {
   createGoogleVertexProvider,
   createKimiCodingProvider,
   createMistralProvider,
+  createOpenAiCodexProvider,
   createOpenAiProvider,
   createOpenCodeGoProvider,
   createOpenCodeProvider,
@@ -24,8 +26,9 @@ import {
   getStaticModelCatalog,
   InMemoryCatalogStore,
   InMemoryCredentialStore,
-  ProviderRegistry,
+  login,
   type ModelProvider,
+  ProviderRegistry,
 } from "../src/index.ts";
 
 const ENVIRONMENT: Readonly<Record<string, string>> = {
@@ -221,6 +224,141 @@ test("dispatches every newly active static provider through its declared dialect
   );
 });
 
+test("dispatches Codex, Gateway, and image dialects through deterministic transports", async () => {
+  const codexStore = new InMemoryCredentialStore();
+  const codexPayload = Buffer.from(
+    JSON.stringify({ "https://api.openai.com/auth": { chatgpt_account_id: "account-fixture" } }),
+  ).toString("base64url");
+  await login(codexStore, "openai-codex", {
+    type: "oauth",
+    access: `header.${codexPayload}.signature`,
+    refresh: "refresh-fixture",
+    expiresAt: Number.MAX_SAFE_INTEGER,
+  });
+  let codexRequest: { url: string; headers: Headers } | undefined;
+  const codex = createOpenAiCodexProvider({
+    store: codexStore,
+    context,
+    now: () => 1_000,
+    fetch: async (input, init) => {
+      codexRequest = { url: String(input), headers: new Headers(init?.headers) };
+      return new Response(
+        'data: {"type":"response.done","response":{"id":"response-fixture","model":"gpt-5.4","status":"completed","usage":{}}}\n\n',
+        { status: 200, headers: { "content-type": "text/event-stream" } },
+      );
+    },
+  });
+  const codexModel = (await codex.listModels())[0];
+  assert.ok(codexModel);
+  await consume(codex, codexModel.modelId);
+  assert.equal(codexModel.apiDialect, "openai-codex-responses");
+  assert.match(codexRequest?.url ?? "", /\/codex\/responses$/);
+  assert.equal(codexRequest?.headers.get("chatgpt-account-id"), "account-fixture");
+
+  const radiusRequests: string[] = [];
+  const radius = createRadiusProvider({
+    store: new InMemoryCredentialStore(),
+    context,
+    fetch: async (input) => {
+      const url = String(input);
+      radiusRequests.push(url);
+      if (url.endsWith("/v1/config")) {
+        return Response.json({
+          baseUrl: "https://radius.example/v1",
+          models: [
+            {
+              id: "auto",
+              name: "Auto",
+              reasoning: true,
+              input: ["text"],
+              cost: { input: 0, output: 0 },
+              contextWindow: 128_000,
+              maxTokens: 16_000,
+            },
+          ],
+        });
+      }
+      return new Response(
+        [
+          'data: {"type":"start"}',
+          'data: {"type":"text_start","contentIndex":0}',
+          'data: {"type":"text_delta","contentIndex":0,"delta":"ok"}',
+          'data: {"type":"text_end","contentIndex":0,"content":"ok"}',
+          'data: {"type":"done","reason":"stop","usage":{"input":1,"output":1,"cacheRead":0,"cacheWrite":0,"reasoning":0,"totalTokens":2,"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"total":0}}}',
+          "",
+        ].join("\n\n"),
+        { status: 200, headers: { "content-type": "text/event-stream" } },
+      );
+    },
+  });
+  const radiusRegistry = new ProviderRegistry({ catalogStore: new InMemoryCatalogStore() });
+  radiusRegistry.register(radius);
+  await radiusRegistry.refresh({ providerId: "radius" });
+  const radiusEvents = await Array.fromAsync(
+    radiusRegistry.stream("radius", { modelId: "auto", messages: [] }),
+  );
+  assert.equal((await radiusRegistry.getModel("radius", "auto")).apiDialect, "gateway-messages");
+  assert.equal(radiusEvents.at(-1)?.type, "completed", JSON.stringify(radiusEvents));
+  assert.deepEqual(radiusRequests, [
+    "https://radius.pi.dev/v1/config",
+    "https://radius.example/v1/messages",
+  ]);
+
+  const imageBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const openRouterRequests: string[] = [];
+  const openRouter = createOpenRouterProvider({
+    store: new InMemoryCredentialStore(),
+    context,
+    fetch: async (input) => {
+      const url = String(input);
+      openRouterRequests.push(url);
+      if (url.endsWith("/models")) {
+        return Response.json({
+          data: [
+            {
+              id: "image-fixture",
+              name: "Image Fixture",
+              architecture: { input_modalities: ["text"], output_modalities: ["image"] },
+              context_length: 1_000,
+              top_provider: { max_completion_tokens: 100 },
+              supported_parameters: [],
+            },
+          ],
+        });
+      }
+      return Response.json({
+        id: "generation-fixture",
+        data: [
+          {
+            b64_json: Buffer.from(imageBytes).toString("base64"),
+            media_type: "image/png",
+          },
+        ],
+      });
+    },
+  });
+  const openRouterRegistry = new ProviderRegistry({ catalogStore: new InMemoryCatalogStore() });
+  openRouterRegistry.register(openRouter);
+  await openRouterRegistry.refresh({ providerId: "openrouter" });
+  const imageModel = (await openRouterRegistry.listImageModels("openrouter"))[0];
+  assert.ok(imageModel);
+  assert.equal(imageModel.apiDialect, "openrouter-images");
+  const imageResult = await openRouter.generateImages?.({
+    modelId: imageModel.modelId,
+    prompt: "deterministic fixture",
+    writeBlob: async (bytes, metadata) => ({
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+      sizeBytes: bytes.byteLength,
+      mediaType: metadata.mediaType,
+    }),
+  });
+  assert.equal(imageResult?.images.length, 1);
+  assert.deepEqual(openRouterRequests, [
+    "https://openrouter.ai/api/v1/models",
+    "https://openrouter.ai/api/v1/images",
+  ]);
+});
+
 test("dispatches a keyless configured endpoint with only validated custom headers", async () => {
   const source = getStaticModelCatalog("deepseek")[0];
   if (source === undefined) throw new Error("DeepSeek catalog is empty");
@@ -242,6 +380,41 @@ test("dispatches a keyless configured endpoint with only validated custom header
   assert.equal(requestUrl, "http://127.0.0.1:11434/v1/chat/completions");
   assert.equal(headers.get("x-tenant"), "local");
   assert.equal(headers.has("authorization"), false);
+});
+
+test("dispatches a configured Responses endpoint with explicit API key authentication", async () => {
+  const source = getStaticModelCatalog("openai").find(
+    (model) => model.apiDialect === "openai-responses",
+  );
+  if (source === undefined) throw new Error("OpenAI Responses catalog is empty");
+  let requestUrl = "";
+  let headers = new Headers();
+  const provider = createCustomProvider({
+    store: new InMemoryCredentialStore(),
+    context: {
+      env: (name) => (name === "CUSTOM_API_KEY" ? "custom-secret" : undefined),
+      fileExists: () => Promise.resolve(false),
+    },
+    baseUrl: "http://127.0.0.1:11435/v1",
+    headers: { "x-tenant": "configured" },
+    apiKeyEnvironmentVariables: ["CUSTOM_API_KEY"],
+    models: [{ ...source, providerId: "custom", modelId: "local-responses" }],
+    fetch: async (input, init) => {
+      requestUrl = String(input);
+      headers = new Headers(init?.headers);
+      return new Response(
+        'data: {"type":"response.completed","response":{"id":"response-local","status":"completed","usage":{}}}\n\n',
+        { status: 200, headers: { "content-type": "text/event-stream" } },
+      );
+    },
+  });
+  const events = await Array.fromAsync(
+    provider.stream({ modelId: "local-responses", messages: [] }),
+  );
+  assert.equal(events.at(-1)?.type, "completed", JSON.stringify(events));
+  assert.equal(requestUrl, "http://127.0.0.1:11435/v1/responses");
+  assert.equal(headers.get("authorization"), "Bearer custom-secret");
+  assert.equal(headers.get("x-tenant"), "configured");
 });
 
 test("refreshes dynamic catalogs only when explicitly requested and keeps providers isolated", async () => {
