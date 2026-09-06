@@ -7,8 +7,8 @@ import test from "node:test";
 import {
   type AuthContext,
   AuthError,
-  azureOpenAiAuthMethod,
   AZURE_OPENAI_MODELS,
+  azureOpenAiAuthMethod,
   collectModelStream,
   createAzureOpenAiProvider,
   encodeAzureOpenAiResponsesRequest,
@@ -102,6 +102,10 @@ test("normalizes Azure base URLs and passes gateways through", () => {
   );
   assert.equal(
     normalizeAzureBaseUrl("https://gateway.example.com/azure/"),
+    "https://gateway.example.com/azure",
+  );
+  assert.equal(
+    normalizeAzureBaseUrl(`https://gateway.example.com/azure${"/".repeat(10_000)}`),
     "https://gateway.example.com/azure",
   );
   assert.throws(() => normalizeAzureBaseUrl("not a url"), AuthError);

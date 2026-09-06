@@ -1,17 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Kaushik Kumar
 // SPDX-License-Identifier: Apache-2.0
 
+import {
+  decodeAnthropicMessagesStream,
+  encodeAnthropicMessagesRequest,
+} from "./anthropic-messages.ts";
 import { createEnvironmentApiKeyAuth } from "./api-key-auth.ts";
-import {
-  type AwsAuthFactories,
-  createBedrockSources,
-  createBedrockStoredAuth,
-} from "./aws-auth.ts";
-import { decodeAwsEventStream } from "./aws-event-stream.ts";
-import {
-  decodeBedrockConverseStream,
-  encodeBedrockConverseStreamRequest,
-} from "./bedrock-converse-stream.ts";
 import {
   type ApiKeyAuthMethod,
   type AuthContext,
@@ -19,11 +13,17 @@ import {
   createProviderAuthentication,
   type ResolvedAuth,
 } from "./auth.ts";
+import {
+  type AwsAuthFactories,
+  createBedrockSources,
+  createBedrockStoredAuth,
+} from "./aws-auth.ts";
+import { decodeAwsEventStream } from "./aws-event-stream.ts";
 import { encodeAzureOpenAiResponsesRequest } from "./azure-openai.ts";
 import {
-  decodeAnthropicMessagesStream,
-  encodeAnthropicMessagesRequest,
-} from "./anthropic-messages.ts";
+  decodeBedrockConverseStream,
+  encodeBedrockConverseStreamRequest,
+} from "./bedrock-converse-stream.ts";
 import { getStaticModelCatalog } from "./catalog.ts";
 import {
   type CloudAuthFactories,
@@ -39,18 +39,12 @@ import {
   encodeGoogleGenerativeAiRequest,
 } from "./google-generative-ai.ts";
 import { decodeGoogleVertexStream, encodeGoogleVertexRequest } from "./google-vertex.ts";
-import { HttpSseProvider, type HttpSseCodec } from "./http-sse-provider.ts";
+import { type HttpSseCodec, HttpSseProvider } from "./http-sse-provider.ts";
 import {
   decodeMistralConversationsStream,
   encodeMistralConversationsRequest,
 } from "./mistral-conversations.ts";
 import type { ApiDialect, ImageGenerationRequest, ImageModelInfo, ModelInfo } from "./model.ts";
-import { decodeOpenAiChatStream, encodeOpenAiChatRequest } from "./openai-chat.ts";
-import {
-  decodeOpenAiCodexResponsesStream,
-  encodeOpenAiCodexResponsesRequest,
-} from "./openai-codex-responses.ts";
-import { decodeResponsesStream, encodeResponsesRequest } from "./openai-responses.ts";
 import {
   createAnthropicOAuth,
   createGitHubCopilotOAuth,
@@ -60,6 +54,12 @@ import {
   createOpenRouterOAuth,
   createRadiusOAuth,
 } from "./oauth-auth.ts";
+import { decodeOpenAiChatStream, encodeOpenAiChatRequest } from "./openai-chat.ts";
+import {
+  decodeOpenAiCodexResponsesStream,
+  encodeOpenAiCodexResponsesRequest,
+} from "./openai-codex-responses.ts";
+import { decodeResponsesStream, encodeResponsesRequest } from "./openai-responses.ts";
 import {
   decodeOpenRouterImageResponse,
   encodeOpenRouterImageRequest,
@@ -76,10 +76,16 @@ export interface ProviderFactoryOptions {
   readonly awsAuth?: AwsAuthFactories;
 }
 
+function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
+  return value.slice(0, end);
+}
+
 const fixedBase = (model: ModelInfo): string => {
   if (model.endpoint?.type !== "fixed")
     throw new TypeError(`Model ${model.modelId} has no fixed endpoint`);
-  return model.endpoint.baseUrl.replace(/\/+$/, "");
+  return stripTrailingSlashes(model.endpoint.baseUrl);
 };
 
 function bearer(resolved: ResolvedAuth, providerId: string): string {
@@ -102,7 +108,9 @@ function codecs(
       ? { ...resolved.auth.headers }
       : { ...resolved.auth.headers, authorization: bearer(resolved, providerId) };
   const base = (model: ModelInfo, resolved: ResolvedAuth): string =>
-    resolved.auth.baseUrl?.replace(/\/+$/, "") ?? fixedBase(model);
+    resolved.auth.baseUrl === undefined
+      ? fixedBase(model)
+      : stripTrailingSlashes(resolved.auth.baseUrl);
   return (model) => {
     if (model.apiDialect === "openai-chat") {
       return {
@@ -689,7 +697,7 @@ function dynamicProvider(input: {
     refreshModels: async (context: ModelCatalogRefreshContext) => {
       const resolved = await authentication.resolve({ signal: context.signal });
       const base = input.endpoint?.(resolved) ?? input.baseUrl;
-      const response = await fetchImpl(`${base.replace(/\/+$/, "")}/models`, {
+      const response = await fetchImpl(`${stripTrailingSlashes(base)}/models`, {
         headers: {
           accept: "application/json",
           authorization: bearer(resolved, input.id),
@@ -896,7 +904,7 @@ export function createRadiusProvider(
   options: ProviderFactoryOptions & { baseUrl?: string },
 ): ModelProvider {
   const id = "radius";
-  const gateway = (options.baseUrl ?? "https://radius.pi.dev").replace(/\/+$/, "");
+  const gateway = stripTrailingSlashes(options.baseUrl ?? "https://radius.pi.dev");
   const method = createEnvironmentApiKeyAuth({
     providerId: id,
     displayName: "Radius API key",
@@ -931,7 +939,7 @@ export function createRadiusProvider(
       const body = (await response.json()) as { baseUrl?: unknown; models?: unknown[] };
       if (typeof body.baseUrl !== "string" || !Array.isArray(body.models))
         throw new TypeError("Radius config is malformed");
-      const endpoint = body.baseUrl.replace(/\/+$/, "");
+      const endpoint = stripTrailingSlashes(body.baseUrl);
       const models = body.models.map((row) => {
         if (typeof row !== "object" || row === null || Array.isArray(row))
           throw new TypeError("Radius returned a malformed model");

@@ -259,6 +259,7 @@ test("dispatches Codex, Gateway, and image dialects through deterministic transp
   const radius = createRadiusProvider({
     store: new InMemoryCredentialStore(),
     context,
+    baseUrl: `https://radius.pi.dev${"/".repeat(10_000)}`,
     fetch: async (input) => {
       const url = String(input);
       radiusRequests.push(url);

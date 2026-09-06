@@ -4,9 +4,9 @@
 // Axl-native Azure OpenAI endpoint, authentication, and deployment mapping.
 
 import {
-  AuthError,
   type ApiKeyAuthMethod,
   type AuthContext,
+  AuthError,
   createProviderAuthentication,
   type ResolvedAuth,
 } from "./auth.ts";
@@ -27,12 +27,18 @@ import { AZURE_OPENAI_MODELS } from "./azure-openai-models.ts";
 export { AZURE_OPENAI_MODELS };
 export const DEFAULT_AZURE_OPENAI_API_VERSION = "v1";
 
+function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
+  return value.slice(0, end);
+}
+
 /**
  * Normalizes an Azure OpenAI base URL. Azure hosts get the `/openai/v1` base
  * path; non-Azure hosts (gateways, proxies) pass through untouched.
  */
 export function normalizeAzureBaseUrl(baseUrl: string): string {
-  const trimmed = baseUrl.trim().replace(/\/+$/, "");
+  const trimmed = stripTrailingSlashes(baseUrl.trim());
   let url: URL;
   try {
     url = new URL(trimmed);
@@ -48,12 +54,12 @@ export function normalizeAzureBaseUrl(baseUrl: string): string {
     url.hostname.endsWith(".openai.azure.com") ||
     url.hostname.endsWith(".cognitiveservices.azure.com") ||
     url.hostname.endsWith(".ai.azure.com");
-  const path = url.pathname.replace(/\/+$/, "");
+  const path = stripTrailingSlashes(url.pathname);
   if (isAzureHost && (path === "" || path === "/openai" || path === "/openai/v1/responses")) {
     url.pathname = "/openai/v1";
     url.search = "";
   }
-  return url.toString().replace(/\/+$/, "");
+  return stripTrailingSlashes(url.toString());
 }
 
 /** Parses the `model=deployment,...` map from AZURE_OPENAI_DEPLOYMENT_NAME_MAP. */
@@ -131,7 +137,7 @@ function resolvedAzureApiVersion(resolved: ResolvedAuth): string {
 
 function azureResourceUrl(resolved: ResolvedAuth, resource: "responses" | "models"): string {
   const url = new URL(resolvedAzureBaseUrl(resolved));
-  url.pathname = `${url.pathname.replace(/\/+$/, "")}/${resource}`;
+  url.pathname = `${stripTrailingSlashes(url.pathname)}/${resource}`;
   url.searchParams.set("api-version", resolvedAzureApiVersion(resolved));
   return url.toString();
 }
