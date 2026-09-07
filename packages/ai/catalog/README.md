@@ -19,7 +19,7 @@ Pi at commit `92d8e2d17d4f357788381c49ce2cdb3f4ed1f21c` was consulted only as an
 
 1. Retrieve the current upstream source into a temporary location.
 2. Record its retrieval time, SHA-256, and source revision.
-3. Reduce it to the existing source fields for the provider IDs declared in `scripts/catalog-overlays.ts`, with one canonical JSON model record per line.
+3. Reduce it to the existing source fields for the provider IDs declared in `src/catalog-overlays.ts`, with one canonical JSON model record per line.
 4. Update the provider's manifest count and shard SHA-256, while preserving deterministic provider and model ordering.
 5. Review endpoint, region, dialect, reasoning, cache, and compatibility overlays against official provider documentation.
 6. Run `node packages/ai/scripts/generate-catalog.ts`.
@@ -29,3 +29,11 @@ Pi at commit `92d8e2d17d4f357788381c49ce2cdb3f4ed1f21c` was consulted only as an
 Generation is deliberately local and deterministic. It never fetches remote data and fails before writing when source records or overlays are invalid. Do not copy model data from the pinned Pi behavioral reference.
 
 GitHub Copilot, OpenRouter, Cloudflare AI Gateway, and Radius use dynamic provider discovery instead of this generator. Their catalogs change only through explicit `axl refresh`, are validated before publication, and are persisted as provider-scoped last-known-good snapshots. A dynamic catalog source change requires focused refresh, cancellation, malformed-response, race, persistence, and offline-restoration tests.
+
+## Explicit runtime refresh
+
+`axl refresh [provider-id]` and `/refresh [provider-id]` also refresh the 35 static providers mapped to models.dev. `src/catalog-normalization.ts` and `src/catalog-overlays.ts` are shared by generation and runtime refresh, so endpoint, dialect, cache, and compatibility policy remain reviewed local code. Remote data supplies model facts, not endpoints or credential headers. Each fetch is bounded to 32 MiB and 15 seconds and sends no provider credentials to models.dev.
+
+Unqualified refresh checks configured authentication and skips logged-out providers. Targeted refresh can retrieve public static metadata without a credential. Ant Ling remains a documentation-curated catalog, and user-configured providers retain their explicit model lists. Neither pretends to support remote discovery. These catalogs require a release update or a models.json edit respectively.
+
+Runtime refresh writes only the user's catalog cache. It does not modify checked-in source shards, generated files, or user-authored models.json. Existing registry merge semantics retain bundled models while upserting refreshed IDs; a missing upstream ID is not interpreted as an entitlement revocation.

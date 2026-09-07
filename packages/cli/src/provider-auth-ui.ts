@@ -5,6 +5,7 @@ import { spawn } from "node:child_process";
 
 import type { AuthEvent, AuthPrompt } from "@axl/ai";
 import type { TrustedProviderLoginAdapter } from "@axl/runtime";
+import type { ProviderLoginPresentation } from "@axl/tui";
 import { promptLine, type SetupInput, type SetupOutput, sanitizeTerminalText } from "@axl/tui";
 
 export function validatedAuthorizationUrl(value: string): URL {
@@ -76,7 +77,11 @@ async function answerPrompt(
   }
   return promptLine(input, output, `  ${safe(prompt.message)}: `, {
     mask: prompt.type === "secret" || prompt.type === "manual_code",
-    signal,
+    signal:
+      prompt.type === "manual_code" && prompt.signal
+        ? AbortSignal.any([signal, prompt.signal])
+        : signal,
+    allowEmpty: prompt.type === "text",
   });
 }
 
@@ -108,6 +113,7 @@ function presentEvent(output: SetupOutput, event: AuthEvent): void {
 export function createTerminalProviderLoginAdapter(
   input: SetupInput,
   output: SetupOutput,
+  presentation?: ProviderLoginPresentation,
 ): TrustedProviderLoginAdapter {
   return {
     createInteraction: ({ signal }) => {
@@ -118,8 +124,50 @@ export function createTerminalProviderLoginAdapter(
       }
       return {
         signal,
-        prompt: (prompt) => answerPrompt(input, output, prompt, signal),
-        notify: (event) => presentEvent(output, event),
+        prompt: (prompt) =>
+          presentation === undefined
+            ? answerPrompt(input, output, prompt, signal)
+            : presentation.prompt({
+                message: prompt.message,
+                ...(prompt.type === "select"
+                  ? {
+                      options: prompt.options.map((option) => ({
+                        value: option.id,
+                        label: option.label,
+                        ...(option.description === undefined
+                          ? {}
+                          : { description: option.description }),
+                      })),
+                    }
+                  : {
+                      ...(prompt.placeholder === undefined
+                        ? {}
+                        : { placeholder: prompt.placeholder }),
+                      mask: prompt.type === "secret" || prompt.type === "manual_code",
+                      allowEmpty: prompt.type === "text",
+                      ...(prompt.type === "manual_code" && prompt.signal
+                        ? { signal: prompt.signal }
+                        : {}),
+                    }),
+              }),
+        notify: (event) => {
+          if (presentation === undefined) {
+            presentEvent(output, event);
+            return;
+          }
+          if (event.type === "state") return;
+          // Browser opening stays in the host; only safe presentation text enters the TUI.
+          const lines: string[] = [];
+          presentEvent(
+            {
+              write: (text) => {
+                lines.push(text);
+                presentation.notify(lines.join("").trim());
+              },
+            },
+            event,
+          );
+        },
       };
     },
   };

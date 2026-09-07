@@ -7,7 +7,7 @@
 
 Axl registers 41 provider identities, including the `custom` library integration. A session always selects the canonical pair `{ providerId, modelId }`. The model catalog selects the API dialect. Users cannot select a dialect independently or use it as a provider identity.
 
-Use `axl providers [provider-id]` to inspect authentication and catalog status, `axl models [provider-id]` to list text models, `axl login <provider-id> [api_key|oauth]` to store credentials, `axl logout <provider-id>` to remove them, and `axl refresh [provider-id]` to refresh dynamic catalogs explicitly. Listing provider metadata does not read credentials, contact providers, or refresh catalogs.
+Use `axl providers [provider-id]` to inspect authentication and catalog status, `axl models [provider-id]` to list text models, `axl login <provider-id> [api_key|oauth]` to store credentials, `axl logout <provider-id>` to remove them, and `axl refresh [provider-id]` to refresh configured catalogs explicitly. Listing provider metadata does not read credentials, contact providers, or refresh catalogs.
 
 Stored credentials take precedence over environment, file, ambient, and keyless sources. A stored credential that fails does not fall through to another source. Interactive authentication runs inside the trusted daemon process-host adapter. Credential values, OAuth codes, tokens, and prompt answers do not cross daemon RPC.
 
@@ -57,7 +57,7 @@ Endpoint paths shown below are the effective request base or full request endpoi
 | `opencode-go` | API key, `OPENCODE_API_KEY` | `https://opencode.ai/zen/go/v1` | Static, model-selected Chat, Responses, or Messages | Shares an environment variable with Zen but not stored credentials |
 | `ant-ling` | API key, `ANT_LING_API_KEY` | `https://api.ant-ling.com/v1/chat/completions` | Static, OpenAI Chat | Catalog declares no prompt-cache support |
 | `radius` | API key, `RADIUS_API_KEY`; gateway browser or device OAuth | Configured gateway, default `https://radius.pi.dev`; `/v1/config` discovery and returned `/messages` base | Dynamic, Gateway messages | Public wire and OAuth contracts are not fully stable; explicit refresh is required without a cache |
-| `custom` | Caller-selected API-key environment names or keyless mode | Caller-supplied HTTPS base URL, or HTTP only on an explicit loopback address | Caller-supplied models and dialect metadata | Available through `createCustomProvider`; the first-party CLI and TUI do not yet expose custom-provider configuration |
+| `custom` | Caller-selected API-key environment names or keyless mode | Caller-supplied HTTPS base URL, or HTTP only on an explicit loopback address | Caller-supplied models and dialect metadata | Native `models.json` adds named providers; keyless or environment-backed authentication |
 
 ## Endpoint and regional settings
 
@@ -102,13 +102,38 @@ Behavioral provenance and durable compatibility decisions are recorded in [`impl
 
 The base URL must use HTTPS unless it is an explicit loopback development server. Loopback, private, link-local, multicast, and local-name remote destinations are rejected. Embedded URL credentials, fragments, and endpoint queries are forbidden. Custom headers must be non-secret and pass catalog validation; authorization, cookie, proxy authorization, API-key, token, credential, password, and secret-shaped headers are forbidden. Authentication is either keyless or uses explicit caller-selected environment-variable names. A missing model list, missing base URL, unsupported dialect, unsafe header, or unsupported compatibility control fails explicitly.
 
-The daemon loads an optional custom provider from `~/.axl/custom-provider.json`. The file accepts only `baseUrl`, a non-empty `models` array using the documented `ModelInfo` fields, optional non-secret `headers`, and optional `apiKeyEnvironmentVariables`. Model entries are assigned to the `custom` provider and the complete configuration passes the same endpoint, catalog, dialect, compatibility, and header validation as embedded callers. A malformed file fails daemon startup loudly. Omitting the file keeps the built-in `custom` registration as an unconfigured placeholder.
+The daemon and trusted login host load named providers from `~/.axl/models.json`. Each provider owns its credential-store key. Names cannot shadow built-ins, except that `custom` may replace the empty built-in placeholder. Omit `apiKeyEnvironmentVariables` for a keyless endpoint; otherwise credentials can be supplied by those variables or stored with `axl login <name> api_key`.
+
+```json
+{
+  "providers": {
+    "local": {
+      "displayName": "Local server",
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "models": [{
+        "modelId": "qwen-local",
+        "displayName": "Local Qwen",
+        "apiDialect": "openai-chat",
+        "capabilities": { "toolUse": true, "structuredOutput": false, "imageInput": false },
+        "reasoning": false,
+        "contextWindow": 32768,
+        "maxOutputTokens": 4096,
+        "compatibility": { "dialect": "openai-chat", "supportsDeveloperRole": false }
+      }]
+    }
+  }
+}
+```
+
+Use the model ID and limits actually configured on your server. Each entry accepts `displayName`, `baseUrl`, a non-empty `models` array using Axl's `ModelInfo` fields, optional non-secret `headers`, and optional `apiKeyEnvironmentVariables`. Model `providerId` and endpoint are assigned from the enclosing provider. An explicit compatibility record is required. Unknown fields, unsupported dialects, unsafe endpoints, secret-shaped headers, and malformed models fail loading. Literal credentials and executable secret commands are not accepted.
+
+This is Axl's native schema, not Pi's models.json schema. The file is user-authored, not a generated catalog or cache. Restart the daemon after editing it; `/refresh` does not reload provider configuration. The retired `custom-provider.json` path fails with migration instructions instead of silently falling back. To migrate, place its object under `providers.custom` and remove the old file after reviewing the new configuration.
 
 ## Catalog lifecycle and updates
 
 Static models come from reviewed local provider-scoped source shards and overlays and are generated into the compact index and provider shards at `packages/ai/src/catalog.generated.ts` and `packages/ai/src/catalog.generated/`. Follow [`packages/ai/catalog/README.md`](../../packages/ai/catalog/README.md) for the exact update procedure. Generation is offline and deterministic.
 
-GitHub Copilot, OpenRouter, Cloudflare AI Gateway, and Radius have dynamic catalogs. `axl refresh [provider-id]` is the only first-party refresh trigger. A refresh authenticates, reads a bounded response, validates the complete candidate and provider-specific endpoint origin, writes a provider-scoped snapshot atomically, and publishes only the current generation. Dispatch revalidates endpoint policy, including restored snapshots, before attaching credentials or prompts. Cancellation, malformed responses, failed fetches, corrupt snapshots, and superseded refreshes cannot replace the last-known-good catalog. Startup may restore a validated cached snapshot without credentials or network work. Listing never refreshes.
+GitHub Copilot, OpenRouter, Cloudflare AI Gateway, and Radius have dynamic catalogs. The 35 static providers backed by models.dev also support live metadata refresh through the same reviewed normalization and policy used by generation. Ant Ling and explicit custom model lists do not have remote discovery. `axl refresh [provider-id]` and `/refresh [provider-id]` are the explicit first-party triggers. Unqualified refresh skips logged-out providers; authentication-check and refresh failures remain visible and make the CLI fail. Dynamic discovery authenticates; public models.dev requests carry no provider credentials. Refresh reads a bounded response, validates the complete candidate and provider-specific endpoint origin, writes a provider-scoped snapshot atomically, and publishes only the current generation. Dispatch revalidates endpoint policy, including restored snapshots, before attaching credentials or prompts. Cancellation, malformed responses, failed fetches, corrupt snapshots, and superseded refreshes cannot replace the last-known-good catalog. Startup may restore a validated cached snapshot without credentials or network work. Listing never refreshes.
 
 ## Known limitations
 

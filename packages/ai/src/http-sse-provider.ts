@@ -57,6 +57,7 @@ export interface HttpStreamDecodeOptions {
 }
 
 export interface HttpSseProviderOptions {
+  readonly allowLoopbackHttp?: boolean;
   readonly id: string;
   readonly displayName: string;
   readonly authMethods: readonly AuthMethod[];
@@ -120,9 +121,11 @@ export class HttpSseProvider implements ModelProvider {
     | undefined;
   private readonly fetchImpl: typeof fetch | undefined;
   private readonly now: () => number;
+  private readonly allowLoopbackHttp: boolean;
 
   constructor(options: HttpSseProviderOptions) {
     this.id = options.id;
+    this.allowLoopbackHttp = options.allowLoopbackHttp ?? false;
     this.displayName = options.displayName;
     this.authMethods = [...options.authMethods];
     if (options.authentication !== undefined) this.authentication = options.authentication;
@@ -179,7 +182,7 @@ export class HttpSseProvider implements ModelProvider {
       const requestUrl = new URL(
         safeEndpoint(encoded.url, {
           label: `Provider ${this.id} request endpoint`,
-          allowLoopbackHttp: this.id === "custom" || this.id === "radius",
+          allowLoopbackHttp: this.allowLoopbackHttp,
           allowQuery: true,
         }),
       );
@@ -229,7 +232,7 @@ export class HttpSseProvider implements ModelProvider {
             },
             {
               label: `Provider ${this.id} request endpoint`,
-              allowLoopbackHttp: this.id === "custom" || this.id === "radius",
+              allowLoopbackHttp: this.allowLoopbackHttp,
               expectedOrigin: new URL(encoded.url).origin,
               ...(this.fetchImpl === undefined ? {} : { fetch: this.fetchImpl }),
             },

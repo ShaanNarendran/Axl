@@ -3,21 +3,23 @@
 
 import { createAntLingProvider } from "./ant-ling.ts";
 import { createBasetenProvider } from "./baseten.ts";
+import { enableStaticCatalogRefresh } from "./catalog-refresh.ts";
 import { createCerebrasProvider } from "./cerebras.ts";
 import { createDeepSeekProvider } from "./deepseek.ts";
 import { createFireworksProvider } from "./fireworks.ts";
 import { createGroqProvider } from "./groq.ts";
 import { createHuggingFaceProvider } from "./huggingface.ts";
-import { createMiniMaxCnProvider } from "./minimax-cn.ts";
 import { createMiniMaxProvider } from "./minimax.ts";
-import { createMoonshotAiCnProvider } from "./moonshotai-cn.ts";
+import { createMiniMaxCnProvider } from "./minimax-cn.ts";
 import { createMoonshotAiProvider } from "./moonshotai.ts";
+import { createMoonshotAiCnProvider } from "./moonshotai-cn.ts";
 import { createNvidiaProvider } from "./nvidia.ts";
 import type { ModelProvider } from "./provider.ts";
+import { createQwenTokenPlanProvider } from "./qwen-token-plan.ts";
 import { createQwenTokenPlanCnProvider } from "./qwen-token-plan-cn.ts";
 import { createQwenTokenPlanIndividualProvider } from "./qwen-token-plan-individual.ts";
-import { createQwenTokenPlanProvider } from "./qwen-token-plan.ts";
 import {
+  type CustomProviderConfiguration,
   createAmazonBedrockProvider,
   createAnthropicProvider,
   createAzureOpenAiResponsesProvider,
@@ -34,19 +36,18 @@ import {
   createOpenCodeGoProvider,
   createOpenCodeProvider,
   createOpenRouterProvider,
-  type CustomProviderConfiguration,
-  type ProviderFactoryOptions,
   createRadiusProvider,
+  type ProviderFactoryOptions,
 } from "./remaining-providers.ts";
 import { createTogetherProvider } from "./together.ts";
 import { createVercelAiGatewayProvider } from "./vercel-ai-gateway.ts";
 import { createXaiProvider } from "./xai.ts";
+import { createXiaomiProvider } from "./xiaomi.ts";
 import { createXiaomiTokenPlanAmsProvider } from "./xiaomi-token-plan-ams.ts";
 import { createXiaomiTokenPlanCnProvider } from "./xiaomi-token-plan-cn.ts";
 import { createXiaomiTokenPlanSgpProvider } from "./xiaomi-token-plan-sgp.ts";
-import { createXiaomiProvider } from "./xiaomi.ts";
-import { createZaiCodingCnProvider } from "./zai-coding-cn.ts";
 import { createZaiProvider } from "./zai.ts";
+import { createZaiCodingCnProvider } from "./zai-coding-cn.ts";
 
 export const BUILTIN_PROVIDER_IDS = [
   "openai",
@@ -97,7 +98,7 @@ export function createBuiltinProviders(
   options: ProviderFactoryOptions,
   custom?: CustomProviderConfiguration,
 ): readonly ModelProvider[] {
-  return [
+  const providers = [
     createOpenAiProvider(options),
     createAzureOpenAiResponsesProvider(options),
     createOpenAiCodexProvider(options),
@@ -140,4 +141,6 @@ export function createBuiltinProviders(
     createRadiusProvider(options),
     createCustomProvider({ ...options, ...custom }),
   ];
+  for (const provider of providers) enableStaticCatalogRefresh(provider, options.fetch);
+  return providers;
 }

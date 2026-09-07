@@ -24,7 +24,6 @@ import {
   type ModelTurnRequest,
   ToolRegistry,
 } from "@axl/kernel";
-import { DEFAULT_MODEL_REQUEST_SETTINGS } from "@axl/protocol";
 import type {
   CanonicalEvent,
   EventPayloadMap,
@@ -33,6 +32,7 @@ import type {
   SessionId,
   Usage,
 } from "@axl/protocol";
+import { DEFAULT_MODEL_REQUEST_SETTINGS } from "@axl/protocol";
 import { subscribeSession } from "@axl/sdk";
 import { connectUnixClient, createUnixDaemonHost } from "@axl/sdk/unix";
 
@@ -1914,9 +1914,20 @@ test("provider commands group models, show status, mutate auth, and cancel refre
     color: false,
     currentProvider: "alpha",
     currentModel: "shared-model",
-    loginProvider: (providerId, method) => {
+    loginProvider: async (providerId, method, _signal, presentation) => {
       calls.push(`host-login:${providerId}:${method}`);
-      return Promise.resolve({ providerId, phase: "authenticated", method });
+      assert.equal(
+        await presentation.prompt({
+          message: "Enterprise domain (blank for default)",
+          allowEmpty: true,
+        }),
+        "",
+      );
+      assert.equal(
+        await presentation.prompt({ message: "Provider secret", mask: true }),
+        "runtime-login-secret",
+      );
+      return { providerId, phase: "authenticated", method };
     },
     onPreferenceChange: (update) => {
       preferences.push(update);
@@ -1942,8 +1953,20 @@ test("provider commands group models, show status, mutate auth, and cancel refre
   await until(() => text().includes("test environment"), "provider status");
   input.write("/logout beta\r");
   await until(() => calls.includes("logout:beta"), "provider logout");
-  input.write("/login beta\r");
+  input.write("/login\r");
+  await until(() => text().includes("Select authentication method:"), "login method selector");
+  input.write("\r");
+  await until(() => text().includes("Select provider to configure:"), "login provider selector");
+  input.write("beta\r");
+  await until(
+    () => text().includes("Enterprise domain (blank for default)"),
+    "inline login prompt",
+  );
+  input.write("\r");
+  await until(() => text().includes("Provider secret"), "secret prompt");
+  input.write("runtime-login-secret\r");
   await until(() => calls.includes("host-login:beta:api_key"), "provider login");
+  await new Promise((resolve) => setTimeout(resolve, 30));
   assert.equal(calls.includes("login:beta:api_key"), false);
 
   blockRefresh = true;

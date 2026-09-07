@@ -16,11 +16,11 @@ import type { CredentialStore } from "@axl/ai";
 import {
   type CanonicalEvent,
   DEFAULT_MODEL_REQUEST_SETTINGS,
-  type ModelRequestSettings,
-  parseModelRequestSettings,
   encodeCanonicalEvent,
   MAX_WIRE_MESSAGE_BYTES,
+  type ModelRequestSettings,
   type ProviderLoginMethod,
+  parseModelRequestSettings,
   type SessionProfile,
   type ThinkingLevel,
 } from "@axl/protocol";
@@ -937,11 +937,13 @@ async function main(): Promise<void> {
     providerId: string,
     method: ProviderLoginMethod,
     signal?: AbortSignal,
+    presentation?: import("@axl/tui").ProviderLoginPresentation,
   ) => {
     const { store } = await credentials();
     return loginProviderFromTrustedHost({
       store,
-      adapter: createTerminalProviderLoginAdapter(process.stdin, process.stdout),
+      axlHome,
+      adapter: createTerminalProviderLoginAdapter(process.stdin, process.stdout, presentation),
       providerId,
       method,
       ...(signal === undefined ? {} : { signal }),
@@ -1124,7 +1126,8 @@ async function main(): Promise<void> {
     ],
     clearStartupLine: startupIndicator,
     reconnectClient: () => connectTarget(currentTarget),
-    loginProvider: (providerId, method, signal) => loginFromThisHost(providerId, method, signal),
+    loginProvider: (providerId, method, signal, presentation) =>
+      loginFromThisHost(providerId, method, signal, presentation),
     onPreferenceChange: persistSettings,
     currentProvider: active.providerId,
     requestSettings: active.requestSettings,

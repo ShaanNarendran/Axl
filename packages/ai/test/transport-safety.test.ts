@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import assert from "node:assert/strict";
+import { createServer } from "node:http";
+import { getDefaultAutoSelectFamily, setDefaultAutoSelectFamily } from "node:net";
 import test from "node:test";
 
 import {
@@ -115,4 +117,27 @@ test("bounded JSON rejects declared and chunked response overflow", async () => 
     }),
   );
   await assert.rejects(readBoundedJson(response), /exceeds/);
+});
+
+test("real transport honors both Node DNS lookup callback shapes", async (context) => {
+  const previous = getDefaultAutoSelectFamily();
+  context.after(() => setDefaultAutoSelectFamily(previous));
+  const server = createServer((_request, response) => response.end("ok"));
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  context.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  for (const autoSelectFamily of [true, false]) {
+    setDefaultAutoSelectFamily(autoSelectFamily);
+    const response = await safeFetch(
+      `http://localhost:${address.port}/`,
+      {},
+      {
+        label: "loopback transport test",
+        allowLoopbackHttp: true,
+        resolve: async () => [{ address: "127.0.0.1", family: 4 }],
+      },
+    );
+    assert.equal(await response.text(), "ok");
+  }
 });

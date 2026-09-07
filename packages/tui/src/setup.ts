@@ -72,7 +72,10 @@ export function promptLine(
       while (index < data.length) {
         const { key, next } = decodeOneKey(data, index);
         index = next;
-        if (key.kind === "ctrl" && (key.char === "c" || key.char === "d")) {
+        if (
+          key.kind === "escape" ||
+          (key.kind === "ctrl" && (key.char === "c" || key.char === "d"))
+        ) {
           done();
           reject(new SetupAbortedError());
           return;

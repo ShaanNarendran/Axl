@@ -6,7 +6,7 @@ import type {
   KnownApiDialect,
   ModelCachePolicy,
   ModelCompatibility,
-} from "../src/model.ts";
+} from "./model.ts";
 
 export type CatalogKind = "static" | "dynamic" | "configured";
 

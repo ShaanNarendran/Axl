@@ -128,6 +128,9 @@ export async function runProviderCommand(input: {
         )
         .join("\n")}\n`,
     );
+    if (refreshed.providers.some((provider) => provider.status === "failed")) {
+      throw new Error("One or more provider catalogs failed to refresh");
+    }
     return;
   }
   if (input.providerId === undefined) throw new Error(`${input.command} requires a provider ID`);

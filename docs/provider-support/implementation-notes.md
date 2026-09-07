@@ -67,3 +67,15 @@ The official Azure Identity, Google Auth Library, AWS credential-provider, and S
 ## Verification
 
 Routine tests use deterministic fake transports, credential stores, SDK clients, and local fixtures. They do not call live providers. The requirement-to-test mapping is maintained in [deterministic verification](deterministic-verification.md).
+
+
+## Pi comparison for PR 385
+
+Read-only behavioral reference: Pi revision `6c87d9a026677b601e8278030dcf1ad97fe0bd86`.
+
+- Pi's user-authored `~/.pi/agent/models.json` configures custom providers and overrides. It is distinct from generated provider catalogs and the disposable `models-store.json` cache. Its generator fetches models.dev and selected provider catalogs and applies maintained corrections. Axl keeps independent source metadata and policy.
+- Pi's explicit command is `pi update --models`. It forces refreshable configured provider catalogs; it is not `pi --model refresh`. At this reference revision, `openaiProvider()` supplies static models without `refreshModels`, so that command does not regenerate every built-in provider. Axl's requested models.dev refresh is broader and remains explicit rather than running in the background.
+- Pi's `/login` offers account/API-key selection, filtered provider selection, and inline prompts. Axl now follows that interaction sequence with its existing picker, dialog, and trusted process-host boundary. No Pi implementation was copied.
+- Axl's native models.json intentionally excludes executable credential commands and built-in provider overrides. Named custom providers can use different endpoints without redirecting an existing built-in credential.
+- Authentication status checks in this PR can resolve ambient cloud credentials. Listing inventory alone remains offline, but `/providers`, the login provider picker, and configured-only refresh are explicit checks, not guaranteed offline metadata reads.
+- Catalog refresh is not evidence of live inference compatibility. The provider inventory and deterministic codec tests do not establish that all subscription backends, entitlements, or model IDs work against live services. Broad claims of complete live provider support remain premature without explicit provider-by-provider smoke tests.

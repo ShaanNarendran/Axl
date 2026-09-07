@@ -3,15 +3,15 @@
 
 import {
   AuthError,
-  type AuthInteraction,
   type AuthenticationState,
+  type AuthInteraction,
   listBuiltinCatalogProviders,
   type ModelInfo,
   type ModelProvider,
   type ProviderRegistry,
   ProviderRegistryError,
 } from "@axl/ai";
-import { type ProviderManagementService, ProviderManagementError } from "@axl/daemon";
+import { ProviderManagementError, type ProviderManagementService } from "@axl/daemon";
 import type {
   ProviderAuthenticationStatus,
   ProviderCatalogRefreshResult,
@@ -402,6 +402,7 @@ export function createProviderManagementService(
       }
       try {
         const result = await registry.refresh({
+          configuredOnly: params.providerId === undefined,
           ...(params.providerId === undefined ? {} : { providerId: params.providerId }),
           ...(signal === undefined ? {} : { signal }),
         });
@@ -417,21 +418,28 @@ export function createProviderManagementService(
                       entry.provider.refreshModels !== undefined),
                 )
             : [registration(params.providerId)];
-        const providers = selected.map(({ provider }) => {
-          const error = result.errors.get(provider.id);
-          if (error !== undefined) return refreshFailure(provider.id, error);
-          const snapshot =
-            result.snapshots.get(provider.id) ?? registry.catalogSnapshot(provider.id);
-          return {
-            providerId: provider.id,
-            status: result.supersededProviderIds.includes(provider.id)
-              ? ("superseded" as const)
-              : result.refreshedProviderIds.includes(provider.id)
-                ? ("refreshed" as const)
-                : ("not_modified" as const),
-            modelCount: snapshot?.models.length ?? 0,
-          };
-        });
+        const providers = selected
+          .filter(
+            ({ provider }) =>
+              result.errors.has(provider.id) ||
+              result.refreshedProviderIds.includes(provider.id) ||
+              result.supersededProviderIds.includes(provider.id),
+          )
+          .map(({ provider }) => {
+            const error = result.errors.get(provider.id);
+            if (error !== undefined) return refreshFailure(provider.id, error);
+            const snapshot =
+              result.snapshots.get(provider.id) ?? registry.catalogSnapshot(provider.id);
+            return {
+              providerId: provider.id,
+              status: result.supersededProviderIds.includes(provider.id)
+                ? ("superseded" as const)
+                : result.refreshedProviderIds.includes(provider.id)
+                  ? ("refreshed" as const)
+                  : ("not_modified" as const),
+              modelCount: snapshot?.models.length ?? 0,
+            };
+          });
         if (params.providerId !== undefined) {
           const failure = providers[0];
           if (failure?.status === "failed" && failure.error !== undefined) {

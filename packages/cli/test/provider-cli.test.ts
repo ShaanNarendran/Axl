@@ -175,3 +175,29 @@ test("authorization URLs are restricted and usage remains explicit", () => {
   );
   assert.equal(providerErrorMessage(new Error("safe failure\nnext")), "safe failure next");
 });
+
+test("aggregate refresh failures reject after rendering actionable results", async () => {
+  const sdk = client();
+  sdk.refreshProviderCatalogs = async () => ({
+    providers: [
+      {
+        providerId: "test-provider",
+        status: "failed",
+        modelCount: 0,
+        error: { code: "catalog_refresh_failed", message: "Service unavailable", action: "retry" },
+      },
+    ],
+  });
+  let output = "";
+  await assert.rejects(
+    runProviderCommand({
+      client: sdk,
+      command: "refresh",
+      write: (value) => {
+        output += value;
+      },
+    }),
+    /failed to refresh/,
+  );
+  assert.match(output, /Service unavailable/);
+});

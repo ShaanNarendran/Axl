@@ -102,11 +102,15 @@ test("provider output cannot persist rotating request credentials", async (conte
   if (source === undefined) throw new Error("OpenAI Responses catalog is empty");
   await mkdir(axlHome, { recursive: true });
   await writeFile(
-    join(axlHome, "custom-provider.json"),
+    join(axlHome, "models.json"),
     JSON.stringify({
-      baseUrl: `http://127.0.0.1:${address.port}/v1`,
-      apiKeyEnvironmentVariables: ["AXL_TEST_CUSTOM_KEY"],
-      models: [{ ...source, providerId: "custom", modelId: "echo-model" }],
+      providers: {
+        custom: {
+          baseUrl: `http://127.0.0.1:${address.port}/v1`,
+          apiKeyEnvironmentVariables: ["AXL_TEST_CUSTOM_KEY"],
+          models: [{ ...source, providerId: "custom", modelId: "echo-model" }],
+        },
+      },
     }),
   );
   process.env.AXL_TEST_CUSTOM_KEY = secret;
@@ -223,10 +227,14 @@ test("assembles an authoritative local runtime without a presentation client", a
   if (customSource === undefined) throw new Error("DeepSeek catalog is empty");
   await mkdir(axlHome, { recursive: true });
   await writeFile(
-    join(axlHome, "custom-provider.json"),
+    join(axlHome, "models.json"),
     JSON.stringify({
-      baseUrl: "http://127.0.0.1:11434/v1",
-      models: [{ ...customSource, providerId: "custom", modelId: "local-model" }],
+      providers: {
+        custom: {
+          baseUrl: "http://127.0.0.1:11434/v1",
+          models: [{ ...customSource, providerId: "custom", modelId: "local-model" }],
+        },
+      },
     }),
   );
   await store.modify("azure-openai", () =>
@@ -300,6 +308,7 @@ test("assembles an authoritative local runtime without a presentation client", a
   const prompts = { requesting: 0, other: 0 };
   const login = await loginProviderFromTrustedHost({
     store,
+    axlHome,
     providerId: "deepseek",
     method: "api_key",
     adapter: {

@@ -212,7 +212,7 @@ The CLI connects to the matching local daemon and starts one in the background w
 
 ## Model providers
 
-Use `axl providers` for explicit authentication and catalog status, `axl models` for grouped text models, `axl login` and `axl logout` for stored authentication, and `axl refresh` for explicit dynamic-catalog refresh. These commands report actionable authentication, entitlement, region, catalog, model, and configuration failures.
+Use `axl providers` for explicit authentication and catalog status, `axl models` for grouped text models, `axl login` and `axl logout` for stored authentication, and `axl refresh` for explicit catalog refresh. These commands report actionable authentication, entitlement, region, catalog, model, and configuration failures. Add named local or hosted endpoints in `~/.axl/models.json`; see the [native configuration example](docs/provider-support/provider-reference.md#user-configured-endpoints).
 
 Inside the TUI, `/model` selects a provider-qualified model. `/providers`, `/login`, `/logout`, and `/refresh` expose the same daemon-owned operations. Escape cancels an active provider operation. The editor reports last-turn and cumulative token usage and USD cost when available.
 

@@ -216,8 +216,10 @@ export async function safeFetch(
           ? {}
           : { headersTimeout: options.idleTimeoutMs, bodyTimeout: options.idleTimeoutMs }),
         connect: {
-          lookup: (_hostname, _lookupOptions, callback) =>
-            callback(null, pinned.address, pinned.family),
+          lookup: (_hostname, lookupOptions, callback) =>
+            lookupOptions.all
+              ? callback(null, [pinned])
+              : callback(null, pinned.address, pinned.family),
         },
       });
       try {

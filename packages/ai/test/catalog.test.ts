@@ -213,3 +213,25 @@ test("catalog artifacts deterministically match provider shards and overlays", (
     assert.equal(readFileSync(path, "utf8"), expected, path);
   }
 });
+
+test("reasoning maps require an object with valid values and a supported level", () => {
+  for (const thinkingLevelMap of [
+    42,
+    [],
+    false,
+    { low: 1 },
+    { high: " " },
+    { off: null, minimal: null, low: null, medium: null, high: null, xhigh: null, max: null },
+  ]) {
+    assert.throws(
+      () => validateModelCatalog([{ ...validModel, thinkingLevelMap } as unknown as ModelInfo]),
+      ModelCatalogValidationError,
+    );
+  }
+  assert.doesNotThrow(() => validateModelCatalog([{ ...validModel, thinkingLevelMap: {} }]));
+  assert.doesNotThrow(() =>
+    validateModelCatalog([
+      { ...validModel, thinkingLevelMap: { off: null, low: "low", high: "high", xhigh: null } },
+    ]),
+  );
+});

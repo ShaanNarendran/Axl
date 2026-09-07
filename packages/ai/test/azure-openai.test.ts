@@ -9,10 +9,12 @@ import {
   AuthError,
   AZURE_OPENAI_MODELS,
   azureOpenAiAuthMethod,
+  clampThinkingLevel,
   collectModelStream,
   createAzureOpenAiProvider,
   encodeAzureOpenAiResponsesRequest,
   FakeModelProvider,
+  getStaticModelCatalog,
   InMemoryCredentialStore,
   login,
   type ModelStreamEvent,
@@ -20,6 +22,7 @@ import {
   normalizeAzureBaseUrl,
   parseDeploymentMap,
   prepareModelRequest,
+  THINKING_LEVELS,
 } from "../src/index.ts";
 
 const usage = { inputTokens: 20, outputTokens: 30, cacheReadTokens: 100, cacheWriteTokens: 0 };
@@ -480,4 +483,35 @@ test("publishes the complete built-in Azure OpenAI model catalog", async () => {
     AZURE_OPENAI_MODELS.find((model) => model.modelId === "gpt-5.6-sol")?.thinkingLevelMap,
     { off: null, xhigh: "xhigh", max: "max" },
   );
+});
+
+test("every generated Azure model encodes its declared reasoning map", async () => {
+  const models = getStaticModelCatalog("azure-openai-responses");
+  for (const model of models) {
+    for (const requested of THINKING_LEVELS) {
+      const prepared = await prepareModelRequest(model, {
+        modelId: model.modelId,
+        messages: [],
+        thinkingLevel: requested,
+      });
+      const encoded = encodeAzureOpenAiResponsesRequest(model, prepared, {
+        auth: { apiKey: "obviously-fake-key" },
+        env: { AZURE_OPENAI_BASE_URL: "https://example.openai.azure.com/openai/v1" },
+        source: "test",
+        secretValues: ["obviously-fake-key"],
+      });
+      const clamp = clampThinkingLevel(model, requested);
+      assert.equal(prepared.thinkingLevel, clamp.effective);
+      if (clamp.effective === "off") {
+        assert.equal(encoded.body.reasoning, undefined, `${model.modelId}/${requested}`);
+      } else {
+        assert.deepEqual(
+          encoded.body.reasoning,
+          { effort: model.thinkingLevelMap?.[clamp.effective] ?? clamp.effective, summary: "auto" },
+          `${model.modelId}/${requested}`,
+        );
+      }
+      if (!model.reasoning) assert.equal(clamp.effective, "off");
+    }
+  }
 });

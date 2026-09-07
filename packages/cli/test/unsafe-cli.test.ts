@@ -8,6 +8,7 @@
 import assert from "node:assert/strict";
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { type TestContext } from "node:test";
@@ -523,4 +524,78 @@ test("clients refuse a different OCI engine or image", async (context) => {
     assert.equal(result.code, 1);
     assert.match(result.stderr, /Daemon security mode is sandboxed\/podman/);
   }
+});
+
+test("built CLI discovers and dispatches a named models.json provider over loopback", async (context) => {
+  const home = await temporaryDirectory(context);
+  const workspace = join(home, "workspace");
+  await mkdir(workspace);
+  await mkdir(join(home, ".axl"));
+  let requests = 0;
+  const server = createServer((request, response) => {
+    requests++;
+    assert.equal(request.url, "/v1/chat/completions");
+    assert.equal(request.headers.authorization, undefined);
+    request.resume();
+    response.writeHead(200, { "content-type": "text/event-stream" });
+    response.end(
+      'data: {"choices":[{"index":0,"delta":{"content":"LOCAL_SMOKE_OK"},"finish_reason":null}]}\n\ndata: {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}\n\ndata: [DONE]\n\n',
+    );
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  context.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  await writeFile(
+    join(home, ".axl", "models.json"),
+    JSON.stringify({
+      providers: {
+        local: {
+          baseUrl: `http://127.0.0.1:${address.port}/v1`,
+          models: [
+            {
+              modelId: "echo",
+              displayName: "Local echo",
+              apiDialect: "openai-chat",
+              compatibility: { dialect: "openai-chat", supportsDeveloperRole: false },
+              capabilities: { toolUse: true, structuredOutput: false, imageInput: false },
+              reasoning: false,
+              contextWindow: 8192,
+              maxOutputTokens: 1024,
+            },
+          ],
+        },
+      },
+    }),
+  );
+  const env = { HOME: home, PATH: process.env.PATH };
+  const child = spawn(process.execPath, [entry, "daemon", "--unsafe"], { env, stdio: "ignore" });
+  context.after(() => stopChild(child));
+  const client = await connectEventually(join(home, ".axl", "unsafe", "axl.sock"), child);
+  await client.close();
+  const listed = await runCli(["models", "local", "--unsafe"], env);
+  assert.equal(listed.code, 0, listed.stderr);
+  assert.match(listed.stdout, /Local echo|echo/);
+  assert.equal(requests, 0);
+  const result = await runCli(
+    [
+      "print",
+      "Reply ok",
+      "--unsafe",
+      "--cwd",
+      workspace,
+      "--provider",
+      "local",
+      "--model",
+      "echo",
+      "--thinking",
+      "off",
+      "--profile",
+      "exec",
+    ],
+    env,
+  );
+  assert.equal(result.code, 0, result.stderr);
+  assert.match(result.stdout, /LOCAL_SMOKE_OK/);
+  assert.equal(requests, 1);
 });

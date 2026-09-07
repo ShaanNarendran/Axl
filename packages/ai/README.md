@@ -12,7 +12,7 @@ Every dispatch passes through `prepareModelRequest()`. Preparation validates and
 
 Provider transports enforce endpoint and header policy, bounded parsing, finite inactivity timeouts, cancellation, and bounded pre-stream retries. Credentials remain provider-owned and are never included in prompts, catalogs, diagnostics, canonical events, or public SDK projections. Construction and static listing perform no credential lookup, network request, or background work.
 
-Static model metadata is generated offline from reviewed local manifests and overlays. Dynamic providers use explicit, cancellable refreshes and provider-scoped last-known-good snapshots. Invalid, cancelled, corrupt, or superseded refreshes cannot replace a valid generation.
+Static model metadata is generated offline from reviewed local manifests and overlays. Dynamic providers and models.dev-backed built-ins use explicit, cancellable refreshes and provider-scoped last-known-good snapshots. Invalid, cancelled, corrupt, or superseded refreshes cannot replace a valid generation.
 
 See:
 

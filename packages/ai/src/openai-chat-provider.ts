@@ -145,6 +145,17 @@ export class OpenAiChatProvider implements ModelProvider {
     if (model === undefined) {
       throw new OpenAiChatCodecError(`Provider ${this.id} has no model ${request.modelId}`);
     }
+    return this.streamModel(model, request);
+  }
+
+  streamModel(model: ModelInfo, request: ModelRequest): AsyncIterable<ModelStreamEvent> {
+    if (
+      model.providerId !== this.id ||
+      model.modelId !== request.modelId ||
+      model.apiDialect !== "openai-chat"
+    ) {
+      throw new OpenAiChatCodecError(`Provider ${this.id} cannot dispatch the supplied model`);
+    }
     return this.run(model, request);
   }
 

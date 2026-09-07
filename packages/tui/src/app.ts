@@ -37,14 +37,14 @@ import { parseEventId, parseOperationId, parseSessionId } from "@axl/protocol";
 import {
   type AxlClient,
   AxlClientError,
+  type ClientModelInfo,
+  ConversationProjector,
   type DaemonHostControl,
   type DaemonHostStatus,
   type ModelRequestSettings,
-  parseModelRequestSettings,
-  type ClientModelInfo,
-  ConversationProjector,
   orderPendingTurnInputs,
   ProviderClientError,
+  parseModelRequestSettings,
   type SessionSubscription,
   subscribeSession,
   supportedThinkingLevels,
@@ -81,6 +81,7 @@ import {
 } from "./media.ts";
 import { type Overlay, OverlayStack } from "./overlay.ts";
 import { PickerOverlay } from "./picker.ts";
+import { ProviderLoginOverlay, type ProviderLoginPresentation } from "./provider-login.ts";
 import {
   AUTOWRAP_OFF,
   AUTOWRAP_ON,
@@ -356,7 +357,7 @@ const COMMANDS: readonly { readonly name: string; readonly summary: string }[] =
   { name: "/providers", summary: "show provider authentication and catalog status" },
   { name: "/login", summary: "authenticate a provider" },
   { name: "/logout", summary: "remove stored provider authentication" },
-  { name: "/refresh", summary: "refresh a dynamic provider catalog" },
+  { name: "/refresh", summary: "refresh configured provider catalogs" },
   { name: "/reload", summary: "reload AGENTS.md, prompt, and tools" },
   { name: "/compact", summary: "summarize older context, optionally with instructions" },
   { name: "/status", summary: "show session, display, and queue state" },
@@ -551,6 +552,7 @@ export interface AxlAppOptions {
     providerId: string,
     method: ProviderLoginMethod,
     signal: AbortSignal,
+    presentation: ProviderLoginPresentation,
   ) => Promise<ProviderAuthenticationStatus>;
   /** Legacy process-host dialog retained for compatibility attachments. */
   readonly loadLogin?: () => Promise<LoginDialogDefinition>;
@@ -1248,7 +1250,7 @@ export class AxlApp {
         lines,
         this.tuiMode === "regular" ? this.height : fullscreenDockHeight(this.height),
         cursor === undefined ? undefined : { ...cursor, row: prefix.length + cursor.row },
-        prefix.length,
+        prefix.length + (this.overlays.active instanceof PickerOverlay ? 4 : 0),
       );
     }
 
@@ -4457,45 +4459,103 @@ export class AxlApp {
       this.redraw();
       return;
     }
-    const selectedId = providerId ?? this.view.provider ?? this.options.currentProvider;
-    const provider = selectedId === undefined ? undefined : this.providerById(selectedId);
-    if (provider === undefined) {
-      this.chooseProvider("Login to provider", providers, (value) => {
-        this.overlays.close();
-        void this.loginProvider(value);
-      });
-      return;
-    }
-    const selectedMethod =
-      method ?? (provider.loginMethods.length === 1 ? provider.loginMethods[0] : undefined);
-    if (selectedMethod === undefined) {
-      if (provider.loginMethods.length === 0) {
-        this.notice = this.view.palette.error(
-          `✖ ${provider.displayName} has no interactive login method`,
-        );
+    const provider = providerId === undefined ? undefined : this.providerById(providerId);
+    if (method === undefined) {
+      const methods = (["oauth", "api_key"] as const).filter((value) =>
+        (provider === undefined ? providers : [provider]).some((entry) =>
+          entry.loginMethods.includes(value),
+        ),
+      );
+      if (provider !== undefined && methods.length === 1) {
+        return this.loginProvider(providerId, methods[0]);
+      }
+      if (methods.length === 0) {
+        this.notice = this.view.palette.error("✖ No interactive login methods available");
         this.redraw();
         return;
       }
       this.openPicker({
-        title: `Login to ${provider.displayName}`,
-        items: provider.loginMethods.map((value) => ({ value, label: value.replaceAll("_", " ") })),
-        current: provider.loginMethods[0] ?? "",
+        title: "Select authentication method:",
+        items: methods.map((value) => ({
+          value,
+          label: value === "oauth" ? "Sign in with an account" : "Sign in with an API key",
+        })),
+        current: methods[0] ?? "",
         onPick: (value) => {
-          this.overlays.close();
-          void this.loginProvider(provider.providerId, value as ProviderLoginMethod);
+          void this.loginProvider(providerId, value as ProviderLoginMethod);
         },
       });
+      this.redraw();
       return;
     }
+    if (provider === undefined) {
+      const controller = new AbortController();
+      this.providerOperation?.abort();
+      this.providerOperation = controller;
+      this.notice = this.view.palette.dim("· checking provider configuration · Esc to cancel");
+      this.redraw();
+      let statuses: readonly ProviderAuthenticationStatus[];
+      try {
+        statuses = (
+          await this.client.providerAuthenticationStatus(
+            {},
+            { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]) },
+          )
+        ).providers;
+      } catch (error) {
+        this.notice = this.view.palette.error(`✖ ${providerErrorText(error)}`);
+        this.redraw();
+        return;
+      } finally {
+        if (this.providerOperation === controller) this.providerOperation = undefined;
+      }
+      this.notice = undefined;
+      providers = providers.map((entry) => ({
+        ...entry,
+        authentication:
+          statuses.find((status) => status.providerId === entry.providerId) ?? entry.authentication,
+      }));
+      const candidates = providers
+        .filter((entry) => entry.loginMethods.includes(method))
+        .sort((a, b) => a.displayName.localeCompare(b.displayName));
+      this.openPicker({
+        title: "Select provider to configure:",
+        items: candidates.map((entry) => ({
+          value: entry.providerId,
+          label: entry.displayName,
+          description:
+            entry.authentication.phase === "authenticated"
+              ? entry.authentication.method === undefined
+                ? "✓ configured"
+                : "✓ stored"
+              : entry.authentication.phase === "logged_out"
+                ? "• unconfigured"
+                : entry.authentication.phase.replaceAll("_", " "),
+        })),
+        current: "",
+        onPick: (value) => {
+          void this.loginProvider(value, method);
+        },
+      });
+      this.redraw();
+      return;
+    }
+    const selectedMethod = method;
     const controller = new AbortController();
     this.providerOperation?.abort();
     this.providerOperation = controller;
     this.notice = this.view.palette.dim(`· authenticating ${provider.displayName} · Esc to cancel`);
     this.redraw();
-    let terminalPaused = false;
+    const dialog = new ProviderLoginOverlay({
+      title: `Login to ${provider.displayName}`,
+      palette: () => this.view.palette,
+      signal: controller.signal,
+      cancel: () => controller.abort(),
+      refresh: () => this.redraw(),
+    });
+    this.overlays.replace(dialog);
+    this.redraw();
     try {
-      this.terminal.stop();
-      terminalPaused = true;
       const status =
         this.options.loginProvider === undefined
           ? await this.client.loginProvider(
@@ -4506,14 +4566,15 @@ export class AxlApp {
               provider.providerId,
               selectedMethod,
               controller.signal,
+              dialog,
             );
       this.notice = this.view.palette.dim(
-        `· ${provider.displayName} · ${authenticationLabel(status)}`,
+        `· ${provider.displayName} · ${authenticationLabel(status)} · ${provider.catalog.refreshable && provider.models.length === 0 ? `Run /refresh ${provider.providerId} to load models` : "Use /model to select a model"}`,
       );
     } catch (error) {
       this.notice = this.view.palette.error(`✖ ${providerErrorText(error)}`);
     } finally {
-      if (terminalPaused && !this.stopped) this.terminal.start();
+      if (this.overlays.active === dialog) this.overlays.close();
       if (this.providerOperation === controller) this.providerOperation = undefined;
       this.invalidateScreens();
       this.redraw(true);

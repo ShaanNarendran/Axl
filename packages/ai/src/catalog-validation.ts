@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Kaushik Kumar
 // SPDX-License-Identifier: Apache-2.0
 
-import { safeEndpoint } from "./transport-safety.ts";
+import { supportedThinkingLevels } from "@axl/protocol";
 import type {
   EndpointPolicy,
   ModelCachePolicy,
@@ -9,6 +9,7 @@ import type {
   ModelInfo,
   ModelSamplingPolicy,
 } from "./model.ts";
+import { safeEndpoint } from "./transport-safety.ts";
 
 const IDENTIFIER = /^[a-z0-9@](?:[a-z0-9._:/@-]*[a-z0-9])?$/i;
 const PROVIDER_IDENTIFIER = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -369,9 +370,20 @@ export function validateModelCatalog(models: readonly ModelInfo[]): readonly Mod
       errors.push(`${label} has a reasoning map but no reasoning capability`);
     }
     if (model.thinkingLevelMap !== undefined) {
-      for (const [level, value] of Object.entries(model.thinkingLevelMap)) {
-        if (!THINKING_LEVELS.has(level) || (value !== null && value.trim().length === 0)) {
-          errors.push(`${label} has an invalid reasoning map`);
+      const map = model.thinkingLevelMap;
+      if (typeof map !== "object" || map === null || Array.isArray(map)) {
+        errors.push(`${label} has an invalid reasoning map`);
+      } else {
+        for (const [level, value] of Object.entries(map)) {
+          if (
+            !THINKING_LEVELS.has(level) ||
+            (value !== null && (typeof value !== "string" || value.trim().length === 0))
+          ) {
+            errors.push(`${label} has an invalid reasoning map`);
+          }
+        }
+        if (supportedThinkingLevels(model).length === 0) {
+          errors.push(`${label} has no supported thinking level`);
         }
       }
     }

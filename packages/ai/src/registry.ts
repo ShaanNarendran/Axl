@@ -78,7 +78,9 @@ export interface RestoreCatalogsResult extends ModelCatalogResult {
   readonly snapshots: ReadonlyMap<string, CatalogSnapshot>;
 }
 
-export interface RefreshProvidersOptions extends RestoreCatalogsOptions {}
+export interface RefreshProvidersOptions extends RestoreCatalogsOptions {
+  readonly configuredOnly?: boolean;
+}
 
 export interface RefreshProvidersResult extends ModelCatalogResult {
   readonly refreshedProviderIds: readonly string[];
@@ -400,7 +402,36 @@ export class ProviderRegistry {
     options.signal?.throwIfAborted();
     const entries = this.refreshableEntries(options.providerId);
     const results = await Promise.all(
-      entries.map(async ({ provider }) => this.refreshProvider(provider, options.signal)),
+      entries.map(
+        async ({ provider }): Promise<ProviderRefreshSuccess | ProviderRefreshFailure> => {
+          try {
+            if (
+              options.configuredOnly &&
+              provider.authentication !== undefined &&
+              (
+                await provider.authentication.check(
+                  options.signal ? { signal: options.signal } : {},
+                )
+              ).phase === "logged_out"
+            ) {
+              return {
+                providerId: provider.id,
+                refreshed: false,
+                restored: false,
+                superseded: false,
+                models: [],
+              };
+            }
+            return await this.refreshProvider(provider, options.signal);
+          } catch (error) {
+            options.signal?.throwIfAborted();
+            return {
+              providerId: provider.id,
+              error: asError(error, provider.id, "authentication check"),
+            };
+          }
+        },
+      ),
     );
     const refreshedProviderIds: string[] = [];
     const restoredProviderIds: string[] = [];

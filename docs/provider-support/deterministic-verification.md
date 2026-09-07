@@ -37,6 +37,9 @@ Equivalent existing tests are retained as the requirement evidence. New tests ar
 - Credential persistence and metadata-only listing: `credentials.test.ts`.
 - Generated catalog coverage and reproducibility: `catalog.test.ts`, `generated catalog covers every planned provider identity`; `catalog artifact deterministically matches local manifests and overlays`.
 - Catalog validation, provenance, and regional isolation: `catalog.test.ts`.
+- Reasoning-map shape, value types, and at least one supported level: `catalog.test.ts`, `reasoning maps require an object with valid values and a supported level`.
+- All bundled Azure models across all seven Axl thinking levels: `azure-openai.test.ts`, `every generated Azure model encodes its declared reasoning map`.
+- Native models.json rejects malformed reasoning, output limits, and missing or mismatched compatibility records: `models-config.test.ts`.
 - Atomic provider-scoped catalog persistence: `catalog-store.test.ts`.
 - Offline restoration before network work: `registry.test.ts`, `restores a persisted dynamic catalog before network refresh`.
 - Failed and malformed refresh retention: `registry.test.ts`, `failed and malformed refreshes retain the previous valid catalog`.
@@ -58,6 +61,7 @@ Equivalent existing tests are retained as the requirement evidence. New tests ar
 - SSE line, event, frame, and total limits: `sse.test.ts`.
 - AWS frame and split-prelude limits: `aws-event-stream.test.ts`.
 - Bounded buffered JSON and linear URL normalization: `transport-safety.test.ts`.
+- Real pinned-DNS HTTP transport with Node's single-address and address-array callbacks: `transport-safety.test.ts`, `real transport honors both Node DNS lookup callback shapes`.
 - Vertex and Bedrock SDK cancellation: `cloud-auth.test.ts` and `aws-auth.test.ts`.
 - Persistence-commit supersession and legacy provider source compatibility: `registry.test.ts`.
 - Azure interactive login: `cloud-auth.test.ts` and the runtime provider inventory assertion in `local-runtime.test.ts`.
@@ -65,3 +69,15 @@ Equivalent existing tests are retained as the requirement evidence. New tests ar
 ## Invariants
 
 The matrix preserves canonical `{ providerId, modelId }` selection. API dialect stays model metadata. Provider listing remains side-effect free. Authentication and credential values remain inside provider-owned trusted processes. No test introduces a compatibility fallback or live provider dependency.
+
+## Separate opt-in Azure smoke, 2026-09-07
+
+The user explicitly authorized Azure testing. The built CLI and built runtime ran against Azure in a disposable workspace with Bubblewrap enforced. The existing Azure API key was read into an isolated in-memory store. The user's credential and settings files were hash-checked before and after and remained unchanged. No other provider inference was tested.
+
+- Public catalog refresh initially failed because the pinned DNS callback ignored Node's `all` option. The shared transport was fixed without disabling address validation or DNS pinning. Azure metadata refresh then succeeded with 67 models.
+- Two minimal inference calls were made with `gpt-5.6-luna` and `low` reasoning. The first CLI call exited successfully, but the temporary smoke reporter used incorrect canonical event names. The corrected reporter verified the second call returned exactly `OK`, stopped normally, and recorded requested/effective thinking as `low` without clamping.
+- The verified call reported 195 input tokens, 5 output tokens, 0 reasoning tokens, and catalog-derived cost of $0.000045. Zero reasoning tokens on this trivial prompt does not prove that reasoning is disabled; the requested level was accepted.
+- No tool calls occurred. Credential values were absent from stdout, stderr, and the canonical session record. The isolated daemon and temporary session were cleaned up.
+- `pnpm check` passed with 810 tests passing and 8 existing platform/environment skips. The bundled catalog retained its reviewed 1,102-model baseline, including 66 Azure models. Offline Azure reasoning encoding covered 462 model/level combinations.
+
+This smoke verifies one configured Azure model at `low`, not every Azure deployment or advertised reasoning level. It is not part of the automated test suite.

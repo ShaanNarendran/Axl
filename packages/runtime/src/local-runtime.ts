@@ -4,15 +4,15 @@
 // SPDX-FileCopyrightText: 2026 Srihari
 // SPDX-License-Identifier: Apache-2.0
 
-import { access, readFile, readdir } from "node:fs/promises";
+import { access, readdir } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { CredentialStore } from "@axl/ai";
 import { type AxlDaemon, listStoredSessions } from "@axl/daemon";
 import {
   DEFAULT_MODEL_REQUEST_SETTINGS,
-  parseModelRequestSettings,
   type ModelRequestSettings,
+  parseModelRequestSettings,
   type SessionSummary,
   type ThinkingLevel,
 } from "@axl/protocol";
@@ -181,11 +181,19 @@ export async function loginProviderFromTrustedHost(input: {
   readonly store: CredentialStore;
   readonly adapter: TrustedProviderLoginAdapter;
   readonly providerId: string;
+  readonly axlHome: string;
   readonly method: "api_key" | "oauth";
   readonly signal?: AbortSignal;
 }): Promise<import("@axl/protocol").ProviderAuthenticationStatus> {
   const ai = await import("@axl/ai");
-  const providers = ai.createBuiltinProviders({ store: input.store, context: ai.nodeAuthContext });
+  const options = { store: input.store, context: ai.nodeAuthContext };
+  const configured = await ai.loadConfiguredProviders(input.axlHome, options);
+  const providers = [
+    ...ai
+      .createBuiltinProviders(options)
+      .filter((provider) => !configured.some((entry) => entry.id === provider.id)),
+    ...configured,
+  ];
   try {
     const provider = providers.find((candidate) => candidate.id === input.providerId);
     if (provider?.authentication === undefined) {
@@ -261,25 +269,14 @@ export async function startLocalDaemon(options: LocalDaemonOptions): Promise<Axl
       const providers = new ai.ProviderRegistry({
         catalogStore: new ai.FileCatalogStore(join(axlHome, "catalogs")),
       });
-      const customPath = join(axlHome, "custom-provider.json");
-      let custom: import("@axl/ai").CustomProviderConfiguration | undefined;
-      try {
-        custom = ai.parseCustomProviderConfiguration(
-          JSON.parse(await readFile(customPath, "utf8")),
-        );
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-          throw new Error(`Failed to load custom provider configuration ${customPath}`, {
-            cause: error,
-          });
-        }
+      const configured = await ai.loadConfiguredProviders(axlHome, {
+        store,
+        context: ai.nodeAuthContext,
+      });
+      for (const provider of ai.createBuiltinProviders({ store, context: ai.nodeAuthContext })) {
+        if (!configured.some((entry) => entry.id === provider.id)) providers.register(provider);
       }
-      for (const provider of ai.createBuiltinProviders(
-        { store, context: ai.nodeAuthContext },
-        custom,
-      )) {
-        providers.register(provider);
-      }
+      for (const provider of configured) providers.register(provider);
       const restored = await providers.restoreCatalogs();
       return { ai, kernel, sandbox, providers, catalogErrors: restored.errors };
     });
@@ -308,7 +305,7 @@ export async function startLocalDaemon(options: LocalDaemonOptions): Promise<Axl
       ...args: Parameters<import("@axl/daemon").ProviderManagementService["logout"]>
     ) => createProviderManagementService((await loadAssembly()).providers).logout(...args),
     dispose: async () => {
-      if (assemblyPromise !== undefined) (await assemblyPromise).providers.dispose();
+      if (assemblyPromise !== undefined) await (await assemblyPromise).providers.dispose();
     },
   } satisfies import("@axl/daemon").ProviderManagementService;
   const daemon = new AxlDaemon({

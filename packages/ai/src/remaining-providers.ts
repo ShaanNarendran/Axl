@@ -210,6 +210,7 @@ function codecs(
 }
 
 function apiKeyProvider(input: {
+  allowLoopbackHttp?: boolean;
   id: string;
   displayName: string;
   environmentVariables: readonly string[];
@@ -234,6 +235,9 @@ function apiKeyProvider(input: {
   });
   return new HttpSseProvider({
     id: input.id,
+    ...(input.allowLoopbackHttp === undefined
+      ? {}
+      : { allowLoopbackHttp: input.allowLoopbackHttp }),
     displayName: input.displayName,
     authMethods: authentication.methods,
     authentication,
@@ -1100,6 +1104,7 @@ export function createRadiusProvider(
   const provider = new HttpSseProvider({
     id,
     displayName: "Radius",
+    allowLoopbackHttp: options.baseUrl !== undefined,
     authMethods: authentication.methods,
     authentication,
     models: [],
@@ -1191,9 +1196,15 @@ export interface CustomProviderConfiguration {
 
 export interface CustomProviderOptions
   extends ProviderFactoryOptions,
-    Partial<CustomProviderConfiguration> {}
+    Partial<CustomProviderConfiguration> {
+  readonly id?: string;
+  readonly displayName?: string;
+}
 
-export function parseCustomProviderConfiguration(value: unknown): CustomProviderConfiguration {
+export function parseCustomProviderConfiguration(
+  value: unknown,
+  providerId = "custom",
+): CustomProviderConfiguration {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new TypeError("Custom provider configuration must be an object");
   }
@@ -1230,7 +1241,7 @@ export function parseCustomProviderConfiguration(value: unknown): CustomProvider
   }
   const models = input.models.map((model) => ({
     ...(model as ModelInfo),
-    providerId: "custom",
+    providerId,
   }));
   return {
     baseUrl: safeEndpoint(input.baseUrl, {
@@ -1248,11 +1259,13 @@ export function parseCustomProviderConfiguration(value: unknown): CustomProvider
 }
 
 export function createCustomProvider(options: CustomProviderOptions): ModelProvider {
+  const id = options.id ?? "custom";
+  const displayName = options.displayName ?? id;
   const models = options.models ?? [];
   if (models.length === 0) {
     return {
-      id: "custom",
-      displayName: "User configured endpoint",
+      id,
+      displayName,
       authMethods: ["keyless"],
       listModels: () => Promise.resolve([]),
       stream: async function* () {
@@ -1286,19 +1299,23 @@ export function createCustomProvider(options: CustomProviderOptions): ModelProvi
   }
   const normalized = models.map((model) => ({
     ...model,
-    providerId: "custom",
+    providerId: id,
     endpoint: { type: "fixed", baseUrl: endpoint } as const,
     headers: { ...model.headers, ...options.headers },
   }));
   validateModelCatalog(normalized);
+  if (normalized.some((model) => model.compatibility?.dialect !== model.apiDialect)) {
+    throw new TypeError("User configured models require an explicit matching compatibility record");
+  }
   if ((options.apiKeyEnvironmentVariables?.length ?? 0) === 0) {
     return new HttpSseProvider({
-      id: "custom",
-      displayName: "User configured endpoint",
+      id,
+      displayName,
+      allowLoopbackHttp: true,
       authMethods: ["keyless"],
       models: normalized,
       resolveAuth: () => Promise.resolve({ auth: {}, source: "keyless", secretValues: [] }),
-      codecFor: codecs("custom", { keyless: true }),
+      codecFor: codecs(id, { keyless: true }),
       validateEndpoint: (url) => {
         if (url.origin !== new URL(endpoint).origin)
           throw new TypeError("User configured request endpoint changed origin");
@@ -1307,8 +1324,9 @@ export function createCustomProvider(options: CustomProviderOptions): ModelProvi
     });
   }
   return apiKeyProvider({
-    id: "custom",
-    displayName: "User configured endpoint",
+    allowLoopbackHttp: true,
+    id,
+    displayName,
     environmentVariables: options.apiKeyEnvironmentVariables ?? [],
     options,
     models: normalized,

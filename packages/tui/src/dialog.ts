@@ -3,7 +3,7 @@
 
 // Full-width terminal panel used by selectors, approvals, and login flows.
 
-import { wrapLine } from "./render.ts";
+import { truncateToWidth, wrapLine } from "./render.ts";
 import type { Palette } from "./transcript.ts";
 
 export interface DialogInput {
@@ -32,9 +32,16 @@ export function renderDialog(input: DialogInput): string[] {
   return [
     border,
     "",
-    ...(title ? [`  ${palette.accent((palette.bold ?? ((text) => text))(title))}`, ""] : []),
+    ...(title
+      ? [
+          `  ${palette.accent((palette.bold ?? ((text) => text))(truncateToWidth(title, inner)))}`,
+          "",
+        ]
+      : []),
     ...content,
-    ...(footer === undefined ? [] : ["", `  ${palette.dim(footer)}`]),
+    ...(footer === undefined
+      ? []
+      : ["", ...wrapLine(palette.dim(footer), inner).map((line) => `  ${line}`)]),
     "",
     border,
   ];

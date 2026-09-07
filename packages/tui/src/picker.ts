@@ -55,7 +55,7 @@ export class PickerOverlay implements Overlay {
     const visible = list.slice(start, start + this.windowSize);
     const innerWidth = dialogInnerWidth(width);
     const labelWidth = Math.min(
-      22,
+      Math.max(1, innerWidth - 2),
       Math.max(1, ...visible.map((item) => visibleWidth(item.label))),
     );
     const itemLine = (item: PickerItem, selected: boolean): string => {
@@ -87,7 +87,7 @@ export class PickerOverlay implements Overlay {
   }
 
   cursor(): { row: number; column: number } {
-    return { row: 1, column: 4 + visibleWidth(this.filter) };
+    return { row: this.options.title ? 4 : 2, column: 4 + visibleWidth(this.filter) };
   }
 
   handleKey(data: string): void {
