@@ -37,6 +37,7 @@ import {
 import { type AxlClient, AxlClientError, subscribeSession } from "@axl/sdk";
 import { connectUnixClient, createUnixDaemonHost } from "@axl/sdk/unix";
 
+import { inspectLegacyDaemon, type LegacyDaemonStatus, stopLegacyDaemon } from "./legacy-daemon.ts";
 import { createTerminalProviderLoginAdapter } from "./provider-auth-ui.ts";
 import { providerErrorMessage, runProviderCommand, usageLine } from "./provider-cli.ts";
 import { loadTuiSettings, saveTuiSettings, type TuiSettings } from "./settings.ts";
@@ -151,6 +152,9 @@ function parseArguments(argv: readonly string[]): CliArguments {
     showHelp: false,
     showVersion: false,
   };
+  if (argv[0] === "daemon" && ["--status", "--stop", "--restart"].includes(argv[1] ?? "")) {
+    throw new Error(`Use axl daemon ${argv[1]?.slice(2)} (a subcommand, without the leading --)`);
+  }
   let startIndex = 0;
   if (argv[0] === "session") {
     const operation = argv[1];
@@ -418,10 +422,10 @@ async function connectExpectedDaemon(
     identity: { kind: clientKind, version: AXL_VERSION, instanceId: crypto.randomUUID() },
   }).catch((error: unknown) => {
     if (error instanceof AxlClientError && error.code === "version_mismatch") {
-      const target = `--socket '${socketPath.replaceAll("'", "'\\''")}'`;
+      const target = `--socket '${socketPath.replaceAll("'", "'\\''")}'${unsafe ? " --unsafe" : ""}${sandbox === "native" ? "" : ` --sandbox ${sandbox} --image '${image?.replaceAll("'", "'\\''")}'`}`;
       throw new AxlClientError(
         error.code,
-        `${error.message}. No daemon was replaced. Inspect with axl daemon status ${target}, then explicitly stop or restart it. Older daemons without host control require verified manual recovery; see SETUP.md.`,
+        `${error.message}. No daemon was replaced. Inspect with axl daemon status ${target}, then explicitly stop or restart it. To authorize interruption and client disconnection, use axl daemon restart ${target} --interrupt --yes. Older daemons require verified OS recovery; see SETUP.md.`,
         { cause: error },
       );
     }
@@ -840,11 +844,50 @@ async function main(): Promise<void> {
       await host.shutdown(status, { interrupt: cli.interrupt, confirmed: cli.yes });
       process.stdout.write(`Stopped daemon ${status.instanceId}. Session histories preserved.\n`);
     } catch (error) {
-      if (!missingDaemon(error)) throw error;
-      if (cli.daemonAction !== "restart") {
-        process.stdout.write("Daemon is not running at the selected socket.\n");
-        process.exitCode = 3;
-        return;
+      if (error instanceof AxlClientError && error.code === "host_unavailable" && !cli.force) {
+        const entryPath = process.argv[1];
+        if (entryPath === undefined)
+          throw new Error("Cannot locate the Axl entry point for recovery");
+        const target = {
+          entryPath,
+          socketPath,
+          stateDirectory,
+          unsafe: cli.unsafe,
+          sandbox: cli.sandbox,
+          ...(cli.image === undefined ? {} : { image: cli.image }),
+        };
+        let legacy: LegacyDaemonStatus;
+        try {
+          legacy = await inspectLegacyDaemon(target);
+        } catch (cause) {
+          throw new AxlClientError(
+            "host_unavailable",
+            `${error.message} OS verification failed: ${cause instanceof Error ? cause.message : "unknown error"}`,
+            { cause },
+          );
+        }
+        if (cli.daemonAction === "status") {
+          process.stdout.write(`${JSON.stringify(legacy, null, 2)}\n`);
+          return;
+        }
+        if (!cli.interrupt || !cli.yes) {
+          throw new AxlClientError(
+            "confirmation_required",
+            `Verified legacy daemon ${legacy.processIdentity} speaks wire ${legacy.wireVersion} and has no host-control channel. Active work and clients are unknown. Use daemon ${cli.daemonAction} with --interrupt --yes to authorize graceful OS recovery; no process was stopped.`,
+          );
+        }
+        process.stdout.write(
+          `Legacy daemon has no host control. Sending SIGTERM to verified process ${legacy.processIdentity}.\n`,
+        );
+        await stopLegacyDaemon(target, legacy);
+        process.stdout.write("Stopped legacy daemon. Session histories preserved.\n");
+      } else {
+        if (!missingDaemon(error)) throw error;
+        if (cli.daemonAction !== "restart") {
+          process.stdout.write("Daemon is not running at the selected socket.\n");
+          process.exitCode = 3;
+          return;
+        }
       }
     }
     if (cli.daemonAction === "stop") return;

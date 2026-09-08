@@ -76,7 +76,18 @@ axl daemon stop --force --yes
 
 Force is accepted only after graceful shutdown has begun, and only by the same daemon instance. It asks the trusted process host to terminate itself. It never signals a PID taken from a lock file. Forced termination may lose unflushed data or leave tool processes running. If the process cannot service control requests at all, force through this channel is unavailable.
 
-Daemons from builds before host control cannot be recovered through these new commands. For that one-time transition, inspect the old process with operating-system tools, verify its command, owner, and socket, then send SIGTERM to that verified process. A PID in `.axl-data.lock` alone is not proof. Do not delete an active lock or kill every Node process. Once the old process has exited, normal startup reclaims its stale socket and lock. Preserved sessions remain resumable.
+For older daemons without host control, Linux hosts can use verified OS recovery:
+
+```bash
+axl daemon status
+axl daemon restart --interrupt --yes
+```
+
+Use `restart`, not `--restart`, and keep the same placement flags as the old daemon. Recovery requires Linux pidfs, readable `/proc`, and `/usr/bin/getino`, `/usr/bin/kill`, and `/usr/bin/waitpid` with `PID:inode` support. Status verifies the owner-only data directory, socket and lock, process owner, Node executable, Axl entry point, command arguments, process HOME, and listening socket ownership. The old daemon must use the same Node executable and Axl entry point as the current CLI. Its active work and clients remain unknown, so both `--interrupt` and `--yes` are mandatory even for an apparently idle daemon.
+
+The CLI rechecks the snapshot, sends SIGTERM only to the verified non-reusable process identity with an installed SIGTERM handler, and waits for exit before restarting. It never falls back to signaling a bare PID, deletes an active lock, or escalates to SIGKILL. `--force` remains available only through host control. Ordinary startup still refuses incompatible daemons without replacing them.
+
+If OS verification or the required utilities are unavailable, recovery fails closed. Manually inspect the old process with operating-system tools and verify its command, owner, and socket before sending SIGTERM. A PID in `.axl-data.lock` alone is not proof. Do not kill every Node process. Once the old process has exited, normal startup reclaims its stale socket and lock. Preserved sessions remain resumable.
 
 ### Model request limits
 

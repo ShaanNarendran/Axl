@@ -121,6 +121,8 @@ Shutdown closes admission synchronously, interrupts active operations, prevents 
 
 A single-session `/quit` authorizes interruption. Other attached clients or work require confirmation against the daemon's current preview. CLI stop and restart require `--interrupt` for busy daemons and `--yes` for affected clients. Version mismatch alone never authorizes termination. Forced termination requires a prior shutdown and the exact instance identity, and invokes the process host's termination callback rather than signaling a stored PID.
 
+For legacy daemons without host control, the CLI process host may perform explicit Linux OS recovery. It verifies the executable, entry point, owner, placement, lock, and listening socket against a non-reusable pidfs identity. Unknown activity always requires both `--interrupt` and `--yes`. It rechecks identity, sends SIGTERM only through PID:inode-aware utilities, and waits for exit before restart. Missing verification support fails closed. This recovery does not bypass the session handshake, add PID signaling to the SDK or TUI, enable legacy `--force`, or replace incompatible daemons during ordinary startup.
+
 
 ## Package boundaries
 
