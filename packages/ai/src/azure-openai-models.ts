@@ -42,7 +42,7 @@ function azureModel(definition: AzureModelDefinition): ModelInfo {
       cacheReadUsdPerMTok: definition.cacheRead ?? 0,
       cacheWriteUsdPerMTok: definition.cacheWrite ?? 0,
     },
-    ...(definition.thinkingLevelMap === undefined
+    ...(!definition.reasoning || definition.thinkingLevelMap === undefined
       ? {}
       : { thinkingLevelMap: definition.thinkingLevelMap }),
     ...(definition.grammarTools
@@ -409,6 +409,28 @@ export const AZURE_OPENAI_MODELS: readonly ModelInfo[] = [
     cacheRead: 0.2,
     cacheWrite: 2.5,
     thinkingLevelMap: GPT56_THINKING,
+    grammarTools: true,
+  }),
+  // Factual limits and rates also appear in catalog/sources/models-dev/providers/openai.jsonl.
+  azureModel({
+    modelId: "gpt-6-astra",
+    displayName: "GPT-6 Astra",
+    reasoning: true,
+    contextWindow: 1_050_000,
+    maxOutputTokens: 128_000,
+    input: 10,
+    output: 50,
+    cacheRead: 1,
+    cacheWrite: 12.5,
+    thinkingLevelMap: {
+      off: null,
+      minimal: null,
+      low: "low",
+      medium: "medium",
+      high: "high",
+      xhigh: "xhigh",
+      max: "max",
+    },
     grammarTools: true,
   }),
   azureModel({

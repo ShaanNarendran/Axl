@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { ThinkingLevel } from "@axl/protocol";
+import { AZURE_OPENAI_MODELS } from "./azure-openai-models.ts";
 import type { ProviderCatalogOverlay } from "./catalog-overlays.ts";
 import { validateModelCatalog } from "./catalog-validation.ts";
 import type { KnownApiDialect, ModelAvailability, ModelCost, ModelInfo } from "./model.ts";
@@ -254,6 +255,24 @@ export function normalizeCatalogModels(
     .map(([id, model]) => normalizeModel(overlay, id, model))
     .sort((left, right) => left.modelId.localeCompare(right.modelId));
   if (normalized.length === 0) throw new Error(`${overlay.id} returned an empty catalog`);
+  if (overlay.id === "azure-openai-responses") {
+    // Keep Axl's curated Azure IDs when upstream omits them. Explicit upstream facts win,
+    // including tool-capability exclusions. Use the same policy for generation and refresh.
+    for (const model of AZURE_OPENAI_MODELS) {
+      if (Object.hasOwn(models, model.modelId)) continue;
+      normalized.push({
+        ...model,
+        providerId: overlay.id,
+        ...(overlay.endpoint === undefined ? {} : { endpoint: overlay.endpoint }),
+        ...(overlay.cache === undefined ? {} : { cache: overlay.cache }),
+        ...(overlay.compatibilityByDialect?.["azure-openai-responses"] === undefined
+          ? {}
+          : { compatibility: overlay.compatibilityByDialect["azure-openai-responses"] }),
+        availability: { status: "available" },
+      });
+    }
+    normalized.sort((left, right) => left.modelId.localeCompare(right.modelId));
+  }
   validateModelCatalog(normalized);
   return normalized;
 }

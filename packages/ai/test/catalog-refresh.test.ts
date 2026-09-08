@@ -151,3 +151,70 @@ test("a newly refreshed Chat model dispatches through the registry", async () =>
   assert.equal(events.at(-1)?.type, "completed");
   await registry.dispose();
 });
+
+test("Azure refresh preserves curated models, dispatches Astra, and restores offline", async () => {
+  const store = new InMemoryCatalogStore();
+  let dispatched = false;
+  let azureModels: Record<string, unknown> = source().openai.models;
+  const provider = createBuiltinProviders({
+    store: new InMemoryCredentialStore(),
+    context: {
+      env: (name) =>
+        ({
+          AZURE_OPENAI_API_KEY: "obviously-fake-azure-key",
+          AZURE_OPENAI_BASE_URL: "https://example.openai.azure.com/openai/v1",
+        })[name],
+      fileExists: async () => false,
+    },
+    fetch: async (url, init) => {
+      if (String(url) === "https://models.dev/api.json") {
+        assert.equal(new Headers(init?.headers).has("api-key"), false);
+        return Response.json({ azure: { models: azureModels } });
+      }
+      assert.equal(
+        String(url),
+        "https://example.openai.azure.com/openai/v1/responses?api-version=v1",
+      );
+      const body = JSON.parse(String(init?.body));
+      assert.equal(body.model, "gpt-6-astra");
+      assert.equal(body.reasoning.effort, "max");
+      dispatched = true;
+      return new Response(
+        'data: {"type":"response.completed","response":{"status":"completed","output":[]}}\n\n',
+      );
+    },
+  }).find((p) => p.id === "azure-openai-responses");
+  assert.ok(provider);
+  const registry = new ProviderRegistry({ catalogStore: store });
+  registry.register(provider);
+  assert.equal((await registry.refresh({ providerId: provider.id })).errors.size, 0);
+  const astra = await registry.getModel(provider.id, "gpt-6-astra");
+  assert.equal(astra.contextWindow, 1_050_000);
+  assert.equal(astra.endpoint?.type, "template");
+  assert.equal(astra.compatibility?.dialect, "azure-openai-responses");
+  const events = await Array.fromAsync(
+    registry.stream(provider.id, { modelId: astra.modelId, messages: [], thinkingLevel: "max" }),
+  );
+  assert.equal(dispatched, true);
+  assert.equal(events.at(-1)?.type, "completed");
+  const restored = new ProviderRegistry({ catalogStore: store });
+  restored.register(provider);
+  await restored.restoreCatalogs();
+  assert.deepEqual(await restored.getModel(provider.id, astra.modelId), astra);
+  const explicit = { ...source().openai.models["gpt-5-refresh-test"], id: astra.modelId };
+  azureModels = { ...azureModels, [astra.modelId]: explicit };
+  assert.equal((await registry.refresh({ providerId: provider.id })).errors.size, 0);
+  assert.equal((await registry.getModel(provider.id, astra.modelId)).contextWindow, 128_000);
+  azureModels = { ...azureModels, [astra.modelId]: { ...explicit, tool_call: false } };
+  assert.equal((await registry.refresh({ providerId: provider.id })).errors.size, 0);
+  assert.equal(
+    registry.catalogSnapshot(provider.id)?.models.some((model) => model.modelId === astra.modelId),
+    false,
+  );
+  const accepted = registry.catalogSnapshot(provider.id);
+  azureModels = {};
+  assert.equal((await registry.refresh({ providerId: provider.id })).errors.size, 1);
+  assert.deepEqual(registry.catalogSnapshot(provider.id), accepted);
+  await registry.dispose();
+  await restored.dispose();
+});

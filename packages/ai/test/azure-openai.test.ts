@@ -458,6 +458,7 @@ test("publishes the complete built-in Azure OpenAI model catalog", async () => {
       "gpt-5.6-luna",
       "gpt-5.6-sol",
       "gpt-5.6-terra",
+      "gpt-6-astra",
       "gpt-realtime-2.1",
       "o1",
       "o1-pro",
@@ -467,7 +468,21 @@ test("publishes the complete built-in Azure OpenAI model catalog", async () => {
       "o4-mini",
     ],
   );
-  assert.equal(new Set(AZURE_OPENAI_MODELS.map((model) => model.modelId)).size, 38);
+  assert.equal(new Set(AZURE_OPENAI_MODELS.map((model) => model.modelId)).size, 39);
+  const canonical = getStaticModelCatalog("azure-openai-responses");
+  for (const model of AZURE_OPENAI_MODELS) {
+    assert.ok(
+      canonical.some((entry) => entry.modelId === model.modelId),
+      model.modelId,
+    );
+  }
+  const astra = canonical.find((model) => model.modelId === "gpt-6-astra");
+  assert.ok(astra);
+  assert.equal(astra.contextWindow, 1_050_000);
+  assert.equal(astra.maxOutputTokens, 128_000);
+  assert.equal(astra.thinkingLevelMap?.off, null);
+  assert.equal(astra.thinkingLevelMap?.minimal, null);
+  assert.equal(astra.thinkingLevelMap?.max, "max");
   assert.equal(
     AZURE_OPENAI_MODELS.every(
       (model) =>

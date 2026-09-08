@@ -96,7 +96,7 @@ test("static catalog access performs no network or credential work", () => {
   }
 });
 
-test("generated catalog matches the pre-refactor semantic baseline", () => {
+test("generated catalog matches the reviewed semantic baseline", () => {
   const baseline = JSON.parse(
     readFileSync(new URL("../catalog/semantic-baseline.json", import.meta.url), "utf8"),
   ) as {

@@ -3,6 +3,7 @@
   "capturedFromCommit": "0c6b036fc75ae3a7d2721a5dc7b076f385cbbb4a",
   "providerCount": 41,
   "staticProviderCount": 36,
-  "modelCount": 1102,
-  "stableSerializationSha256": "a5069e2017a50867f8c9846e05f56017cc037bdb4754c2aa97168746f886bc19"
+  "modelCount": 1116,
+  "stableSerializationSha256": "04dfaed60a79d13a7229c2968c804242df5e0b22e705ff18da64b9c32ea4eb53",
+  "updateReason": "Azure-only catalog update: retain 13 existing curated Azure IDs and add gpt-6-astra; other providers are unchanged."
 }

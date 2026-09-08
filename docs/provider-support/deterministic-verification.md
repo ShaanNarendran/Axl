@@ -81,3 +81,14 @@ The user explicitly authorized Azure testing. The built CLI and built runtime ra
 - `pnpm check` passed with 810 tests passing and 8 existing platform/environment skips. The bundled catalog retained its reviewed 1,102-model baseline, including 66 Azure models. Offline Azure reasoning encoding covered 462 model/level combinations.
 
 This smoke verifies one configured Azure model at `low`, not every Azure deployment or advertised reasoning level. It is not part of the automated test suite.
+
+## Azure Astra catalog correction
+
+The active generated Azure catalog omitted 13 IDs already present in Axl's curated Azure definitions, plus `gpt-6-astra`. Shared normalization now retains curated Azure definitions when upstream omits them, while explicit upstream facts take precedence. Non-reasoning curated models no longer carry contradictory reasoning maps. Generation and explicit refresh both publish 80 Azure models, including all 39 IDs found in the user's Pi Azure cache. Other generated provider shards are unchanged. No Pi source, credentials, or catalog file was copied into the repository.
+
+- `node packages/ai/scripts/generate-catalog.ts`: passed after validation exposed and the implementation corrected the contradictory non-reasoning maps. The reviewed semantic baseline intentionally advances from 1,102 to 1,116 models.
+- `node --test --test-timeout=30000 packages/ai/test/azure-openai.test.ts packages/ai/test/catalog.test.ts packages/ai/test/catalog-refresh.test.ts`: 26 passed. Coverage includes Astra selection, 1,050,000-token context, 128,000-token output limit, reasoning effort encoding, curated refresh retention, upstream precedence, tool-capability exclusions, empty-catalog rejection, and offline restoration.
+- `pnpm check`: passed, 815 tests passed and 8 existing skips, including build, formatting, lint, type checking, boundaries, and generated-file checks.
+- User-authorized live Azure catalog verification returned HTTP 200 and listed Astra. After an authorized idle daemon restart, `axl models azure-openai-responses` listed Astra before and after `axl refresh azure-openai-responses`, which returned 80 models.
+- A built-CLI smoke launcher initially timed out because it left stdin open; the CLI waited for EOF before submitting a prompt. Closing the launcher's stdin allowed the single authorized inference request to run. Astra returned exactly `OK` at requested `low`, with normal stop and no tool calls. Bubblewrap enforcement was recorded. Usage was 439 input tokens, 5 output tokens, zero reasoning tokens, and catalog-derived cost of $0.00464. This verifies one configured deployment and request, not all Azure models or reasoning levels.
+- Credentials remained in an isolated in-memory store. Credential values were absent from CLI output and canonical history. Hashes of the existing Axl credential/settings files and Pi model cache/configuration files were unchanged. The disposable daemon and workspace were cleaned up.

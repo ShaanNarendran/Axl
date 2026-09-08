@@ -11,6 +11,8 @@ This directory contains reviewed inputs for Axl's generated static model catalog
 
 `sources/ant-ling/manifest.json` indexes the Ant Ling shard independently curated from the official API overview, OpenAI-compatible API reference, and reasoning-effort guide listed in that manifest. It contains factual compatibility metadata and no copied implementation.
 
+Azure also retains the existing Axl-curated definitions in `src/azure-openai-models.ts` when models.dev omits an ID. Shared normalization applies the canonical Azure endpoint, cache, and compatibility policy to these definitions. Explicit upstream records take precedence, including tool-capability exclusions; an empty upstream catalog still fails validation. The Astra definition uses limits and rates already recorded in the OpenAI source shard. This Azure-only update adds 14 IDs to the generated catalog, bringing Azure to 80 models and the reviewed total to 1,116. Other provider shards are unchanged.
+
 Each source shard contains exactly one canonical JSON model record per line, ordered by model ID. Each manifest orders providers by ID and records the model count and SHA-256 of every shard. Generation fails on a noncanonical line, ordering change, count mismatch, checksum mismatch, unindexed shard, or missing indexed shard.
 
 Pi at commit `92d8e2d17d4f357788381c49ce2cdb3f4ed1f21c` was consulted only as an architectural and behavioral reference for separating source data, provider policy, validation, and generated output. No Pi catalog data or source was copied or mechanically translated.
@@ -32,7 +34,7 @@ GitHub Copilot, OpenRouter, Cloudflare AI Gateway, and Radius use dynamic provid
 
 ## Explicit runtime refresh
 
-`axl refresh [provider-id]` and `/refresh [provider-id]` also refresh the 35 static providers mapped to models.dev. `src/catalog-normalization.ts` and `src/catalog-overlays.ts` are shared by generation and runtime refresh, so endpoint, dialect, cache, and compatibility policy remain reviewed local code. Remote data supplies model facts, not endpoints or credential headers. Each fetch is bounded to 32 MiB and 15 seconds and sends no provider credentials to models.dev.
+`axl refresh [provider-id]` and `/refresh [provider-id]` also refresh the 35 static providers mapped to models.dev. `src/catalog-normalization.ts` and `src/catalog-overlays.ts` are shared by generation and runtime refresh, so endpoint, dialect, cache, and compatibility policy remain reviewed local code. The same normalization retains curated Azure model IDs during refresh, including `gpt-6-astra`. Remote data supplies model facts, not endpoints or credential headers. Each fetch is bounded to 32 MiB and 15 seconds and sends no provider credentials to models.dev.
 
 Unqualified refresh checks configured authentication and skips logged-out providers. Targeted refresh can retrieve public static metadata without a credential. Ant Ling remains a documentation-curated catalog, and user-configured providers retain their explicit model lists. Neither pretends to support remote discovery. These catalogs require a release update or a models.json edit respectively.
 
