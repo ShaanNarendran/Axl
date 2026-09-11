@@ -3,6 +3,7 @@
 // SPDX-FileCopyrightText: 2026 Lokesh
 // SPDX-FileCopyrightText: 2026 Srihari
 // SPDX-FileCopyrightText: 2026 VishnuM449
+// SPDX-FileCopyrightText: 2026 Shaan Narendran
 // SPDX-License-Identifier: Apache-2.0
 
 import type { EventId, JsonObject, OperationId, SessionId } from "./event-envelope.ts";
@@ -60,12 +61,15 @@ export interface SessionModelSelection {
 export interface SessionToolSelection {
   readonly webFetch?: boolean;
   readonly webSearch?: boolean;
+  readonly subagents?: boolean;
 }
 
 export type SessionSelection = SessionModelSelection & SessionToolSelection;
 
 export interface SessionConfiguration extends SessionSelection {
   readonly profile?: SessionProfile;
+  /** Explicitly grants this session model-visible child creation tools. */
+  readonly subagents?: boolean;
 }
 
 export interface SessionOpenResult {
@@ -87,6 +91,7 @@ export interface SessionSummary {
   readonly firstUserMessage?: string;
   readonly lastUserMessage?: string;
   readonly parentSessionId?: SessionId;
+  readonly childName?: string;
   readonly securityMode?: "sandboxed" | "unsafe";
   readonly sandboxProvider?: string;
   readonly sandboxImage?: string;
@@ -632,6 +637,8 @@ export const WIRE_CAPABILITIES = [
   "session.resume",
   "session.fork",
   "session.clone",
+  "child.start",
+  "child.send",
   "session.export",
   "session.import",
   "session.send.prompt",
@@ -771,6 +778,18 @@ export interface RpcMethodMap {
     readonly params: { readonly sessionId: SessionId };
     readonly result: SessionForkResult;
   };
+  readonly "child.start": {
+    readonly params: ChildStartParams;
+    readonly result: ChildStartResult;
+  };
+  readonly "child.send": {
+    readonly params: {
+      readonly parentSessionId: SessionId;
+      readonly child: string;
+      readonly content: readonly UserContent[];
+    };
+    readonly result: { readonly queued: true; readonly childSessionId: SessionId };
+  };
   readonly "session.export": {
     readonly params: { readonly sessionId: SessionId; readonly outputDirectory: string };
     readonly result: {
@@ -863,6 +882,7 @@ export interface RpcMethodMap {
       readonly profile: SessionProfile;
       readonly webFetch: boolean;
       readonly webSearch: boolean;
+      readonly subagents: boolean;
       readonly boundaryEventIds: readonly EventId[];
     };
   };
@@ -947,6 +967,8 @@ export const RETRYABLE_MUTATION_METHODS = [
   "session.create",
   "session.fork",
   "session.clone",
+  "child.start",
+  "child.send",
   "session.import",
   "session.send",
   "session.interruptAndDeliver",
@@ -1030,6 +1052,8 @@ export const RPC_ERROR_CODES = [
   "queue_not_paused",
   "invalid_fork_point",
   "empty_session",
+  "invalid_spawn_authority",
+  "unknown_child",
   "unknown_interaction",
   "interaction_already_resolved",
   "unknown_subscription",
@@ -1153,6 +1177,26 @@ export type ServerMessage =
   | WireActivity
   | PresenceDelivery
   | WireHello;
+
+export type ChildSpawnAuthority = "user" | "script" | "goal" | "system";
+export type ChildHistoryMode = "fresh" | "fork";
+
+export interface ChildStartParams extends SessionConfiguration {
+  readonly parentSessionId: SessionId;
+  readonly name: string;
+  readonly task: string;
+  readonly authority: ChildSpawnAuthority;
+  readonly historyMode: ChildHistoryMode;
+}
+
+export interface ChildStartResult {
+  readonly child: SessionOpenResult;
+  /** Daemon-assigned unique name. It may be suffixed when the requested name exists. */
+  readonly name: string;
+  readonly parentSessionId: SessionId;
+  readonly authority: ChildSpawnAuthority;
+  readonly historyMode: ChildHistoryMode;
+}
 
 export interface SessionForkResult extends SessionOpenResult {
   readonly selectedText?: string;
@@ -1438,7 +1482,7 @@ function selection(params: Record<string, unknown>, path: string): SessionSelect
       `must be one of: ${thinkingLevels.join(", ")}`,
     );
   }
-  for (const field of ["webFetch", "webSearch"] as const) {
+  for (const field of ["webFetch", "webSearch", "subagents"] as const) {
     if (params[field] !== undefined && typeof params[field] !== "boolean") {
       throw new ProtocolValidationError(`${path}.${field}`, "must be a boolean");
     }
@@ -1457,6 +1501,7 @@ function selection(params: Record<string, unknown>, path: string): SessionSelect
     ...(thinkingLevel === undefined ? {} : { thinkingLevel: thinkingLevel as ThinkingLevel }),
     ...(params.webFetch === undefined ? {} : { webFetch: params.webFetch as boolean }),
     ...(params.webSearch === undefined ? {} : { webSearch: params.webSearch as boolean }),
+    ...(params.subagents === undefined ? {} : { subagents: params.subagents as boolean }),
   };
 }
 
@@ -1565,6 +1610,7 @@ export function parseWireRequest(value: unknown): WireRequest {
       "requestSettings",
       "webFetch",
       "webSearch",
+      "subagents",
       "profile",
     ]);
     const profile = sessionProfile(params.profile, "request.params.profile");
@@ -1677,6 +1723,75 @@ export function parseWireRequest(value: unknown): WireRequest {
       ...base,
       method,
       params: { sessionId: parseSessionId(params.sessionId, "request.params.sessionId") },
+    };
+  }
+  if (method === "child.start") {
+    exact(params, "request.params", [
+      "parentSessionId",
+      "name",
+      "task",
+      "authority",
+      "historyMode",
+      "providerId",
+      "modelId",
+      "thinkingLevel",
+      "requestSettings",
+      "webFetch",
+      "webSearch",
+      "subagents",
+      "profile",
+    ]);
+    if (
+      !(["user", "script", "goal", "system"] as const).includes(
+        params.authority as ChildSpawnAuthority,
+      )
+    ) {
+      throw new ProtocolValidationError(
+        "request.params.authority",
+        "must be user, script, goal, or system",
+      );
+    }
+    if (!(["fresh", "fork"] as const).includes(params.historyMode as ChildHistoryMode)) {
+      throw new ProtocolValidationError("request.params.historyMode", "must be fresh or fork");
+    }
+    const authority = params.authority as ChildSpawnAuthority;
+    const historyMode = params.historyMode as ChildHistoryMode;
+    const name = boundedString(params.name, "request.params.name", 72);
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(name)) {
+      throw new ProtocolValidationError(
+        "request.params.name",
+        "must contain lowercase letters, digits, and single hyphens only",
+      );
+    }
+    const task = boundedText(params.task, "request.params.task", 65_536);
+    if (task.trim().length === 0) {
+      throw new ProtocolValidationError("request.params.task", "must not be empty");
+    }
+    const profile = sessionProfile(params.profile, "request.params.profile");
+    return {
+      ...base,
+      method,
+      params: {
+        parentSessionId: parseSessionId(params.parentSessionId, "request.params.parentSessionId"),
+        name,
+        task,
+        authority,
+        historyMode,
+        ...selection(params, "request.params"),
+        ...(profile === undefined ? {} : { profile }),
+      },
+    };
+  }
+  if (method === "child.send") {
+    exact(params, "request.params", ["parentSessionId", "child", "content"]);
+    return {
+      ...base,
+      method,
+      params: {
+        parentSessionId: parseSessionId(params.parentSessionId, "request.params.parentSessionId"),
+        child: boundedString(params.child, "request.params.child", 128),
+        content: parseUserContent(params.content, "request.params.content"),
+      },
     };
   }
   if (method === "session.export") {
@@ -1816,6 +1931,7 @@ export function parseWireRequest(value: unknown): WireRequest {
       "requestSettings",
       "webFetch",
       "webSearch",
+      "subagents",
       "profile",
     ]);
     const configured = selection(params, "request.params");
@@ -1827,11 +1943,12 @@ export function parseWireRequest(value: unknown): WireRequest {
       configured.thinkingLevel === undefined &&
       configured.webFetch === undefined &&
       configured.webSearch === undefined &&
+      configured.subagents === undefined &&
       profile === undefined
     ) {
       throw new ProtocolValidationError(
         "request.params",
-        "must include providerId, modelId, thinkingLevel, requestSettings, webFetch, webSearch, or profile",
+        "must include providerId, modelId, thinkingLevel, requestSettings, webFetch, webSearch, subagents, or profile",
       );
     }
     return {
@@ -2153,6 +2270,7 @@ function parseSessionSummary(value: unknown, path: string): SessionSummary {
     "firstUserMessage",
     "lastUserMessage",
     "parentSessionId",
+    "childName",
     "securityMode",
     "sandboxProvider",
     "sandboxImage",
@@ -2183,6 +2301,9 @@ function parseSessionSummary(value: unknown, path: string): SessionSummary {
     ...(summary.parentSessionId === undefined
       ? {}
       : { parentSessionId: parseSessionId(summary.parentSessionId, `${path}.parentSessionId`) }),
+    ...(summary.childName === undefined
+      ? {}
+      : { childName: boundedString(summary.childName, `${path}.childName`, 72) }),
     ...(summary.securityMode === undefined ? {} : { securityMode: summary.securityMode }),
     ...(summary.sandboxProvider === undefined
       ? {}
@@ -2353,6 +2474,39 @@ export function parseRpcResult<Method extends RpcMethod>(
         ? {}
         : { selectedText: boundedText(result.selectedText, `${path}.selectedText`, 262_144) }),
     };
+  } else if (method === "child.start") {
+    const result = object(value, path);
+    exact(result, path, ["child", "name", "parentSessionId", "authority", "historyMode"]);
+    if (
+      !(["user", "script", "goal", "system"] as const).includes(
+        result.authority as ChildSpawnAuthority,
+      )
+    ) {
+      throw new ProtocolValidationError(
+        `${path}.authority`,
+        "must be user, script, goal, or system",
+      );
+    }
+    if (!(["fresh", "fork"] as const).includes(result.historyMode as ChildHistoryMode)) {
+      throw new ProtocolValidationError(`${path}.historyMode`, "must be fresh or fork");
+    }
+    parsed = {
+      child: parseSessionOpenResult(result.child, `${path}.child`),
+      name: boundedString(result.name, `${path}.name`, 72),
+      parentSessionId: parseSessionId(result.parentSessionId, `${path}.parentSessionId`),
+      authority: result.authority as ChildSpawnAuthority,
+      historyMode: result.historyMode as ChildHistoryMode,
+    };
+  } else if (method === "child.send") {
+    const result = object(value, path);
+    exact(result, path, ["queued", "childSessionId"]);
+    if (result.queued !== true) {
+      throw new ProtocolValidationError(`${path}.queued`, "must be true");
+    }
+    parsed = {
+      queued: true,
+      childSessionId: parseSessionId(result.childSessionId, `${path}.childSessionId`),
+    };
   } else if (method === "session.export") {
     const result = object(value, path);
     exact(result, path, ["outputDirectory", "sourceSha256", "eventCount", "blobCount"]);
@@ -2475,6 +2629,7 @@ export function parseRpcResult<Method extends RpcMethod>(
       "profile",
       "webFetch",
       "webSearch",
+      "subagents",
       "boundaryEventIds",
     ]);
     if (!thinkingLevels.includes(result.requestedThinkingLevel as ThinkingLevel)) {
@@ -2489,7 +2644,7 @@ export function parseRpcResult<Method extends RpcMethod>(
         "must be a thinking level",
       );
     }
-    for (const field of ["webFetch", "webSearch"] as const) {
+    for (const field of ["webFetch", "webSearch", "subagents"] as const) {
       if (typeof result[field] !== "boolean") {
         throw new ProtocolValidationError(`${path}.${field}`, "must be a boolean");
       }
@@ -2510,6 +2665,7 @@ export function parseRpcResult<Method extends RpcMethod>(
       profile,
       webFetch: result.webFetch,
       webSearch: result.webSearch,
+      subagents: result.subagents,
       boundaryEventIds: result.boundaryEventIds.map((id, index) =>
         parseEventId(id, `${path}.boundaryEventIds[${index}]`),
       ),
@@ -2661,6 +2817,8 @@ export const RPC_METHODS = [
   "session.unsubscribe",
   "session.fork",
   "session.clone",
+  "child.start",
+  "child.send",
   "session.export",
   "session.import",
   "session.send",
@@ -2820,6 +2978,25 @@ export const RPC_METHOD_ERROR_CODES = {
     "operation_active",
     "empty_session",
     ...MUTATION_ERRORS,
+    "content_too_large",
+  ],
+  "child.start": [
+    ...SESSION_BASE_ERRORS,
+    "corrupt_session",
+    "operation_active",
+    "empty_session",
+    "invalid_spawn_authority",
+    ...MUTATION_ERRORS,
+    "content_too_large",
+  ],
+  "child.send": [
+    ...SESSION_BASE_ERRORS,
+    "unknown_child",
+    "operation_active",
+    ...MUTATION_ERRORS,
+    "blob_not_owned",
+    "blob_missing",
+    "blob_corrupt",
     "content_too_large",
   ],
   "session.export": [

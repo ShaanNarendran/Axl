@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Hari Srinivasan
 // SPDX-FileCopyrightText: 2026 VishnuM449
+// SPDX-FileCopyrightText: 2026 Shaan Narendran
 // SPDX-License-Identifier: Apache-2.0
 
 import {
@@ -284,6 +285,21 @@ export class AxlClient {
     options: Omit<RequestOptions, "idempotencyKey"> = {},
   ): Promise<RpcResult<"provider.auth.logout">> {
     return this.request("provider.auth.logout", params, options);
+  }
+
+  /** Starts a daemon-owned child session. Presentation clients may attach after this resolves. */
+  startChild(
+    params: RpcParams<"child.start">,
+    options: RequestOptions = {},
+  ): Promise<RpcResult<"child.start">> {
+    return this.request("child.start", params, options);
+  }
+
+  sendToChild(
+    params: RpcParams<"child.send">,
+    options: RequestOptions = {},
+  ): Promise<RpcResult<"child.send">> {
+    return this.request("child.send", params, options);
   }
 
   async shell(
